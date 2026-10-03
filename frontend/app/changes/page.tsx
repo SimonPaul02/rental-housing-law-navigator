@@ -7,10 +7,10 @@ import type { CanonicalMatch, ChangeTest, ChangeTestResult } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function ChangesPage() {
-  // Who may be here is read off the role's own menu in lib/roles.ts, so this page
-  // can never be reachable by a role that is not offered it. A role that may not
-  // be here goes to its own dashboard: it is the wrong app, not a trespass.
-  const g = await gate("/changes");
+  // Signed in is the whole check here: this page serves public corpus material,
+  // which reads the same to all four roles. What differs by role is which
+  // questions the dashboard puts to it, not what the record says.
+  const g = await gate();
   if (g.mode === "unavailable") return <Unavailable detail={g.detail} />;
 
   const [tests, results, canonical] = await Promise.all([

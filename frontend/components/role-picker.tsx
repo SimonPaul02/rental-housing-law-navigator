@@ -5,11 +5,15 @@ import { ROLES, ROLE_SLUGS, type Role } from "@/lib/roles";
 import { clientApi } from "@/lib/client-api";
 import { Spinner } from "./google-mark";
 
-/** Choosing which of the four apps you get.
+/** Choosing which of the four you are.
  *
  * Asked once, after signing up, because nothing WorkOS knows about a person
  * answers it — with no organisations there is no membership to read a role
  * from, and a Google sign-up hands us a verified address and nothing else.
+ *
+ * Asked *now*, before the tailored views exist, so that when they do arrive
+ * every existing account already carries an answer and nobody has to be
+ * interrupted for one later.
  *
  * It is a radio group, not four buttons: the roles are alternatives, and a
  * screen reader should hear them as a choice with one answer.

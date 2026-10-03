@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { AccountMenu } from "@/components/account-menu";
-import { ROLES } from "@/lib/roles";
+import { NAV } from "@/lib/roles";
 import { displayName, viewer } from "@/lib/auth";
 import "./globals.css";
 
@@ -12,31 +12,25 @@ export const metadata: Metadata = {
     "Which housing rules apply to an address on a given date, and how do supplied law-change cases affect the answer?",
 };
 
-/** Navigation for a checkout with no WorkOS environment, where nobody has a
- *  role and the corpus views are open. */
-const OPEN_NAV = [
-  { href: "/rules", label: "Rules" },
-  { href: "/addresses", label: "Addresses" },
-  { href: "/changes", label: "Changes" },
-];
+/** What a checkout with no WorkOS environment can reach: the corpus views,
+ *  which need no account. The personal pages are in `NAV` but say for
+ *  themselves that they need one. */
+const OPEN_NAV = NAV.filter((item) =>
+  ["/rules", "/addresses", "/changes"].includes(item.href),
+);
 
 export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // The menu is built from the role, which is why it is resolved here rather
-  // than in each page: there is no navigation that fits all four apps, and a
-  // menu offering pages a role cannot open would be a worse kind of wrong than
-  // no menu at all. `viewer()` is memoised per render, so the page below this
-  // asks the same question for free.
+  // One menu for all four roles, for now. The session is still resolved here
+  // rather than in each page, because the header shows who is signed in and
+  // what they signed up as; `viewer()` is memoised per render, so the page
+  // below this asks the same question for free.
   const seen = await viewer();
   const nav =
-    seen.state === "ready"
-      ? ROLES[seen.role].nav
-      : seen.state === "open"
-        ? OPEN_NAV
-        : [];
+    seen.state === "ready" ? NAV : seen.state === "open" ? OPEN_NAV : [];
 
   return (
     <html lang="en">

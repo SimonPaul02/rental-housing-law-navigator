@@ -33,7 +33,7 @@ export default async function SettingsPage() {
       <Card>
         <SectionTitle
           title="Your role"
-          hint="Which of the four apps you get. It decides what you are shown, not what you are allowed."
+          hint="Every role shares one interface at the moment, so switching changes nothing you can see yet. It is never a permission — what you may read does not depend on it."
         />
         <RolePicker current={account.role} onDone="/home" />
       </Card>
