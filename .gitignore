@@ -21,3 +21,4 @@ next-env.d.ts
 !.env.example
 !.env.local.example
 .vercel
+.idea
