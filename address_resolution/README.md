@@ -13,8 +13,6 @@ Address resolution is split into two parts:
 1. **Geocoding** – finding possible matches for an address using an external service.
 2. **Resolution** – deciding which candidate, if any, should be accepted.
 
-The geocoder is passed into `resolve_addresses()` instead of being hard-coded because geocoding is an external I/O operation.
-
 Candidate validation happens in `_credible()` and `_lookup_endpoint()`. The final decision lives in:
 
 ```python
@@ -39,7 +37,12 @@ The command produces:
 
 - `data/resolved_addresses.json` – one processed record per input, including unresolved records marked `needs_review`
 - `data/census_geocode_cache.jsonl` – cached Census API responses
-- `data/address_review.csv` – addresses that could not be resolved confidently and require manual review
+- `data/address_review.csv` – unresolved addresses and unexpected postal/legal-city mismatches to inspect
+
+The command exits with code `2` if a cache miss or service error leaves an address
+unresolved, or if no addresses resolve at all. It still writes the output and
+review files so the failure can be inspected. Ordinary unmatched or incomplete
+addresses remain in the review file without making a partly successful run fail.
 
 After a successful online run, the resolver can also run entirely from the cache:
 
@@ -47,7 +50,21 @@ After a successful online run, the resolver can also run entirely from the cache
 python3 -m address_resolution.run --offline
 ```
 
-If an address is not available in the cache while running offline, it is added to the review file instead of guessing a result.
+If an address is not available in the cache while running offline, it is added to the review file instead of guessing a result, and the command exits with code `2`.
+
+After checking a review case against a public source, copy
+`review_overrides.example.csv` to a new CSV and supply it with `--overrides`:
+
+```bash
+python3 -m address_resolution.run --offline --overrides data/address_overrides.csv
+```
+
+Each override needs an `address_id`, the original `input_street_address`,
+`input_postal_city`, and `input_state`, the verified legal state and city, a
+public `source_url`, a reason, reviewer, and review date. These original address
+fields are checked to avoid applying an old decision to a changed input. The
+output records `resolution_method=review_override` and
+preserves the review evidence. `legal_county` and `city_geoid` are optional.
 
 ## Postal city vs. legal city
 
@@ -60,7 +77,7 @@ These are not always the same.
 
 Neighborhood names and postal aliases can help the geocoder find an address, but they are **not** treated as authoritative legal jurisdictions.
 
-A `legal_city` is only assigned when the address can be matched to a validated Census **Incorporated Place**.
+A `legal_city` is assigned from a validated Census **Incorporated Place** or a documented review override. If the Census place differs from the mailing city, the result keeps the Census place, adds a warning, and appears in the review CSV.
 
 For address ranges, both endpoints must resolve to the same incorporated place before that place is accepted as the legal city.
 
@@ -68,7 +85,7 @@ For address ranges, both endpoints must resolve to the same incorporated place b
 
 Census geocoding coordinates are estimates based on street ranges. They are not exact property-boundary determinations.
 
-Addresses that are ambiguous or close to municipal boundaries should therefore be verified using a second authoritative public source.
+Addresses that are ambiguous or close to municipal boundaries should therefore be verified using a second authoritative public source. The current code does not detect boundary proximity automatically.
 
 The resolver prefers returning an unresolved/review result over inventing a legal city when the available evidence is insufficient.
 

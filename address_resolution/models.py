@@ -41,6 +41,7 @@ class GeocodeCandidate:
     latitude: float
     benchmark: str
     vintage: str
+    zip: str | None = None
 
 
 @dataclass(frozen=True)
@@ -52,8 +53,24 @@ class GeocodeResponse:
 @dataclass(frozen=True)
 class LookupAttempt:
     query: AddressQuery
-    outcome: str  # match, no_match, rejected, ambiguous, or error
+    outcome: str  # match, no_match, rejected, ambiguous, invalid_input, cache_miss, or service_error
     detail: str = ""
+
+
+@dataclass(frozen=True)
+class ReviewOverride:
+    address_id: str
+    input_street_address: str
+    input_postal_city: str
+    input_state: str
+    legal_state: str
+    legal_city: str
+    source_url: str
+    reason: str
+    reviewer: str
+    reviewed_at: str
+    legal_county: str | None = None
+    city_geoid: str | None = None
 
 
 @dataclass(frozen=True)
@@ -70,6 +87,8 @@ class ResolvedAddress:
     matched_address: str | None
     benchmark: str | None
     vintage: str | None
+    resolution_method: str = "unresolved"  # geocoder, review_override, or unresolved
+    review_override: ReviewOverride | None = None
     warnings: tuple[str, ...] = ()
     attempts: tuple[LookupAttempt, ...] = ()
     candidates: tuple[GeocodeCandidate, ...] = ()

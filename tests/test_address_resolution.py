@@ -1,15 +1,22 @@
 """Boundary and missing-data checks using a fake geocoder, with no network."""
 
 import json
+from dataclasses import replace
 from pathlib import Path
+import subprocess
+import sys
 from tempfile import TemporaryDirectory
 import unittest
 
 from address_resolution.census import CachedGeocoder, CensusGeocoder
-from address_resolution.io import read_in_from_csv, write_to_internal_json
-from address_resolution.models import AddressInput, AddressQuery, GeocodeCandidate, GeocodeResponse
+from address_resolution.io import (
+    read_in_from_csv, read_review_overrides_csv, write_review_csv, write_to_internal_json,
+)
+from address_resolution.models import (
+    AddressInput, AddressQuery, GeocodeCandidate, GeocodeResponse, ReviewOverride,
+)
 from address_resolution.ports import GeocoderError
-from address_resolution.resolver import resolve_addresses
+from address_resolution.resolver import apply_review_overrides, resolve_addresses
 
 
 def candidate(street: str, city: str, geoid: str, state: str = "NJ") -> GeocodeCandidate:
@@ -48,6 +55,14 @@ class AddressResolutionTests(unittest.TestCase):
         self.assertEqual(result.legal_city, "Newark")
         self.assertIn("suspicious_input_zip", result.warnings)
         self.assertEqual(geocoder.queries[0].zip, "")
+
+    def test_matched_zip_disagreement_is_visible(self) -> None:
+        address = AddressInput("A0489", "204 GRAND ST", "Hoboken", "NJ", "06901")
+        match = replace(candidate("204 GRAND ST", "Hoboken", "3401332250"), zip="07030")
+        result = resolve_addresses([address], FakeGeocoder({"204 GRAND ST": [match]}))[0]
+        self.assertEqual(result.status, "resolved")
+        self.assertIn("suspicious_input_zip", result.warnings)
+        self.assertIn("input_zip_differs_from_match", result.warnings)
 
     def test_neighborhood_alias_is_only_a_search_hint(self) -> None:
         address = AddressInput("A0065", "12 TEST ST", "Dorchester", "MA", "")
@@ -88,18 +103,77 @@ class AddressResolutionTests(unittest.TestCase):
         self.assertIsNone(result.legal_city)
         self.assertEqual(result.candidates[0].matched_address, "14 OAK ST, Newark, NJ")
 
-    def test_unexpected_legal_city_is_reviewed(self) -> None:
+    def test_unexpected_legal_city_is_kept_and_flagged_for_review(self) -> None:
         address = AddressInput("A1", "12 OAK ST", "Newark", "NJ")
         geocoder = FakeGeocoder({"12 OAK ST": [candidate("12 OAK ST", "Jersey City", "3401336000")]})
         result = resolve_addresses([address], geocoder)[0]
+        self.assertEqual(result.status, "resolved")
+        self.assertEqual(result.legal_city, "Jersey City")
+        self.assertIn("postal_city_differs_from_legal_city", result.warnings)
+        with TemporaryDirectory() as directory:
+            review_path = Path(directory) / "review.csv"
+            write_review_csv([result], review_path)
+            self.assertIn("A1,resolved", review_path.read_text(encoding="utf-8"))
+
+    def test_alphanumeric_number_and_malformed_range_are_supported(self) -> None:
+        lettered = AddressInput("A0306", "335A Harvard St", "Cambridge", "MA")
+        lettered_geocoder = FakeGeocoder({
+            "335A Harvard St": [candidate("335A HARVARD ST", "Cambridge", "2511000", "MA")],
+        })
+        self.assertEqual(resolve_addresses([lettered], lettered_geocoder)[0].status, "resolved")
+
+        malformed_range = AddressInput("A0311", "38-38- SOMME ST", "Cambridge", "MA")
+        range_geocoder = FakeGeocoder({
+            "38 SOMME ST": [candidate("38 SOMME ST", "Cambridge", "2511000", "MA")],
+        })
+        result = resolve_addresses([malformed_range], range_geocoder)[0]
+        self.assertEqual(result.status, "resolved")
+        self.assertEqual(len(range_geocoder.queries), 1)
+
+    def test_missing_house_number_does_not_call_geocoder(self) -> None:
+        address = AddressInput("A0098", "WILLOWWOOD ST", "Dorchester", "MA")
+        geocoder = FakeGeocoder({})
+        result = resolve_addresses([address], geocoder)[0]
         self.assertEqual(result.status, "needs_review")
-        self.assertIn("legal_city_differs_from_search_hint", result.warnings)
+        self.assertEqual(result.attempts[0].outcome, "invalid_input")
+        self.assertEqual(geocoder.queries, [])
+
+    def test_review_override_requires_current_input_and_source(self) -> None:
+        address = AddressInput("A1", "12 OAK ST", "Newark", "NJ")
+        result = resolve_addresses([address], FakeGeocoder({}))[0]
+        override = ReviewOverride(
+            "A1", "12 OAK ST", "Newark", "NJ", "NJ", "Newark", "https://example.gov/map",
+            "Verified in city parcel map", "reviewer-1", "2026-10-04",
+        )
+        reviewed = apply_review_overrides([result], [override])[0]
+        self.assertEqual(reviewed.status, "resolved")
+        self.assertEqual(reviewed.legal_city, "Newark")
+        self.assertEqual(reviewed.resolution_method, "review_override")
+        self.assertEqual(reviewed.review_override.source_url, "https://example.gov/map")
+        with self.assertRaisesRegex(ValueError, "stale street"):
+            apply_review_overrides([result], [ReviewOverride(
+                "A1", "14 OAK ST", "Newark", "NJ", "NJ", "Newark", "https://example.gov/map",
+                "Verified", "reviewer-1", "2026-10-04",
+            )])
+        with self.assertRaisesRegex(ValueError, "stale city or state"):
+            apply_review_overrides([result], [replace(override, input_postal_city="Jersey City")])
+
+    def test_review_override_csv_adapter(self) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "overrides.csv"
+            path.write_text(
+                "address_id,input_street_address,input_postal_city,input_state,legal_state,legal_city,source_url,reason,reviewer,reviewed_at\n"
+                "A1,12 OAK ST,Newark,NJ,NJ,Newark,https://example.gov/map,Verified,reviewer-1,2026-10-04\n",
+                encoding="utf-8",
+            )
+            overrides = read_review_overrides_csv(path)
+            self.assertEqual(overrides[0].legal_city, "Newark")
 
     def test_census_response_parses_incorporated_place(self) -> None:
         raw = {"result": {"addressMatches": [{
             "matchedAddress": "12 OAK ST, NEWARK, NJ, 07102",
             "coordinates": {"x": -74.1, "y": 40.7},
-            "addressComponents": {"state": "NJ"},
+            "addressComponents": {"state": "NJ", "zip": "07102"},
             "geographies": {
                 "Incorporated Places": [{"BASENAME": "Newark", "GEOID": "3451000"}],
                 "Counties": [{"BASENAME": "Essex"}],
@@ -109,6 +183,7 @@ class AddressResolutionTests(unittest.TestCase):
         self.assertEqual(response.candidates[0].city, "Newark")
         self.assertEqual(response.candidates[0].county, "Essex")
         self.assertEqual(response.candidates[0].city_geoid, "3451000")
+        self.assertEqual(response.candidates[0].zip, "07102")
 
     def test_csv_and_json_are_outside_the_resolver(self) -> None:
         sample = Path(__file__).resolve().parents[1] / "data/sample_addresses.csv"
@@ -141,6 +216,48 @@ class AddressResolutionTests(unittest.TestCase):
             different_vintage = CachedGeocoder(path, vintage="Census2020_Current")
             with self.assertRaises(GeocoderError):
                 different_vintage.lookup(query)
+
+    def test_cli_reports_empty_offline_cache_as_failure(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        with TemporaryDirectory() as directory:
+            temp = Path(directory)
+            process = subprocess.run(
+                [sys.executable, "-m", "address_resolution.run", "--offline",
+                 "--cache", str(temp / "cache.jsonl"),
+                 "--output", str(temp / "resolved.json"),
+                 "--review", str(temp / "review.csv")],
+                cwd=root, text=True, capture_output=True,
+            )
+            self.assertNotEqual(process.returncode, 0)
+            self.assertIn("lookup failures", process.stderr)
+            self.assertEqual(len(json.loads((temp / "resolved.json").read_text())), 500)
+
+    def test_cli_can_apply_reviewed_result_without_a_cached_match(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        with TemporaryDirectory() as directory:
+            temp = Path(directory)
+            (temp / "addresses.csv").write_text(
+                "address_id,street_address,postal_city,state,zip\n"
+                "A1,12 OAK ST,Newark,NJ,\n", encoding="utf-8",
+            )
+            (temp / "overrides.csv").write_text(
+                "address_id,input_street_address,input_postal_city,input_state,legal_state,legal_city,source_url,reason,reviewer,reviewed_at\n"
+                "A1,12 OAK ST,Newark,NJ,NJ,Newark,https://example.gov/map,Verified,reviewer-1,2026-10-04\n",
+                encoding="utf-8",
+            )
+            process = subprocess.run(
+                [sys.executable, "-m", "address_resolution.run", "--offline",
+                 "--input", str(temp / "addresses.csv"),
+                 "--cache", str(temp / "cache.jsonl"),
+                 "--output", str(temp / "resolved.json"),
+                 "--review", str(temp / "review.csv"),
+                 "--overrides", str(temp / "overrides.csv")],
+                cwd=root, text=True, capture_output=True,
+            )
+            self.assertEqual(process.returncode, 0, process.stderr)
+            saved = json.loads((temp / "resolved.json").read_text())
+            self.assertEqual(saved[0]["resolution_method"], "review_override")
+            self.assertEqual(len((temp / "review.csv").read_text().splitlines()), 1)
 
 
 if __name__ == "__main__":

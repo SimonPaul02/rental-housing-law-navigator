@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 import re
+from urllib.parse import urlparse
 
 from .models import (
     AddressInput,
@@ -11,8 +13,9 @@ from .models import (
     GeocodeCandidate,
     LookupAttempt,
     ResolvedAddress,
+    ReviewOverride,
 )
-from .ports import Geocoder, GeocoderError
+from .ports import CacheMissError, Geocoder, GeocoderError
 
 
 # These names are search hints only. The returned incorporated place is the
@@ -31,21 +34,23 @@ DEFAULT_SEARCH_ALIASES: dict[str, str] = {
     "van nuys": "Los Angeles",
 }
 
-_HOUSE_RANGE = re.compile(r"^\s*(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)\s+(.+)$")
-_HOUSE_NUMBER = re.compile(r"^\s*(\d+(?:\.\d+)?)\s+(.+)$")
+_HOUSE_RANGE = re.compile(r"^\s*(\d+(?:\.\d+)?[A-Za-z]?)-(\d+(?:\.\d+)?[A-Za-z]?)-?\s+(.+)$")
+_HOUSE_NUMBER = re.compile(r"^\s*(\d+(?:\.\d+)?[A-Za-z]?)\s+(.+)$")
 _SUFFIXES = {
     "AV": "AVE", "AVENUE": "AVE", "BL": "BLVD", "BOULEVARD": "BLVD",
     "DRIVE": "DR", "LANE": "LN", "PLACE": "PL", "ROAD": "RD",
     "STREET": "ST", "TERRACE": "TER", "WAY": "WAY",
 }
-_ZIP_PREFIXES = {"CA": ("9",), "NJ": ("0",), "MA": ("0",)}
+_ZIP_PREFIXES = {"CA": ("9",), "NJ": ("07", "08"), "MA": ("01", "02", "055")}
 
 
 def _house_number_and_street(value: str) -> tuple[str | None, tuple[str, ...]]:
     match = _HOUSE_NUMBER.match(value.split(",", 1)[0])
     if not match:
         return None, ()
-    number = match.group(1).lstrip("0") or "0"
+    number_match = re.fullmatch(r"(\d+)(\.\d+)?([A-Za-z]?)", match.group(1))
+    assert number_match is not None
+    number = f"{int(number_match.group(1))}{number_match.group(2) or ''}{number_match.group(3).upper()}"
     words = re.findall(r"[A-Z0-9]+", match.group(2).upper())
     words = [re.sub(r"^0+(\d+)(ST|ND|RD|TH)$", r"\1\2", word) for word in words]
     return number, tuple(_SUFFIXES.get(word, word) for word in words)
@@ -56,7 +61,7 @@ def _street_endpoints(street_address: str) -> tuple[str, ...]:
     if not match:
         return (street_address.strip(),)
     first, last, street = match.groups()
-    return (f"{first} {street}", f"{last} {street}")
+    return tuple(dict.fromkeys((f"{first} {street}", f"{last} {street}")))
 
 
 def _zip_is_plausible(zip_code: str, state: str) -> bool:
@@ -106,11 +111,17 @@ def _lookup_endpoint(
 ) -> tuple[GeocodeCandidate | None, list[LookupAttempt], list[GeocodeCandidate]]:
     attempts: list[LookupAttempt] = []
     candidates_seen: list[GeocodeCandidate] = []
+    if _house_number_and_street(street)[0] is None:
+        query = AddressQuery(street, address.postal_city, address.state.upper())
+        return None, [LookupAttempt(query, "invalid_input", "Missing or unsupported house number")], []
     for query in _queries(street, address, aliases):
         try:
             response = geocoder.lookup(query)
+        except CacheMissError as exc:
+            attempts.append(LookupAttempt(query, "cache_miss", str(exc)))
+            continue
         except GeocoderError as exc:
-            attempts.append(LookupAttempt(query, "error", str(exc)))
+            attempts.append(LookupAttempt(query, "service_error", str(exc)))
             continue
         candidates_seen.extend(response.candidates)
         credible = [item for item in response.candidates if _credible(item, query)]
@@ -155,8 +166,9 @@ def choose_resolution(
             address.postal_city.strip().casefold(), address.postal_city.strip()
         )
         if expected_city and selected.city and selected.city.casefold() != expected_city.casefold():
-            warnings.append("legal_city_differs_from_search_hint")
-            selected = None
+            warnings.append("postal_city_differs_from_legal_city")
+        if address.zip and selected.zip and address.zip != selected.zip:
+            warnings.append("input_zip_differs_from_match")
     if selected is None:
         warnings.append("jurisdiction_needs_review")
 
@@ -173,6 +185,7 @@ def choose_resolution(
         matched_address=selected.matched_address if selected else None,
         benchmark=selected.benchmark if selected else None,
         vintage=selected.vintage if selected else None,
+        resolution_method="geocoder" if selected else "unresolved",
         warnings=tuple(warnings),
         attempts=tuple(attempts),
         candidates=tuple(dict.fromkeys(candidates)),
@@ -207,4 +220,61 @@ def resolve_addresses(
             attempts.extend(endpoint_attempts)
             candidates.extend(endpoint_candidates)
         output.append(choose_resolution(address, endpoint_results, attempts, candidates, search_aliases))
+    return output
+
+
+def apply_review_overrides(
+    results: Sequence[ResolvedAddress], overrides: Sequence[ReviewOverride]
+) -> list[ResolvedAddress]:
+    """Apply source-backed human decisions while preserving one result per input."""
+    by_id: dict[str, ReviewOverride] = {}
+    for override in overrides:
+        if override.address_id in by_id:
+            raise ValueError(f"Duplicate review override: {override.address_id}")
+        if not all((override.input_postal_city, override.input_state,
+                    override.legal_state, override.legal_city, override.reason,
+                    override.reviewer, override.reviewed_at)):
+            raise ValueError(f"Incomplete review override: {override.address_id}")
+        source = urlparse(override.source_url)
+        if source.scheme not in {"http", "https"} or not source.netloc:
+            raise ValueError(f"Review override needs a public source URL: {override.address_id}")
+        by_id[override.address_id] = override
+
+    unknown_ids = set(by_id) - {result.address_id for result in results}
+    if unknown_ids:
+        raise ValueError(f"Review overrides contain unknown address IDs: {sorted(unknown_ids)}")
+
+    output: list[ResolvedAddress] = []
+    for result in results:
+        override = by_id.get(result.address_id)
+        if override is None:
+            output.append(result)
+            continue
+        original_street = " ".join(result.input.street_address.split()).casefold()
+        reviewed_street = " ".join(override.input_street_address.split()).casefold()
+        if original_street != reviewed_street:
+            raise ValueError(f"Review override has stale street address: {result.address_id}")
+        if (override.input_postal_city.casefold() != result.input.postal_city.strip().casefold()
+                or override.input_state.upper() != result.input.state.upper()):
+            raise ValueError(f"Review override has stale city or state: {result.address_id}")
+        warnings = [warning for warning in result.warnings if warning != "jurisdiction_needs_review"]
+        warnings.append("review_override_applied")
+        if override.legal_state.upper() != result.input.state.upper():
+            warnings.append("reviewed_state_differs_from_input")
+        output.append(replace(
+            result,
+            status="resolved",
+            legal_state=override.legal_state.upper(),
+            legal_county=override.legal_county,
+            legal_city=override.legal_city,
+            city_geoid=override.city_geoid,
+            longitude=None,
+            latitude=None,
+            matched_address=None,
+            benchmark=None,
+            vintage=None,
+            resolution_method="review_override",
+            review_override=override,
+            warnings=tuple(dict.fromkeys(warnings)),
+        ))
     return output

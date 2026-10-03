@@ -12,7 +12,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from .models import AddressQuery, GeocodeCandidate, GeocodeResponse
-from .ports import Geocoder, GeocoderError
+from .ports import CacheMissError, Geocoder, GeocoderError
 
 
 class CensusGeocoder:
@@ -96,6 +96,7 @@ class CensusGeocoder:
                     latitude=float(coordinates["y"]),
                     benchmark=self.benchmark,
                     vintage=self.vintage,
+                    zip=components.get("zip") or None,
                 )
             )
         return GeocodeResponse(tuple(candidates), raw)
@@ -137,7 +138,7 @@ class CachedGeocoder:
         if key in self.entries:
             return self.entries[key]
         if self.live is None:
-            raise GeocoderError("No cached response for this query; offline mode is enabled")
+            raise CacheMissError("No cached response for this query; offline mode is enabled")
         response = self.live.lookup(query)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         record = {

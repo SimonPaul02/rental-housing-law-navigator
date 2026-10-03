@@ -7,10 +7,15 @@ from dataclasses import asdict
 import json
 from pathlib import Path
 
-from .models import AddressInput, ResolvedAddress
+from .models import AddressInput, ResolvedAddress, ReviewOverride
 
 
 _REQUIRED_COLUMNS = {"address_id", "street_address", "postal_city", "state", "zip"}
+_REVIEW_COLUMNS = {
+    "address_id", "input_street_address", "input_postal_city", "input_state",
+    "legal_state", "legal_city",
+    "source_url", "reason", "reviewer", "reviewed_at",
+}
 
 
 def read_in_from_csv(path: str | Path) -> list[AddressInput]:
@@ -50,27 +55,57 @@ def write_to_internal_json(results: list[ResolvedAddress], path: str | Path) -> 
     temporary.replace(destination)
 
 
+def read_review_overrides_csv(path: str | Path) -> list[ReviewOverride]:
+    """Read documented human decisions without coupling the resolver to CSV."""
+    with Path(path).open(newline="", encoding="utf-8-sig") as stream:
+        reader = csv.DictReader(stream)
+        missing = _REVIEW_COLUMNS - set(reader.fieldnames or ())
+        if missing:
+            raise ValueError(f"Missing review override columns: {', '.join(sorted(missing))}")
+        return [
+            ReviewOverride(
+                address_id=(row["address_id"] or "").strip(),
+                input_street_address=(row["input_street_address"] or "").strip(),
+                input_postal_city=(row["input_postal_city"] or "").strip(),
+                input_state=(row["input_state"] or "").strip().upper(),
+                legal_state=(row["legal_state"] or "").strip().upper(),
+                legal_city=(row["legal_city"] or "").strip(),
+                source_url=(row["source_url"] or "").strip(),
+                reason=(row["reason"] or "").strip(),
+                reviewer=(row["reviewer"] or "").strip(),
+                reviewed_at=(row["reviewed_at"] or "").strip(),
+                legal_county=(row.get("legal_county") or "").strip() or None,
+                city_geoid=(row.get("city_geoid") or "").strip() or None,
+            )
+            for row in reader
+        ]
+
+
 def write_review_csv(results: list[ResolvedAddress], path: str | Path) -> None:
-    """Write only unresolved addresses for evidence-based review."""
+    """Write unresolved addresses and unexpected postal/legal-city mismatches."""
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(
             stream,
             fieldnames=[
-                "address_id", "street_address", "postal_city", "state", "zip",
+                "address_id", "status", "street_address", "postal_city", "legal_city", "state", "zip",
                 "warnings", "attempts", "candidate_cities",
             ],
         )
         writer.writeheader()
         for item in results:
-            if item.status == "resolved":
+            if item.resolution_method == "review_override":
+                continue
+            if item.status == "resolved" and "postal_city_differs_from_legal_city" not in item.warnings:
                 continue
             writer.writerow(
                 {
                     "address_id": item.address_id,
+                    "status": item.status,
                     "street_address": item.input.street_address,
                     "postal_city": item.input.postal_city,
+                    "legal_city": item.legal_city or "",
                     "state": item.input.state,
                     "zip": item.input.zip,
                     "warnings": "; ".join(item.warnings),
