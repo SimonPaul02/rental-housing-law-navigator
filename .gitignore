@@ -1,1 +1,22 @@
 .DS_Store
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# node / next
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# env + local
+.env
+.env.*
+!.env.example
+.vercel

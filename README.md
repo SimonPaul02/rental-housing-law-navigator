@@ -1,128 +1,134 @@
-# Rental Housing Law Navigator — Participant Guide
+# Rental Housing Law Navigator
 
-MIT AI Hackathon · 24 hours · public data only · Realpage discussion draft, October 2026
+For any apartment address in the sample, answer: **which housing rules apply
+here on the query date, and how do the supplied change cases affect that
+answer?** Every answer cites the source text it came from.
 
-> This guide and the starter pack are everything you need to build. Read sections 1–4 before you start coding.
+MIT AI Hackathon entry. The challenge brief is in
+[`docs/CHALLENGE.md`](docs/CHALLENGE.md).
 
----
+> Not legal advice.
 
-## 1. The task in one paragraph
+## Stack
 
-For any apartment address in the sample, your system must answer: **which housing rules apply here on the query date, and how do the supplied change cases affect the answer?** It reads a corpus of real state and city law, turns each rule into a structured record (Module A), resolves each address to its state and city and tests each rule's coverage conditions (Module B), and reports which addresses each supplied law-change case affects (Module C). Every answer must cite the source text.
-
-**Default query date: 2026-10-01.** Some tests ask for other dates.
-
-## 2. Minimum viable submission
-
-If you run short on time, this is what counts:
-
-1. **Modules A and B** on the supplied sample addresses. If you run short on time, prioritize accurate extraction, jurisdiction resolution and citations.
-2. Module C (change tracking) and the plain-language view come next.
-3. Stretch goals (Spanish view, confidence indicators, a new jurisdiction) only after that.
-
-## 3. Rules of the event
-
-- **Extraction must be automated.** Rules must come from your system reading the supplied corpus, not hand-coded. You should show the extraction pipeline in the demo.
-- **Use the starter pack.** You may consult the public sources in section 6, but do not bulk-scrape sites whose terms forbid it.
-- **No non-public data.** No customer, resident or pricing data.
-- **"Unknown" is a valid answer** when coverage depends on a fact the data doesn't have. Say unknown rather than guessing when the supplied data is insufficient.
-- **Not legal advice.** Every interface you build must say so.
-- **Logistics (TBD by organizers):** event dates and location · team size · model / API access and credits · submission method and deadline · code and data licensing · contact. These will be confirmed at registration.
-
-## 4. What's in the starter pack
-
-| Path | What it is |
-|---|---|
-| `corpus/corpus_manifest.csv` | 87 source documents: `doc_id`, jurisdiction, URL, source type, capture status |
-| `corpus/text/` | Plain-text copies of official documents, each headed with its source URL and retrieval date |
-| `corpus/links_only.csv` | Sources without supplied text, including publisher pages awaiting terms review and official pages that blocked capture |
-| `data/sample_addresses.csv` | ~500 multifamily properties from public assessor data (see 4.1) |
-| `schema/rule_record.schema.json` | Required format for every rule record |
-| `schema/sample_rule_record.json` | One worked example |
-| `dev/change_tests.json` | The five deterministic change-tracking tests (T1-T5) |
-| `submission_templates/` | Example `rules.json`, `lookups.json`, `changes.json` |
-
-### 4.1 Sample addresses
-
-Columns: `address_id, street_address, postal_city, state, zip, year_built, units, use_code, use_description, source_dataset, retrieved_at`.
-
-- **The jurisdiction is not given.** `postal_city` is the mailing city, which is not always the legal city. In Los Angeles, "Van Nuys" is inside the City of Los Angeles, and Boston rows may say "Dorchester". Resolving the real jurisdiction (e.g. with the Census Geocoder) is part of Module B.
-- **Coverage by city:** Los Angeles 80 · San Francisco 80 · San Diego 50 · Berkeley 40 · Jersey City 50 · Hoboken 40 · Newark 50 · Boston 60 · Cambridge 50.
-- **Known gaps in the public records (handle them explicitly):**
-  - San Diego and Berkeley have no year built; Berkeley also has no unit count.
-  - Boston apartment rows (`use_code` starting `A/`) have no unit count in this sample.
-  - Jersey City and Newark have no unit counts in this sample; 39 of 40 Hoboken rows also lack them. New Jersey construction years are often missing.
-- **Santa Ana** laws are in the corpus but there are **no Santa Ana addresses**: no open parcel data with addresses was found. Santa Ana rules count for extraction only.
-- **No owner names.** They are deliberately excluded, so owner-type tests (e.g. California's small-landlord deposit exception) can't be resolved from the data. Answer "unknown" or explain why the exception can't apply.
-- **Year built ≠ certificate of occupancy.** Several cutoffs use the certificate date (San Francisco: on or before 1979-06-13; Los Angeles: on or before 1978-10-01). A building in the cutoff year should be "unknown".
-
-## 5. Submission format
-
-Submit three JSON files (templates in `submission_templates/`):
-
-1. **`rules.json`**: a list of rule records matching `schema/rule_record.schema.json`.
-2. **`lookups.json`**: `{"as_of": "2026-10-01", "lookups": {address_id: [{team_rule_id, result, explanation, conflict_flag}]}}`, covering **all 500 addresses**.
-3. **`changes.json`**: `{test_id: {affected_address_ids: [...], conflict_flag_address_ids: [...], notes}}`, covering all 500 addresses.
-
-Use the supplied schemas and templates, keep every answer tied to a source document and retrieval date, and make the system reproducible for the live demo. Organizers will provide submission logistics separately.
-
-**`result` values**
-
-| Value | Meaning |
-|---|---|
-| `applies` | The rule is in force and covers this address |
-| `unknown` | Coverage depends on facts not in the data |
-| `superseded` | Covered, but a stricter rule at another level governs (e.g. California's statewide cap where local rent control applies) |
-| `not_yet_effective` | Enacted, but its effective date is after the query date |
-| `pending` | A bill or proposal, not law |
-
-Leave out rules that don't apply.
-
-## 6. Public sources you may use
-
-| Source | Use it for | Access |
+| Layer | Choice | Where |
 |---|---|---|
-| Census Geocoder (`geocoding.geo.census.gov`) | Address → state, county, incorporated place | No key; batch up to 10,000 rows |
-| Census TIGER/Line | City boundaries | Free download |
-| LegiScan API | Bill status and text | Free key; 10,000 queries/month; CC BY 4.0 |
-| Open States API v3 | Bill status | Free key |
-| State code sites (CA, NJ, MA legislatures) | Statute text | Free; California's site blocks scripts, so use the corpus copy |
-| City code sites and publishers (ecode360, American Legal, Municode) | Ordinance text | Read freely; respect terms, no bulk scraping |
-| LSC Eviction Laws Database | Methods reference only | Laws as of 1/1/2021, out of date |
+| Frontend | Next.js 15 (App Router, TypeScript, Tailwind 4) | Vercel |
+| Backend | FastAPI + SQLAlchemy 2 (async) in Docker | Fly.io, always-on |
+| Database | Postgres | Supabase |
+| Extraction | Anthropic API, `claude-opus-5` | Module A only |
 
-## 7. Change-tracking tests
+The browser only ever talks to one origin. Next.js rewrites `/api/*` to the
+Fly backend, so there is no CORS and no cookie juggling.
 
-| Test | What it checks |
+The backend is a **persistent container, not a serverless function** — on
+purpose. A full corpus extraction pass runs for many minutes, which no
+serverless timeout survives, and Fly is configured `auto_stop_machines = "off"`
+so a long run can't be stopped out from under it mid-pass.
+
+## The three modules
+
+Each is a package under `backend/app/modules/` with its own router, schemas and
+service, mounted at its own prefix.
+
+### Module A — rule extraction (`/api/a`)
+
+Reads the 54 supplied corpus documents and emits records matching
+`schema/rule_record.schema.json`. Extraction is automated end to end; nothing
+is hand-coded.
+
+Two guards matter for scoring:
+
+- **Spans are verified.** Every record must carry a `quoted_span` that really
+  occurs in its source document. We check it in code (whitespace- and
+  case-insensitive, because the corpus is PDF-extracted) and **discard** rules
+  that fail, so a hallucinated citation cannot reach the submission.
+- **We assign `team_rule_id`,** not the model, so ids stay unique across runs.
+
+`POST /api/a/extract` starts a background pass and returns a run id;
+`GET /api/a/runs/{run_id}/stream` streams progress as server-sent events.
+
+### Module B — address lookup (`/api/b`)
+
+Resolves each address to its **legal** jurisdiction, then tests every rule's
+coverage conditions against the building.
+
+The mailing city is not the legal city. 37 rows in the sample are Boston
+neighbourhoods (Dorchester, Roxbury, Allston, …) and one is San Ysidro, which
+is the City of San Diego. Resolution goes through the Census geocoder's
+incorporated-places layer, with a clearly-labelled postal fallback.
+
+Coverage conditions are parsed into predicates and evaluated deterministically
+(`coverage.py`). **"Unknown" is a first-class answer**, not a failure:
+
+- a building in a certificate-of-occupancy **cutoff year** is unknown, because
+  year built is not the certificate date (SF 1979-06-13, LA 1978-10-01);
+- a missing unit count or year built is unknown, naming the field that blocked
+  it;
+- owner identity is absent from the data by design, so owner-type conditions
+  are unknown.
+
+Coverage conditions and exemptions are evaluated **separately**, because they
+pull in opposite directions — an exemption matching means the rule does *not*
+apply. That also lets a 32-unit building defeat a "2 or fewer units"
+small-landlord exemption whoever owns it, which the brief asks for explicitly.
+
+### Module C — change tracking (`/api/c`)
+
+Runs the five supplied cases (T1–T5) by **replaying Module B's evaluator** at
+the relevant dates, rather than hard-coding expected outcomes.
+
+The tests name rules by the challenge's ids (`CA-ALG-01`, `HOB-ALG-01`, …)
+while our records carry ours (`r-0001`). `CANONICAL_RULES` in
+`change_tracking/service.py` bridges the two with an explicit selector table,
+and `GET /api/c/canonical-rules` shows the mapping — so an unmatched id is
+visible rather than silently producing an empty set.
+
+## Quickstart
+
+```bash
+make setup                  # backend venv + frontend deps
+
+cp .env.example backend/.env    # fill in DATABASE_URL (+ ANTHROPIC_API_KEY for Module A)
+make seed                   # load 87 documents and 500 addresses
+make dev-api                # :8080
+make dev-web                # :3000  (separate terminal)
+```
+
+`make help` lists the rest. API docs at `/api/docs`.
+
+Module A needs `ANTHROPIC_API_KEY`; without it those endpoints return 503 and
+everything else works normally.
+
+## Submission exports
+
+Each module exports its submission file in the shape
+`submission_templates/` specifies:
+
+| Endpoint | File |
 |---|---|
-| **T1** | California AB 325 / SB 763: as of 2025-12-31 vs 2026-01-02 |
-| **T2** | Hoboken vs Jersey City local algorithmic bans: get the boundary right |
-| **T3** | New Jersey FAIR Act: enacted 2026-07-20, effective 2027-07-01. Report `not_yet_effective` now, `applies` on 2027-07-02. Flag a possible conflict with the Jersey City and Hoboken ordinances. |
-| **T4** | Massachusetts S.2983 and H.5222: pending bills. Which addresses would be affected if they passed? |
-| **T5** | Massachusetts rent-control ballot question (struck 2026-06-23): affected set must be empty. Never report a rent cap in Boston or Cambridge. |
+| `GET /api/a/rules/export` | `rules.json` |
+| `GET /api/b/lookup/export` | `lookups.json` |
+| `GET /api/c/export` | `changes.json` |
 
-## 8. Responsible design
+## Layout
 
-**Do**
+```
+backend/     FastAPI app, Dockerfile, fly.toml, migrations, tests
+frontend/    Next.js app
+corpus/      87 source documents (54 with supplied text)
+data/        500 sample addresses
+schema/      rule_record.schema.json
+dev/         change_tests.json (T1-T5)
+docs/        the challenge brief
+```
 
-- Cite the source text and retrieval date for every rule.
-- Show an "as of" date on every answer.
-- Separate enacted law from pending law.
-- Say "unknown" instead of guessing.
-- Flag conflicts for human review.
-- Keep an audit log.
+## Deployment
 
-**Don't**
+Backend deploys to Fly on every push to `main` that touches `backend/` or the
+data directories (`.github/workflows/deploy-backend.yml`, needs the
+`FLY_API_TOKEN` secret). Frontend is connected to Vercel's Git integration with
+`BACKEND_URL` set to the Fly hostname.
 
-- Present output as legal advice or a compliance certification.
-- Suggest ways to avoid a rule.
-- Invent rules or citations.
-- Use non-public data.
-
-## 9. Known open questions in the law (bonus if your system surfaces them)
-
-- **Berkeley's algorithmic ban** (ch. 13.63) has two published effective dates: March 1, 2026 in the ordinance text, January 2026 per an August 2026 law-firm alert.
-- **New Jersey's FAIR Act** may preempt the Jersey City and Hoboken ordinances once it takes effect.
-- **Los Angeles's new RSO formula** has two published effective dates: 2026-02-02 per LAHD, 2026-01-24 per a landlord association.
-- **California's screening-fee cap** has no single official 2026 dollar figure.
-
-*Not legal advice. Summaries of law in this pack are for building a prototype.*
+The Docker build context is the **repo root**, not `backend/`, because the
+image needs the corpus and address data alongside the app.
