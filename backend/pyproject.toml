@@ -15,6 +15,9 @@ dependencies = [
     "httpx>=0.27",
     "python-dotenv>=1.0",
     "jsonschema>=4.23",
+    "pypdf>=5.1",
+    # Verifying WorkOS access tokens: RS256 means the crypto extra.
+    "pyjwt[crypto]>=2.10",
 ]
 
 [build-system]

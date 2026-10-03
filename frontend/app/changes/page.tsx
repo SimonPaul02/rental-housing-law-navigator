@@ -1,3 +1,5 @@
+import { gate } from "@/lib/auth";
+import { Unavailable } from "@/components/gate-notice";
 import { tryApi } from "@/lib/api";
 import { Card, Notice, SectionTitle, Table, Td, Th } from "@/components/ui";
 import type { CanonicalMatch, ChangeTest, ChangeTestResult } from "@/lib/types";
@@ -5,6 +7,12 @@ import type { CanonicalMatch, ChangeTest, ChangeTestResult } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function ChangesPage() {
+  // Who may be here is read off the role's own menu in lib/roles.ts, so this page
+  // can never be reachable by a role that is not offered it. A role that may not
+  // be here goes to its own dashboard: it is the wrong app, not a trespass.
+  const g = await gate("/changes");
+  if (g.mode === "unavailable") return <Unavailable detail={g.detail} />;
+
   const [tests, results, canonical] = await Promise.all([
     tryApi<ChangeTest[]>("/api/change-tracking/tests"),
     tryApi<ChangeTestResult[]>("/api/change-tracking/results"),

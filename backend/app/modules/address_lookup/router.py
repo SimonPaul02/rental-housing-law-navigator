@@ -6,7 +6,7 @@ import datetime as dt
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -40,6 +40,7 @@ def _with_juris(stmt):
 @router.get("/addresses", response_model=list[AddressRecord])
 async def list_addresses(
     session: AsyncSession = Depends(get_session),
+    q: str | None = Query(None, min_length=2, description="Free text over street and city."),
     state: str | None = None,
     postal_city: str | None = None,
     resolved: bool | None = Query(None, description="Filter on jurisdiction resolution."),
@@ -49,6 +50,14 @@ async def list_addresses(
     offset: int = 0,
 ) -> list[AddressRecord]:
     stmt = select(Address).order_by(Address.address_id)
+    if q:
+        # What somebody types looking for their own building: part of the street, or the
+        # city, or both. Street and city are one field to the person searching, so they are
+        # one filter here rather than two they would have to split by hand.
+        needle = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(Address.street_address.ilike(needle), Address.postal_city.ilike(needle))
+        )
     if state:
         stmt = stmt.where(Address.state == state.upper())
     if postal_city:

@@ -1,5 +1,7 @@
 /** Mirrors the FastAPI response models. */
 
+import type { Role } from "./roles";
+
 export type RuleStatus = "in_force" | "not_yet_effective" | "pending" | "failed";
 export type LookupResult = "applies" | "does_not_apply" | "unknown";
 
@@ -137,4 +139,39 @@ export interface Health {
   database_error: string | null;
   extraction_available: boolean;
   default_as_of: string;
+  /** Whether the API requires a WorkOS token. False only outside production
+   *  with no client id configured - see backend/app/core/auth.py. */
+  auth_required: boolean;
+}
+
+/* ----------------------------------------------------------------- accounts */
+
+export interface Account {
+  workos_user_id: string;
+  role: Role;
+  role_label: string;
+  email: string;
+  name: string | null;
+  picture_url: string | null;
+  created_at: string;
+  last_seen_at: string | null;
+}
+
+/** A building somebody has saved for themselves. Private to its owner: there
+ *  is no field here that could name another account. */
+export interface Place {
+  id: number;
+  address_id: string;
+  label: string | null;
+  note: string | null;
+  street_address: string;
+  postal_city: string;
+  state: string;
+  zip: string | null;
+  year_built: number | null;
+  units: number | null;
+  legal_city: string | null;
+  legal_state: string | null;
+  postal_city_differs: boolean;
+  created_at: string;
 }

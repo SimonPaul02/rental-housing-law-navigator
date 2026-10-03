@@ -58,3 +58,130 @@ body {
 .mono {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 }
+
+/* ------------------------------------------------------------------ forms */
+/* Controls, defined once here rather than as repeated Tailwind strings, so
+   every button and field in the app agrees in both colour schemes. */
+
+.field {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--surface-0);
+  color: var(--text-primary);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.95rem;
+}
+
+.field:focus-visible,
+.btn:focus-visible,
+.role-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.925rem;
+  font-weight: 500;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  /* Fixed, not a token: the accent is a mid blue in both schemes, so white
+     text keeps its contrast while a themed foreground would lose it. */
+  color: #ffffff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: var(--accent);
+}
+
+.btn-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-quiet:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+/* The role picker. A card per role, radio-group semantics, so the choice is
+   keyboard-reachable and announced as a choice rather than as four buttons. */
+.role-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface-1);
+  padding: 1rem 1.1rem;
+  cursor: pointer;
+}
+
+.role-card:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.role-card[aria-checked="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* The sign-in column, centred without pinning it to the viewport height -
+   a short card and a long one should both sit in the same place. */
+.auth-shell {
+  width: 100%;
+  max-width: 25rem;
+  margin: 0 auto;
+}
+
+.auth-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.auth-rule::before,
+.auth-rule::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}

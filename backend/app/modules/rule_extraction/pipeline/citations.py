@@ -45,7 +45,14 @@ _NORMALISERS: list[tuple[re.Pattern[str], str]] = [
         r"Cal. Bus. & Prof. Code § \1",
     ),
     # New Jersey
-    (re.compile(r"\bN\.?\s*J\.?\s*S\.?\s*A\.?\s*§?\s*([\d:\-.]+)", re.I), r"N.J.S.A. \1"),
+    # NJ title numbers carry a letter suffix (2A:18-61.1), so the title part
+    # must allow one - a digits-only class stops at the "A" and turns
+    # "N.J.S.A. 2A:18-61.1" into "N.J.S.A. 2", silently merging unrelated
+    # statutes into one rule.
+    (
+        re.compile(r"\bN\.?\s*J\.?\s*S\.?\s*A\.?\s*§?\s*(\d+[A-Za-z]?:[\d\-.]+|[\d:\-.]+)", re.I),
+        r"N.J.S.A. \1",
+    ),
     (re.compile(r"\bP\.?\s*L\.?\s*(\d{4}),?\s*c\.?\s*(\d+)", re.I), r"P.L.\1, c.\2"),
     # Massachusetts
     (

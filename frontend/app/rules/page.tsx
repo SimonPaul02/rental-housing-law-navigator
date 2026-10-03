@@ -1,3 +1,5 @@
+import { gate } from "@/lib/auth";
+import { Unavailable } from "@/components/gate-notice";
 import { tryApi } from "@/lib/api";
 import {
   Card,
@@ -13,6 +15,12 @@ import type { DocumentSummary, RuleRecord, RuleStats } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function RulesPage() {
+  // Who may be here is read off the role's own menu in lib/roles.ts, so this page
+  // can never be reachable by a role that is not offered it. A role that may not
+  // be here goes to its own dashboard: it is the wrong app, not a trespass.
+  const g = await gate("/rules");
+  if (g.mode === "unavailable") return <Unavailable detail={g.detail} />;
+
   const [rules, stats, documents] = await Promise.all([
     tryApi<RuleRecord[]>("/api/rule-extraction/rules?limit=200"),
     tryApi<RuleStats>("/api/rule-extraction/stats"),

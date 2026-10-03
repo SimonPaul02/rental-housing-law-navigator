@@ -281,3 +281,64 @@ class ExtractionCache(Base, TimestampMixin):
     response: Mapped[dict] = mapped_column(JSONB, nullable=False)
     input_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+# --------------------------------------------------------------------------
+# Accounts
+# --------------------------------------------------------------------------
+class User(Base, TimestampMixin):
+    """One row per person who has signed in and chosen a role.
+
+    WorkOS is the identity provider and the only place a credential exists; this row is not
+    a copy of the account, it is what the account is *for* here. It holds the one fact WorkOS
+    cannot hold for us - which of the four roles a person signed up as - because with no
+    organisations in the picture an AuthKit access token carries no `role` claim, and the
+    role is what decides which app a person gets.
+
+    `workos_user_id` is the verified token's `sub` and nothing else. The profile columns are
+    a cache of the WorkOS user so a listing need not call WorkOS per row; they are written
+    from the sealed session server-side, never from a browser payload.
+    """
+
+    __tablename__ = "users"
+
+    workos_user_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # renter | provider | agency | advocate - see modules/accounts/schemas.py
+    role: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    name: Mapped[str | None] = mapped_column(Text)
+    picture_url: Mapped[str | None] = mapped_column(Text)
+    last_seen_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+
+    places: Mapped[list[SavedPlace]] = relationship(
+        back_populates="owner", cascade="all, delete-orphan"
+    )
+
+
+class SavedPlace(Base, TimestampMixin):
+    """A building one person is watching - their home, or one of their properties.
+
+    Private to its owner, with no sharing and no visibility between accounts: there is no
+    column here that could point at another user, which is the point rather than an
+    omission. The owner's role decides what the place is *called* in the interface ("my
+    home", "a property"), not who may read it.
+    """
+
+    __tablename__ = "saved_places"
+    __table_args__ = (
+        UniqueConstraint("owner_id", "address_id", name="uq_saved_place_owner_address"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    owner_id: Mapped[str] = mapped_column(
+        ForeignKey("users.workos_user_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    address_id: Mapped[str] = mapped_column(
+        ForeignKey("addresses.address_id", ondelete="CASCADE"), nullable=False
+    )
+    # What the owner calls it. Optional - the street address is already a name.
+    label: Mapped[str | None] = mapped_column(String(120))
+    note: Mapped[str | None] = mapped_column(Text)
+
+    owner: Mapped[User] = relationship(back_populates="places")
+    address: Mapped[Address] = relationship()

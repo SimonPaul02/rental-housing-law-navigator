@@ -1,5 +1,5 @@
 # Rental Housing Law Navigator - dev shortcuts.
-.PHONY: help setup dev-api dev-web seed migrate test lint fmt docker deploy
+.PHONY: help setup dev-api dev-web seed migrate user test lint fmt docker deploy
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -20,6 +20,10 @@ seed:  ## Load corpus + addresses into the database
 
 migrate:  ## Apply database migrations
 	cd backend && .venv/bin/alembic upgrade head
+
+user:  ## Create a WorkOS test account: make user EMAIL=you@rhln-local.dev
+	@test -n "$(EMAIL)" || { echo "usage: make user EMAIL=you@rhln-local.dev"; exit 2; }
+	cd backend && .venv/bin/python scripts/workos_user.py "$(EMAIL)"
 
 test:  ## Run backend tests
 	cd backend && .venv/bin/python -m pytest -q

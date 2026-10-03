@@ -44,9 +44,21 @@ class Settings(BaseSettings):
 
     # --- Anthropic (Module A extraction) ---
     anthropic_api_key: str | None = None
-    extraction_model: str = "claude-opus-5"
+    # Sonnet 5.5 for iteration; switch to claude-opus-5-5 for the
+    # submission pass. See pipeline/models.py for the price table.
+    extraction_model: str = "claude-sonnet-5-5"
     extraction_max_tokens: int = 16000
     extraction_concurrency: int = 4
+
+    # --- WorkOS (identity) ---
+    # WorkOS owns every account, credential and session. Only the *public* client id is
+    # needed to check one, because checking it means verifying a signature against WorkOS's
+    # published keys - so this backend holds no WorkOS secret at all.
+    #
+    # Empty leaves the API open, which is what the tests and a bare checkout run with.
+    # Production refuses to serve without it (see /api/health and the lifespan check), so a
+    # forgotten client id turns everyone away rather than publishing the data.
+    workos_client_id: str = ""
 
     # --- Module B geocoding ---
     census_geocoder_url: str = "https://geocoding.geo.census.gov/geocoder/geographies/address"

@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.llm import get_client
 from app.db.models import Document, ExtractionRun, Rule
+from app.modules.rule_extraction.pipeline import models as model_specs
 from app.modules.rule_extraction.schemas import (
     DocumentExtraction,
     ExtractDocResult,
@@ -138,9 +139,22 @@ async def extract_document(
         )
 
     client = get_client()
+    spec = model_specs.spec_for(settings.extraction_model)
+    if len(doc.body) // 3 > spec.context_tokens:
+        raise ValueError(
+            f"{doc.doc_id} is too large for {spec.model_id} ({spec.context_tokens:,} token context)"
+        )
+
+    extra: dict = {}
+    if spec.supports_adaptive_thinking:
+        # Opus 5 runs adaptive by default; Sonnet must be asked. Haiku 4.5
+        # rejects the parameter outright, hence the capability check.
+        extra["thinking"] = {"type": "adaptive"}
+
     response = await client.messages.parse(
-        model=settings.extraction_model,
+        model=spec.model_id,
         max_tokens=settings.extraction_max_tokens,
+        **extra,
         system=[
             {
                 "type": "text",
