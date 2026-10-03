@@ -31,7 +31,7 @@ so a long run can't be stopped out from under it mid-pass.
 Each is a package under `backend/app/modules/` with its own router, schemas and
 service, mounted at its own prefix.
 
-### Module A — rule extraction (`/api/a`)
+### Module A — rule extraction (`/api/rule-extraction`)
 
 Reads the 54 supplied corpus documents and emits records matching
 `schema/rule_record.schema.json`. Extraction is automated end to end; nothing
@@ -45,10 +45,10 @@ Two guards matter for scoring:
   that fail, so a hallucinated citation cannot reach the submission.
 - **We assign `team_rule_id`,** not the model, so ids stay unique across runs.
 
-`POST /api/a/extract` starts a background pass and returns a run id;
-`GET /api/a/runs/{run_id}/stream` streams progress as server-sent events.
+`POST /api/rule-extraction/extract` starts a background pass and returns a run id;
+`GET /api/rule-extraction/runs/{run_id}/stream` streams progress as server-sent events.
 
-### Module B — address lookup (`/api/b`)
+### Module B — address lookup (`/api/address-lookup`)
 
 Resolves each address to its **legal** jurisdiction, then tests every rule's
 coverage conditions against the building.
@@ -73,7 +73,7 @@ pull in opposite directions — an exemption matching means the rule does *not*
 apply. That also lets a 32-unit building defeat a "2 or fewer units"
 small-landlord exemption whoever owns it, which the brief asks for explicitly.
 
-### Module C — change tracking (`/api/c`)
+### Module C — change tracking (`/api/change-tracking`)
 
 Runs the five supplied cases (T1–T5) by **replaying Module B's evaluator** at
 the relevant dates, rather than hard-coding expected outcomes.
@@ -81,7 +81,7 @@ the relevant dates, rather than hard-coding expected outcomes.
 The tests name rules by the challenge's ids (`CA-ALG-01`, `HOB-ALG-01`, …)
 while our records carry ours (`r-0001`). `CANONICAL_RULES` in
 `change_tracking/service.py` bridges the two with an explicit selector table,
-and `GET /api/c/canonical-rules` shows the mapping — so an unmatched id is
+and `GET /api/change-tracking/canonical-rules` shows the mapping — so an unmatched id is
 visible rather than silently producing an empty set.
 
 ## Quickstart
@@ -107,9 +107,9 @@ Each module exports its submission file in the shape
 
 | Endpoint | File |
 |---|---|
-| `GET /api/a/rules/export` | `rules.json` |
-| `GET /api/b/lookup/export` | `lookups.json` |
-| `GET /api/c/export` | `changes.json` |
+| `GET /api/rule-extraction/rules/export` | `rules.json` |
+| `GET /api/address-lookup/lookup/export` | `lookups.json` |
+| `GET /api/change-tracking/export` | `changes.json` |
 
 ## Layout
 

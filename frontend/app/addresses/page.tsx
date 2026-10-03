@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 
 export default async function AddressesPage() {
   const [addresses, stats] = await Promise.all([
-    tryApi<AddressRecord[]>("/api/b/addresses?limit=100"),
-    tryApi<AddressStats>("/api/b/stats"),
+    tryApi<AddressRecord[]>("/api/address-lookup/addresses?limit=100"),
+    tryApi<AddressStats>("/api/address-lookup/stats"),
   ]);
 
   if (!addresses) {
@@ -43,7 +43,7 @@ export default async function AddressesPage() {
 
       {stats?.resolved === 0 && (
         <Notice title="No jurisdictions resolved yet">
-          Call <code className="mono">POST /api/b/resolve</code> to geocode a
+          Call <code className="mono">POST /api/address-lookup/resolve</code> to geocode a
           batch. Until then, lookups fall back to the mailing city, which is
           wrong for Boston neighbourhoods and San Ysidro.
         </Notice>

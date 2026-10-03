@@ -25,7 +25,7 @@ from app.modules.address_lookup.schemas import (
     ResolveSummary,
 )
 
-router = APIRouter(prefix="/b", tags=["Module B - address lookup"])
+router = APIRouter(prefix="/address-lookup", tags=["Module B - address lookup"])
 
 
 def _default_as_of() -> dt.date:

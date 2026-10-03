@@ -1,8 +1,9 @@
-# Source handling — decision tree (v4)
+# Module A — source handling & rule extraction (v5)
 
-How every document (provided text, fetched link, hour-16 ordinance) becomes rules in `rules.json`. Tier and confidence numbers are our proposal; tune them against the dev key.
+**Scope: Module A only** — how every document (provided text, fetched link, hour-16 ordinance) becomes rules in `rules.json`. Address lookups (Module B → `lookups.json`) and change tracking (Module C → `changes.json`) are in [`modules_b_c.md`](modules_b_c.md); they consume `rules.json` as input.
+Tier and confidence numbers are our proposal; tune them against the dev key.
 
-**Pipeline:** inventory & typing → get text → clean → tier → AI extraction → quote/citation checks → merge → source conflicts → precedence → dates & status → negative findings → output checks → `rules.json` + audit log
+**Pipeline:** inventory & typing → get text → clean → tier → AI extraction → quote/citation checks → merge → source conflicts → rule relations → dates & status → negative findings → output checks → `rules.json` + audit log
 
 ---
 
@@ -179,12 +180,12 @@ AI returns candidate rules as schema-validated JSON. Invalid → retry once with
 
 | Field | Action |
 |---|---|
-| `effective_date` | MAIN value stored; `conflict_flag` + note listing all dates/sources; all candidate dates kept for §9 |
+| `effective_date` | MAIN value stored; `conflict_flag` + note listing all dates/sources; all candidate dates kept (Module B uses them) |
 | `key_value`, periodic update (annual %) | Use value valid on as-of date; no conflict |
 | `key_value`, real disagreement | MAIN value; `conflict_flag` |
 | `status` | Most conservative (pending over in_force if unclear); `conflict_flag` |
 
-Newer lower-tier vs older official (Berkeley: ordinance 2026-03-01, Aug-2026 alert Jan 2026) → MAIN stores the value, lookups use all candidate dates.
+Newer lower-tier vs older official (Berkeley: ordinance 2026-03-01, Aug-2026 alert Jan 2026) → MAIN stores the value; all candidate dates kept for Module B.
 
 **Confidence** = MAIN tier trust, +0.05 per agreeing independent source (max 1.0), −0.15 per unresolved conflict, ≤ 0.6 if only tier 4.
 
@@ -192,81 +193,61 @@ Known conflicts to surface (README §9): Berkeley ch. 13.63 date · LA RSO formu
 
 ---
 
-## 8. Precedence layer (local vs state)
+## 8. Rule relations (rule-level only)
 
-Runs **per address × category × as-of date**, after coverage, because the winner depends on the building. SF example: built 1962 → SF ordinance applies, CA cap `superseded` · 1995 → not covered by SF, CA cap `applies` · 1979 → SF `unknown` (CO cutoff), CA cap `unknown`.
+Module A records **how rules relate**; Module B decides per address who wins (see `modules_b_c.md`).
 
-```mermaid
-flowchart TD
-    A["Address + category + as-of"] --> B["Rules with applies or unknown"]
-    B --> C{"State + city both present?"}
-    C -- no --> Z["Keep results"]
-    C -- yes --> D{"Relation known?<br/>1. stated in text → interaction<br/>2. else config/precedence.yml"}
-    D -- "local governs" --> E["Loser → superseded<br/>overrides + interaction · no flag"]
-    D -- "both apply" --> F["Both keep result · interaction note · no flag"]
-    D -- "unclear / possible preemption" --> G["Both keep result · overrides + interaction<br/>conflict_flag + conflict_note<br/>in rules, lookups, changes.json"]
-    D -- "nothing known" --> H["Both apply, no flag<br/>audit/precedence_unknown.csv"]
-    E --> U{"Winner unknown?"}
-    U -- yes --> UK["Loser also unknown, explanation names the fact"]
-```
-
-| Situation | Example | Fields |
+| Relation | Example | Fields in `rules.json` |
 |---|---|---|
-| Local clearly governs | SF/LA/Berkeley rent control vs CA §1947.12 | `overrides` + `interaction`, state `superseded`, **no flag** |
-| Both apply | CA AB 325 + SF §37.10C | both `applies`, `interaction` note |
-| Unclear / preemption | NJ FAIR Act vs JC §218-12, Hoboken ch. 158 | `overrides` + `interaction` + `conflict_flag` + `conflict_note` |
-| State bars local rule | MA c.40P vs any local cap | no local cap reported (§10) |
+| Local governs state | SF/LA/Berkeley rent control vs CA §1947.12 | `overrides` + `interaction` on both; **no** conflict flag |
+| Both apply side by side | CA AB 325 + SF §37.10C | `interaction` note |
+| Unclear / possible preemption | NJ FAIR Act vs JC §218-12, Hoboken ch. 158 | `overrides` + `interaction` + `conflict_flag: true` + `conflict_note` ("possible preemption once FAIR Act takes effect 2027-07-01") |
+| State bars local rule | MA c.40P vs any local cap | interaction on the state rule (§10) |
+| Nothing known | — | no fields; pair logged in `audit/precedence_unknown.csv` |
 
 `conflict_flag` = "human should review": only for unresolved cases. Over-flagging would disagree with the answer key.
 
-**Time:** FAIR clash is real from 2027-07-01, but T3 expects JC/Hoboken addresses flagged now → note: "possible preemption once FAIR Act takes effect 2027-07-01".
-
-**Source of relations:** stated in a document (§1947.12 exempts locally rent-controlled units) → extracted. General doctrine ("pending/failed never apply", "stricter local rent control governs") → small documented `config/precedence.yml`, shown in the demo. Wiring, not hand-coded rules.
+**Where relations come from:** stated in a document (§1947.12 exempts locally rent-controlled units) → extracted. General doctrine ("pending/failed never apply", "stricter local rent control governs") → small documented `config/precedence.yml`, shown in the demo. Wiring, not hand-coded rules.
 
 ---
 
-## 9. Dates & status
+## 9. Dates & status (as stored in `rules.json`)
 
-Computed **per as-of date**; `rules.json` stores status as of 2026-10-01.
+`status` and `effective_date` are stored **as of 2026-10-01**. Module B/C re-evaluate them for other dates using the same data.
 
-| Case | Result |
+| Case | What A stores |
 |---|---|
-| Bill / proposal | `pending` |
-| Failed, struck, repealed | `failed`, never applies |
-| Exact date | as-of ≥ date → `in_force` (applies / unknown / superseded), else `not_yet_effective` |
-| Month only (2026-01) | as-of in that month → `unknown` + note |
-| Several candidate dates | as-of between them → `unknown` + `conflict_flag` |
-| Formula | compute in code, log it. FAIR: first day of 12th month after 2026-07-20 → 2027-07-01 |
+| Bill / proposal | `status: pending` |
+| Failed, struck, repealed | `status: failed` |
+| Exact date | `effective_date`; status `in_force` or `not_yet_effective` vs 2026-10-01 |
+| Month only (2026-01) | `effective_date: "2026-01"` (schema allows YYYY-MM) |
+| Several candidate dates | MAIN date + `conflict_flag`; all candidates in `audit/conflicts.csv` |
+| Formula | compute in code, log it. FAIR: first day of 12th month after 2026-07-20 → `2027-07-01`, `not_yet_effective` |
 | None stated | `in_force` if enacted, `effective_date: null`, confidence −0.1 |
-
-**Edge cases**
-- Values valid for a period (SF 1.6 %, 2026-03-01 → 2027-02-28) → outside it `key_value` unknown, rule still applies.
-- Year built in a CO-cutoff year (SF ≤ 1979-06-13, LA ≤ 1978-10-01) → `unknown`.
-- T1: AB 325 / SB 763 → `not_yet_effective` 2025-12-31, `applies` 2026-01-02.
+| Value valid for a period | store the period with `key_value` (SF 1.6 %, 2026-03-01 → 2027-02-28) |
+| Coverage cutoffs | store exactly as written in `coverage_conditions` (SF CO ≤ 1979-06-13, LA CO ≤ 1978-10-01) |
 
 ---
 
 ## 10. Negative findings (answer key has 19)
 
-| Finding | Representation |
+| Finding | Rule record |
 |---|---|
-| MA bars local rent control (c.40P) | State rule, `rent_increase_limits`, in_force; interaction: no local cap |
-| MA ballot question struck 2026-06-23 | `status: failed`; never in lookups; T5 = [] |
-| MA bills S.2983 / H.5222 | `pending`; T4 = all MA addresses |
-| City has no rule in a category | `audit/negative_findings.csv`; omitted from lookups |
+| MA bars local rent control (c.40P) | State rule, `rent_increase_limits`, `in_force`; interaction: no local cap |
+| MA ballot question struck 2026-06-23 | `status: failed` |
+| MA bills S.2983 / H.5222 | `status: pending` |
+| City has no rule in a category | no record; logged in `audit/negative_findings.csv` |
 
 ---
 
-## 11. Output checks (build fails otherwise)
+## 11. Output checks for `rules.json` (build fails otherwise)
 
-1. `rules.json` valid against the schema.
-2. IDs unique and stable; every `overrides` ID exists.
+1. Valid against `schema/rule_record.schema.json`.
+2. `team_rule_id` unique and stable; every `overrides` ID exists.
 3. Every `quoted_span` is an exact substring of its source file.
-4. Every lookup ID exists; all 500 addresses present.
-5. No `applies` for pending / failed / not_yet_effective rules.
-6. Guardrails: no MA rent cap applies · JC ban only in Jersey City · Hoboken ban only in Hoboken · no local algorithm ban in Newark.
-7. `changes.json` has T1–T5 (+T6); T3 has `conflict_flag_address_ids`.
-8. Diff vs previous run; changes listed for review.
+4. Status consistent with `effective_date` vs 2026-10-01; pending/failed never `in_force`.
+5. Required rules present: CA AB 325/SB 763, NJ FAIR Act, JC and Hoboken bans, MA S.2983/H.5222, MA ballot (failed), MA c.40P.
+6. Diff vs previous run; changed rules listed for review.
 
 ---
 
@@ -283,7 +264,7 @@ Computed **per as-of date**; `rules.json` stores status as of 2026-10-01.
 1. Download from the organizers' Drive → `corpus/organizer_release/`, add a manifest row.
 2. Run the same pipeline; no code changes, no hand edits.
 3. New jurisdiction → one line in the jurisdiction config.
-4. Future effective date → `not_yet_effective` today; T6 set from the as-of engine.
+4. Future effective date → computed and stored like any other (§9). The T6 affected set is Module C.
 5. Time the run; show it in the video.
 
 ---

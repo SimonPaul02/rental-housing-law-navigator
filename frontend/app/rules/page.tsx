@@ -14,9 +14,9 @@ export const dynamic = "force-dynamic";
 
 export default async function RulesPage() {
   const [rules, stats, documents] = await Promise.all([
-    tryApi<RuleRecord[]>("/api/a/rules?limit=200"),
-    tryApi<RuleStats>("/api/a/stats"),
-    tryApi<DocumentSummary[]>("/api/a/corpus/documents?has_text=true"),
+    tryApi<RuleRecord[]>("/api/rule-extraction/rules?limit=200"),
+    tryApi<RuleStats>("/api/rule-extraction/stats"),
+    tryApi<DocumentSummary[]>("/api/rule-extraction/corpus/documents?has_text=true"),
   ]);
 
   return (
@@ -29,10 +29,10 @@ export default async function RulesPage() {
       {!rules?.length && (
         <Notice title="No rules extracted yet">
           Run a pass with{" "}
-          <code className="mono">POST /api/a/extract</code> (or{" "}
-          <code className="mono">POST /api/a/extract/&#123;doc_id&#125;</code>{" "}
+          <code className="mono">POST /api/rule-extraction/extract</code> (or{" "}
+          <code className="mono">POST /api/rule-extraction/extract/&#123;doc_id&#125;</code>{" "}
           for a single document). Progress streams from{" "}
-          <code className="mono">/api/a/runs/&#123;run_id&#125;/stream</code>.
+          <code className="mono">/api/rule-extraction/runs/&#123;run_id&#125;/stream</code>.
           {documents?.length
             ? ` ${documents.length} documents have supplied text and are ready to read.`
             : ""}

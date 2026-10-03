@@ -6,9 +6,9 @@ export const dynamic = "force-dynamic";
 
 export default async function ChangesPage() {
   const [tests, results, canonical] = await Promise.all([
-    tryApi<ChangeTest[]>("/api/c/tests"),
-    tryApi<ChangeTestResult[]>("/api/c/results"),
-    tryApi<CanonicalMatch[]>("/api/c/canonical-rules"),
+    tryApi<ChangeTest[]>("/api/change-tracking/tests"),
+    tryApi<ChangeTestResult[]>("/api/change-tracking/results"),
+    tryApi<CanonicalMatch[]>("/api/change-tracking/canonical-rules"),
   ]);
 
   if (!tests) {
@@ -80,7 +80,7 @@ export default async function ChangesPage() {
                 </div>
               ) : (
                 <p className="mt-3 text-sm" style={{ color: "var(--text-muted)" }}>
-                  Not run yet — <code className="mono">POST /api/c/tests/{test.test_id}/run</code>
+                  Not run yet — <code className="mono">POST /api/change-tracking/tests/{test.test_id}/run</code>
                 </p>
               )}
             </Card>

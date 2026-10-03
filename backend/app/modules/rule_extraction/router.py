@@ -25,7 +25,7 @@ from app.modules.rule_extraction.schemas import (
     RunSummary,
 )
 
-router = APIRouter(prefix="/a", tags=["Module A - rule extraction"])
+router = APIRouter(prefix="/rule-extraction", tags=["Module A - rule extraction"])
 
 
 # ---------------------------------------------------------------- corpus ---

@@ -19,7 +19,7 @@ from app.modules.change_tracking.schemas import (
     RunTestsRequest,
 )
 
-router = APIRouter(prefix="/c", tags=["Module C - change tracking"])
+router = APIRouter(prefix="/change-tracking", tags=["Module C - change tracking"])
 
 
 @router.get("/tests", response_model=list[ChangeTest])

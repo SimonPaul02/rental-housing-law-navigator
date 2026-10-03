@@ -15,8 +15,8 @@ const STATUS_COLORS: Record<string, string> = {
 export default async function OverviewPage() {
   const [health, ruleStats, addressStats] = await Promise.all([
     tryApi<Health>("/api/health"),
-    tryApi<RuleStats>("/api/a/stats"),
-    tryApi<AddressStats>("/api/b/stats"),
+    tryApi<RuleStats>("/api/rule-extraction/stats"),
+    tryApi<AddressStats>("/api/address-lookup/stats"),
   ]);
 
   if (!health) {
