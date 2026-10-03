@@ -60,6 +60,20 @@ class Document(Base, TimestampMixin):
     # Full text, loaded from corpus/text/. NULL for link-only sources.
     body: Mapped[str | None] = mapped_column(Text)
 
+    # --- pipeline classification (see pipeline/inventory.py) ---
+    # law_text | bill | official_guide | code_mirror | secondary
+    doc_type: Mapped[str | None] = mapped_column(String(24), index=True)
+    # Trust tier 1, 1b, 2, 3, 4 - drives confidence and merge precedence.
+    tier: Mapped[str | None] = mapped_column(String(4), index=True)
+    # provided | fetched | organizer_release
+    origin: Mapped[str] = mapped_column(String(24), default="provided", nullable=False)
+    # sha256 of body; the extraction cache keys on it, so an unchanged
+    # document never costs a second API call.
+    content_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    doc_type_reason: Mapped[str | None] = mapped_column(Text)
+    # Set when a human has confirmed the classification.
+    doc_type_confirmed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     rules: Mapped[list[Rule]] = relationship(back_populates="document")
 
     @property
@@ -101,6 +115,18 @@ class Rule(Base, TimestampMixin):
 
     # Provenance: which extraction run produced this record.
     run_id: Mapped[str | None] = mapped_column(String(36), index=True)
+
+    # --- merge provenance (see pipeline/merge.py) ---
+    # jurisdiction|category|canonical citation - team_rule_id hashes this, so
+    # ids stay stable across runs and lookups.json keeps pointing at the same
+    # rule.
+    group_key: Mapped[str | None] = mapped_column(Text, index=True)
+    # Tier of the MAIN source this rule's fields came from.
+    tier: Mapped[str | None] = mapped_column(String(4))
+    # [{doc_id, tier, agrees, fields}] - every other source for the same law.
+    other_sources: Mapped[list[dict]] = mapped_column(JSONB, default=list, nullable=False)
+    # none | text | section | url - how the citation was verified.
+    citation_evidence: Mapped[str | None] = mapped_column(String(16))
 
     document: Mapped[Document | None] = relationship(back_populates="rules")
 
@@ -218,3 +244,40 @@ class ChangeResult(Base, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(Text)
     # Per-rule before/after status for "as_of" tests.
     detail: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+
+
+# --------------------------------------------------------------------------
+# Pipeline support
+# --------------------------------------------------------------------------
+class AuditEntry(Base):
+    """Append-only audit trail. Never updated, never deleted."""
+
+    __tablename__ = "audit_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+    run_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    channel: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class ExtractionCache(Base, TimestampMixin):
+    """Model output keyed by (document content, prompt version, model).
+
+    This is what makes a rerun reproducible. Temperature is not a knob on
+    current models - it is removed and rejected - so determinism comes from
+    replaying cached output, not from the sampler.
+    """
+
+    __tablename__ = "extraction_cache"
+
+    cache_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    doc_id: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    model: Mapped[str] = mapped_column(String(64), nullable=False)
+    response: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
