@@ -83,22 +83,29 @@ Google signs up and signs in with the same click.
 
 ### Setting it up
 
-In the WorkOS dashboard pick the environment (staging for local work), copy
-**WORKOS_CLIENT_ID** and **WORKOS_API_KEY** from *API Keys* into
+**One WorkOS environment serves both local work and the deployment.** One set of
+keys, one pool of accounts — sign up locally and the same account works in
+production. There is nothing to keep in sync and no second user space to
+remember which one an address exists in.
+
+Copy **WORKOS_CLIENT_ID** and **WORKOS_API_KEY** from *API Keys* into
 `frontend/.env.local` (see `frontend/.env.local.example`), add
 `WORKOS_COOKIE_PASSWORD` (`openssl rand -base64 32`), and put the **same client
-id** into `backend/.env`. Under *Applications → Redirects* set:
+id** into `backend/.env`. Under *Applications → Redirects*, register both hosts:
 
-| Field | Value |
-|---|---|
-| Redirect URI | `http://localhost:3000/callback` |
-| Initiate login URI | `http://localhost:3000/sign-in` |
-| Sign-out redirect | `http://localhost:3000` |
+| Field | Local | Deployed |
+|---|---|---|
+| Redirect URI | `http://localhost:3000/callback` | `https://<host>/callback` |
+| Initiate login URI | `http://localhost:3000/sign-in` | `https://<host>/sign-in` |
+| Sign-out redirect | `http://localhost:3000` | `https://<host>` |
 
-Use one host consistently. `localhost` and `127.0.0.1` are the same machine but
-not the same origin, and a flow begun on the other name returns to a callback
-with no cookie to verify — `/sign-in` and `/sign-up` bounce to the registered
-host first so that cannot happen by accident.
+Both can be registered at once; what decides which one a flow uses is
+`NEXT_PUBLIC_WORKOS_REDIRECT_URI`, set per deployment.
+
+Within one deployment, use one host consistently. `localhost` and `127.0.0.1`
+are the same machine but not the same origin, and a flow begun on the other name
+returns to a callback with no cookie to verify — `/sign-in` and `/sign-up` bounce
+to the host the redirect URI names so that cannot happen by accident.
 
 Test accounts: `backend/scripts/workos_user.py test@rhln-local.dev` creates the
 user with the address already marked verified (a made-up address never receives
@@ -235,10 +242,24 @@ data directories (`.github/workflows/deploy-backend.yml`, needs the
 The Docker build context is the **repo root**, not `backend/`, because the
 image needs the corpus and address data alongside the app.
 
-For accounts in production, point the frontend at the WorkOS **production**
-environment — its own API key, client id and cookie password, set in the Vercel
-dashboard — register the deployed `/callback`, `/sign-in` and sign-out URIs
-there, and `fly secrets set WORKOS_CLIENT_ID=...` on the API. Set
-`ENVIRONMENT=production` too: the API then refuses to serve without a client id
-rather than publishing the data. The Vercel deployment needs the WorkOS
-variables **at run time**, because signing in happens server-side inside it.
+Accounts use the **same WorkOS environment as local work**, so there are no
+separate production keys — the same client id and API key, with the deployed
+`/callback`, `/sign-in` and sign-out URIs registered alongside the local ones.
+Two things carry them:
+
+```bash
+fly secrets set WORKOS_CLIENT_ID=client_... --app rhln-api
+```
+
+and, in the Vercel dashboard (Production), `WORKOS_CLIENT_ID`,
+`WORKOS_API_KEY`, `WORKOS_COOKIE_PASSWORD` and
+`NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://<host>/callback`. Vercel needs them
+**at run time**, not just at build, because signing in happens server-side
+inside the Next.js process.
+
+`fly.toml` already sets `ENVIRONMENT=production`, and that has a consequence
+worth knowing before a deploy: without the client id the API **refuses every
+request** rather than publishing the data. That is the intended guard, but
+`/api/health` still answers 200 — so the Fly health check and the frontend smoke
+test both pass while the API turns everyone away. Set the secret in the same
+sitting as the deploy, or the deployment goes quietly dark.
