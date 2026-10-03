@@ -42,13 +42,22 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed to $url"
 
+      # Hit the stable production alias rather than the per-deploy URL, and
+      # follow redirects: a bare deployment URL 302s to Vercel SSO whenever
+      # deployment protection is on, which says nothing about the app.
       - name: Smoke-test the deployment
         run: |
           set -euo pipefail
-          url="${{ steps.deploy.outputs.url }}"
+          url="https://rental-housing-law-navigator.vercel.app"
           for i in $(seq 1 10); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' "$url")
-            if [ "$code" = "200" ]; then echo "$url -> 200"; exit 0; fi
+            code=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 20 "$url" || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "$url -> 200"
+              # The page is only useful if it can reach the API through the rewrite.
+              curl -fsSL --max-time 20 "$url/api/health" | grep -q '"status"'
+              echo "api proxy reachable"
+              exit 0
+            fi
             echo "attempt $i: $code"; sleep 5
           done
           echo "never returned 200"; exit 1
