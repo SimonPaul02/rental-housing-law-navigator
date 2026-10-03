@@ -1,6 +1,13 @@
 # Rental Housing Law Navigator - FastAPI backend.
-app            = "rhln-api"
-primary_region = "bos"
+app = "rhln-api"
+
+# London, not Boston: the Supabase project is in eu-west-1 (Ireland), and the
+# app makes several DB queries per request while the browser makes one request
+# per page. Measured, a transatlantic DB hop is ~75ms per query against ~12ms
+# from lhr; that trades one ~80ms user hop for N saved ones. Break-even is
+# N ~ 1.1 queries, and every page here is well past that. If the database
+# moves to us-east-1, change this back to "bos".
+primary_region = "lhr"
 
 [build]
   dockerfile = "backend/Dockerfile"
