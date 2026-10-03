@@ -27,9 +27,10 @@ export default async function WelcomePage() {
           className="mt-2 max-w-2xl leading-relaxed"
           style={{ color: "var(--text-secondary)" }}
         >
-          One question before you start: which of these are you? It decides
-          which app you get — the four read the same record and ask entirely
-          different things of it.
+          One question before you start: which of these are you? Every role
+          shares the same interface for now, so nothing is withheld by
+          answering — but the four ask entirely different things of the same
+          record, and this is what the tailored views will be built on.
         </p>
       </section>
 

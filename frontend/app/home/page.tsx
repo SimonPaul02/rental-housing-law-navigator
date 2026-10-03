@@ -1,42 +1,23 @@
 import { gate } from "@/lib/auth";
 import { tryApi } from "@/lib/api";
 import { SignInNotConfigured, Unavailable } from "@/components/gate-notice";
-import { RenterHome } from "@/components/home/renter";
-import { ProviderHome } from "@/components/home/provider";
-import { AgencyHome } from "@/components/home/agency";
-import { AdvocateHome } from "@/components/home/advocate";
+import { Dashboard } from "@/components/home/dashboard";
 import type { Place } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-/** Four apps behind one path.
+/** One dashboard, for all four roles.
  *
- * The role is resolved on the server, so the dashboard a person gets is the
- * only one their browser is ever sent - a renter never receives an agency's
- * markup and has nothing to toggle.
- *
- * Renter and provider are about particular buildings, so they need the saved
- * places; agency and advocate are about the record as a whole and do not, so
- * they are not made to wait for a query they will not read.
+ * The role is resolved here and passed down even though the page does not yet
+ * branch on it: it is the seam the four tailored views will open along, and
+ * having it already in hand means the split is a change to one component
+ * rather than to the routing.
  */
 export default async function HomePage() {
-  const g = await gate("/home");
+  const g = await gate();
   if (g.mode === "unavailable") return <Unavailable detail={g.detail} />;
   if (g.mode === "open") return <SignInNotConfigured what="A personal dashboard" />;
 
-  switch (g.role) {
-    case "renter":
-    case "provider": {
-      const places = (await tryApi<Place[]>("/api/accounts/me/places")) ?? [];
-      return g.role === "renter" ? (
-        <RenterHome places={places} />
-      ) : (
-        <ProviderHome places={places} />
-      );
-    }
-    case "agency":
-      return <AgencyHome />;
-    case "advocate":
-      return <AdvocateHome />;
-  }
+  const places = (await tryApi<Place[]>("/api/accounts/me/places")) ?? [];
+  return <Dashboard places={places} roleLabel={g.account.role_label} />;
 }

@@ -17,7 +17,7 @@ import { redirect } from "next/navigation";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import type { User } from "@workos-inc/node";
 import { ApiError, api } from "./api";
-import { ROLES, isRole, rolesFor, type Role } from "./roles";
+import { isRole, type Role } from "./roles";
 import type { Account } from "./types";
 
 /** Whether this deployment has a WorkOS environment at all.
@@ -83,13 +83,12 @@ export type Gate =
 
 /** Resolve the viewer into something a page can render, redirecting if not.
  *
- * Pass the page's own path to have the role checked against it: the allowed
- * roles are read off the navigation in lib/roles.ts, so a page can never be
- * reachable by a role whose menu does not offer it. A role that may not be
- * here goes to its own dashboard rather than to an error — it is not a
- * trespass, just the wrong app.
+ * Every role currently reaches every page, so there is nothing to check a path
+ * against and this takes no argument. When the four apps diverge, the role on
+ * the returned gate is what a page will branch on — it is already here, so no
+ * page has to learn about roles twice.
  */
-export async function gate(path?: string): Promise<Gate> {
+export async function gate(): Promise<Gate> {
   const seen = await viewer();
 
   switch (seen.state) {
@@ -105,18 +104,13 @@ export async function gate(path?: string): Promise<Gate> {
     // eslint-disable-next-line no-fallthrough -- redirect() never returns
     case "unavailable":
       return { mode: "unavailable", detail: seen.detail };
-    case "ready": {
-      if (path) {
-        const allowed = rolesFor(path);
-        if (allowed.length && !allowed.includes(seen.role)) redirect("/home");
-      }
+    case "ready":
       return {
         mode: "account",
         user: seen.user,
         account: seen.account,
         role: seen.role,
       };
-    }
   }
 }
 
@@ -124,8 +118,4 @@ export async function gate(path?: string): Promise<Gate> {
 export function displayName(user: User): string {
   const full = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
   return user.name || full || user.email;
-}
-
-export function roleSpec(role: Role) {
-  return ROLES[role];
 }

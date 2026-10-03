@@ -34,8 +34,8 @@ export default async function FrontDoor() {
             style={{ color: "var(--text-secondary)" }}
           >
             Rental housing law for a specific building on a specific day, with
-            the source text behind every answer. Sign in and the app shapes
-            itself to who you are — the same record, four different questions.
+            the source text behind every answer. Sign in and say which of these
+            you are — the same record, four different questions of it.
           </p>
 
           <ul className="mt-6 space-y-3">
@@ -57,8 +57,10 @@ export default async function FrontDoor() {
           </ul>
 
           <p className="mt-6 text-sm" style={{ color: "var(--text-muted)" }}>
-            No teams, no sharing, no inboxes. Nobody here can see anybody else,
-            and there is nothing in the app that addresses another account.
+            Every role shares one interface for now; the tailored views come
+            later. No teams, no sharing, no inboxes either — nobody here can see
+            anybody else, and there is nothing in the app that addresses another
+            account.
           </p>
         </div>
 

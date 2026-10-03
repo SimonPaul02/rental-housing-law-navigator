@@ -27,7 +27,7 @@ purpose. A full corpus extraction pass runs for many minutes, which no
 serverless timeout survives, and Fly is configured `auto_stop_machines = "off"`
 so a long run can't be stopped out from under it mid-pass.
 
-## Sign in, and the four apps
+## Sign in, and the four roles
 
 People live in [WorkOS](https://dashboard.workos.com) and nowhere else. No
 credential, no password reset and no Google connection exists in this
@@ -45,21 +45,29 @@ travels in an access token only as a property of an *organisation membership*,
 so with no organisations there is no `role` claim to read. The role therefore
 lives in our own `users` table, keyed by the token's `sub`:
 
-| Role | Their app |
+| Role | The question they bring |
 |---|---|
 | `renter` | One address. Which rules cover the building they live in, and what each entitles them to. |
 | `provider` | Their buildings. What binds each one, which exemptions it can claim, which fact is still missing. |
 | `agency` | Coverage. How much of the housing stock the system can answer for, and where the records fail. |
 | `advocate` | Evidence. The quoted span and citation behind every answer, and the conflicts still open. |
 
-The four read the same record and ask entirely different things of it. The role
-is resolved **server-side**, so a renter's browser never receives an agency's
-markup and there is nothing to toggle. It is not a permission: every row this
-API serves is either public corpus material or the caller's own, which is why
-switching role is self-service — there is no administrator above an account to
-ask. `lib/roles.ts` is the single table the picker, the navigation, the
-dashboards and the route guards all read, so a role cannot be offered in one
-place and unknown in another.
+**Every role currently gets the same interface.** The role is asked for at
+sign-up and stored, but nothing branches on it yet: one menu, one dashboard, the
+same pages. That is deliberate — asking now means that when the four views do
+diverge, every existing account already carries an answer and nobody has to be
+interrupted for one later.
+
+Two places will open along that seam, and only those two: `NAV` in
+`frontend/lib/roles.ts`, and `frontend/components/home/dashboard.tsx` — whose
+two halves (*your buildings*, and *the record*) are already the parts the
+tailored versions will be made of. `app/home/page.tsx` resolves the role and
+passes it down today so the split is a change to one component, not to routing.
+
+A role is never a permission. Every row this API serves is either public corpus
+material or the caller's own, which is why switching role is self-service —
+there is no administrator above an account to ask, and the switch grants
+nothing. That stays true when the tailoring arrives.
 
 ### Signing in happens in the page
 
@@ -75,22 +83,29 @@ Google signs up and signs in with the same click.
 
 ### Setting it up
 
-In the WorkOS dashboard pick the environment (staging for local work), copy
-**WORKOS_CLIENT_ID** and **WORKOS_API_KEY** from *API Keys* into
+**One WorkOS environment serves both local work and the deployment.** One set of
+keys, one pool of accounts — sign up locally and the same account works in
+production. There is nothing to keep in sync and no second user space to
+remember which one an address exists in.
+
+Copy **WORKOS_CLIENT_ID** and **WORKOS_API_KEY** from *API Keys* into
 `frontend/.env.local` (see `frontend/.env.local.example`), add
 `WORKOS_COOKIE_PASSWORD` (`openssl rand -base64 32`), and put the **same client
-id** into `backend/.env`. Under *Applications → Redirects* set:
+id** into `backend/.env`. Under *Applications → Redirects*, register both hosts:
 
-| Field | Value |
-|---|---|
-| Redirect URI | `http://localhost:3000/callback` |
-| Initiate login URI | `http://localhost:3000/sign-in` |
-| Sign-out redirect | `http://localhost:3000` |
+| Field | Local | Deployed |
+|---|---|---|
+| Redirect URI | `http://localhost:3000/callback` | `https://<host>/callback` |
+| Initiate login URI | `http://localhost:3000/sign-in` | `https://<host>/sign-in` |
+| Sign-out redirect | `http://localhost:3000` | `https://<host>` |
 
-Use one host consistently. `localhost` and `127.0.0.1` are the same machine but
-not the same origin, and a flow begun on the other name returns to a callback
-with no cookie to verify — `/sign-in` and `/sign-up` bounce to the registered
-host first so that cannot happen by accident.
+Both can be registered at once; what decides which one a flow uses is
+`NEXT_PUBLIC_WORKOS_REDIRECT_URI`, set per deployment.
+
+Within one deployment, use one host consistently. `localhost` and `127.0.0.1`
+are the same machine but not the same origin, and a flow begun on the other name
+returns to a callback with no cookie to verify — `/sign-in` and `/sign-up` bounce
+to the host the redirect URI names so that cannot happen by accident.
 
 Test accounts: `backend/scripts/workos_user.py test@rhln-local.dev` creates the
 user with the address already marked verified (a made-up address never receives
@@ -188,7 +203,7 @@ make dev-web                # :3000  (separate terminal)
 For accounts, also `cp frontend/.env.local.example frontend/.env.local` and fill
 in the WorkOS values; `make user EMAIL=you@rhln-local.dev` then creates a test
 account to sign in with. Without them the app runs open — see
-[Sign in](#sign-in-and-the-four-apps).
+[Sign in](#sign-in-and-the-four-roles).
 
 `make help` lists the rest. API docs at `/api/docs`.
 
@@ -216,7 +231,8 @@ frontend/    Next.js app
   middleware.ts              AuthKit session upkeep
   app/sign-in|sign-up/       the hosted flow, and the Google shortcut
   app/auth/                  the in-page sign-in, token handout, registration
-  lib/roles.ts               the four roles, and what each one's app is
+  lib/roles.ts               the four roles, and the one menu they share
+  components/home/           the dashboard everyone sees
 corpus/      87 source documents (54 with supplied text)
 data/        500 sample addresses
 schema/      rule_record.schema.json
@@ -234,10 +250,24 @@ data directories (`.github/workflows/deploy-backend.yml`, needs the
 The Docker build context is the **repo root**, not `backend/`, because the
 image needs the corpus and address data alongside the app.
 
-For accounts in production, point the frontend at the WorkOS **production**
-environment — its own API key, client id and cookie password, set in the Vercel
-dashboard — register the deployed `/callback`, `/sign-in` and sign-out URIs
-there, and `fly secrets set WORKOS_CLIENT_ID=...` on the API. Set
-`ENVIRONMENT=production` too: the API then refuses to serve without a client id
-rather than publishing the data. The Vercel deployment needs the WorkOS
-variables **at run time**, because signing in happens server-side inside it.
+Accounts use the **same WorkOS environment as local work**, so there are no
+separate production keys — the same client id and API key, with the deployed
+`/callback`, `/sign-in` and sign-out URIs registered alongside the local ones.
+Two things carry them:
+
+```bash
+fly secrets set WORKOS_CLIENT_ID=client_... --app rhln-api
+```
+
+and, in the Vercel dashboard (Production), `WORKOS_CLIENT_ID`,
+`WORKOS_API_KEY`, `WORKOS_COOKIE_PASSWORD` and
+`NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://<host>/callback`. Vercel needs them
+**at run time**, not just at build, because signing in happens server-side
+inside the Next.js process.
+
+`fly.toml` already sets `ENVIRONMENT=production`, and that has a consequence
+worth knowing before a deploy: without the client id the API **refuses every
+request** rather than publishing the data. That is the intended guard, but
+`/api/health` still answers 200 — so the Fly health check and the frontend smoke
+test both pass while the API turns everyone away. Set the secret in the same
+sitting as the deploy, or the deployment goes quietly dark.
