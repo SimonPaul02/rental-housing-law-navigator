@@ -28,15 +28,17 @@ def build_property_facts(inputs: Sequence[PropertyInput]) -> list[PropertyFacts]
         for field in ("year_built", "first_built_date", "certificate_of_occupancy_date"):
             if f"{field}_after_retrieval" in warnings:
                 fields[field] = replace(fields[field], status="conflicted")
-        records.append(PropertyFacts(
-            address_id=source.address_id,
-            record_scope=source.record_scope,
-            year_built=fields["year_built"],
-            units=fields["units"],
-            use_code=fields["use_code"],
-            use_description=fields["use_description"],
-            first_built_date=fields["first_built_date"],
-            certificate_of_occupancy_date=fields["certificate_of_occupancy_date"],
-            warnings=warnings,
-        ))
+        records.append(
+            PropertyFacts(
+                address_id=source.address_id,
+                record_scope=source.record_scope,
+                year_built=fields["year_built"],
+                units=fields["units"],
+                use_code=fields["use_code"],
+                use_description=fields["use_description"],
+                first_built_date=fields["first_built_date"],
+                certificate_of_occupancy_date=fields["certificate_of_occupancy_date"],
+                warnings=warnings,
+            )
+        )
     return records

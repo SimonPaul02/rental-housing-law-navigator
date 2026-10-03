@@ -6,17 +6,19 @@
 library and does no file, network, geocoding, or legal-rule IO.
 
 ```python
-from property_facts import PropertyInput, build_property_facts
+from app.modules.address_lookup.property_facts import PropertyInput, build_property_facts
 
-records = build_property_facts([
-    PropertyInput(
-        address_id="A0005",
-        use_code="7700",
-        use_description="Alameda County use code (5+ units)",
-        source_dataset="Alameda County parcels",
-        retrieved_at="2026-10-01T22:50Z",
-    )
-])
+records = build_property_facts(
+    [
+        PropertyInput(
+            address_id="A0005",
+            use_code="7700",
+            use_description="Alameda County use code (5+ units)",
+            source_dataset="Alameda County parcels",
+            retrieved_at="2026-10-01T22:50Z",
+        )
+    ]
+)
 assert records[0].units.value is None
 ```
 
@@ -30,7 +32,7 @@ is `source_address_row`; the package makes no parcel/building/unit identity clai
 When an enriched field comes from another source, supply its own `Provenance`
 through `PropertyInput.field_provenance`; otherwise fields inherit the row source.
 
-The `pipeline.property_facts_adapter` module connects the package to the
+The `app.modules.address_lookup.adapters.property_facts` module connects the package to the
 current address resolver's `AddressInput` and `ResolvedAddress` types. It is
 the only place this feature imports `address_resolution`. Call either
 `from_address_inputs(addresses)` or `from_resolved_addresses(results)`.
@@ -42,4 +44,5 @@ an exact unit count and an explicit numeric range in the supplied use
 description. It does not decode assessor use codes, infer exact unit counts
 from category descriptions, or make rule-coverage decisions.
 
-Run checks with `python3 -m unittest discover -s tests -p 'test_property_facts.py'`.
+From `backend/`, run checks with
+`python3 -m unittest discover -s tests -p 'test_property_facts.py'`.

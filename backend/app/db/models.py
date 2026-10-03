@@ -172,6 +172,8 @@ class Address(Base, TimestampMixin):
     use_description: Mapped[str | None] = mapped_column(Text)
     source_dataset: Mapped[str | None] = mapped_column(Text)
     retrieved_at: Mapped[str | None] = mapped_column(String(32))
+    # Evidence-bearing normalized facts; raw assessor values and conflicts survive seeding.
+    property_facts: Mapped[dict | None] = mapped_column(JSONB)
 
     jurisdiction: Mapped[AddressJurisdiction | None] = relationship(
         back_populates="address", uselist=False, cascade="all, delete-orphan"
@@ -190,7 +192,7 @@ class AddressJurisdiction(Base, TimestampMixin):
     legal_city: Mapped[str | None] = mapped_column(String(128), index=True)
     legal_state: Mapped[str | None] = mapped_column(String(2), index=True)
     county: Mapped[str | None] = mapped_column(String(128))
-    # "census" | "postal_fallback" | "manual"
+    # "geocoder" | "review_override" | "unresolved"
     method: Mapped[str] = mapped_column(String(32), nullable=False)
     matched_address: Mapped[str | None] = mapped_column(Text)
     latitude: Mapped[float | None] = mapped_column(Float)
@@ -198,6 +200,7 @@ class AddressJurisdiction(Base, TimestampMixin):
     place_geoid: Mapped[str | None] = mapped_column(String(16))
     confidence: Mapped[float | None] = mapped_column(Float)
     note: Mapped[str | None] = mapped_column(Text)
+    resolution_evidence: Mapped[dict | None] = mapped_column(JSONB)
 
     address: Mapped[Address] = relationship(back_populates="jurisdiction")
 

@@ -35,10 +35,12 @@ class JurisdictionRecord(BaseModel):
     place_geoid: str | None = None
     confidence: float | None = None
     note: str | None = None
+    resolution_evidence: dict | None = None
 
 
 class AddressDetail(AddressRecord):
     jurisdiction: JurisdictionRecord | None = None
+    property_facts: dict | None = None
     postal_city_differs: bool = Field(
         default=False,
         description="True when the legal city is not the mailing city.",

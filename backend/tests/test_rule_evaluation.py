@@ -9,6 +9,8 @@ from __future__ import annotations
 import datetime as dt
 
 from app.db.models import Address, AddressJurisdiction, Rule
+from app.modules.address_lookup.adapters.property_facts import to_payload
+from app.modules.address_lookup.property_facts import PropertyInput, build_property_facts
 from app.modules.address_lookup.service import (
     evaluate_rule_for_address,
     facts_for,
@@ -129,6 +131,33 @@ def test_hoboken_rule_does_not_reach_jersey_city():
     rule = make_rule(jurisdiction="Hoboken, NJ", level="city")
     outcome = evaluate_rule_for_address(rule, facts_for(address), AS_OF)
     assert outcome.in_jurisdiction is False
+
+
+def test_unresolved_city_does_not_assume_postal_city():
+    address = make_address(postal_city="Jersey City", state="NJ")
+    address.jurisdiction = None
+    rule = make_rule(jurisdiction="Jersey City, NJ", level="city")
+    outcome = evaluate_rule_for_address(rule, facts_for(address), AS_OF)
+    assert outcome.result == "unknown"
+    assert outcome.unresolved_fields == ["legal_city"]
+
+
+def test_conflicted_unit_count_cannot_decide_coverage():
+    address = make_address(units=15)
+    record = build_property_facts(
+        [
+            PropertyInput(
+                address_id=address.address_id,
+                units="15",
+                use_description="Apartment 5 to 14 Units",
+            )
+        ]
+    )[0]
+    address.property_facts = to_payload(record)
+    rule = make_rule(coverage_conditions="Applies to buildings with 5 or more units.")
+    outcome = evaluate_rule_for_address(rule, facts_for(address), AS_OF)
+    assert outcome.result == "unknown"
+    assert "units" in outcome.unresolved_fields
 
 
 # -- coverage interaction ----------------------------------------------------

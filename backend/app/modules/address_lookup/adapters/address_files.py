@@ -3,18 +3,28 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import asdict
 import json
+from dataclasses import asdict
 from pathlib import Path
 
-from .models import AddressInput, ResolvedAddress, ReviewOverride
-
+from app.modules.address_lookup.address_resolution.models import (
+    AddressInput,
+    ResolvedAddress,
+    ReviewOverride,
+)
 
 _REQUIRED_COLUMNS = {"address_id", "street_address", "postal_city", "state", "zip"}
 _REVIEW_COLUMNS = {
-    "address_id", "input_street_address", "input_postal_city", "input_state",
-    "legal_state", "legal_city",
-    "source_url", "reason", "reviewer", "reviewed_at",
+    "address_id",
+    "input_street_address",
+    "input_postal_city",
+    "input_state",
+    "legal_state",
+    "legal_city",
+    "source_url",
+    "reason",
+    "reviewer",
+    "reviewed_at",
 }
 
 
@@ -89,15 +99,26 @@ def write_review_csv(results: list[ResolvedAddress], path: str | Path) -> None:
         writer = csv.DictWriter(
             stream,
             fieldnames=[
-                "address_id", "status", "street_address", "postal_city", "legal_city", "state", "zip",
-                "warnings", "attempts", "candidate_cities",
+                "address_id",
+                "status",
+                "street_address",
+                "postal_city",
+                "legal_city",
+                "state",
+                "zip",
+                "warnings",
+                "attempts",
+                "candidate_cities",
             ],
         )
         writer.writeheader()
         for item in results:
             if item.resolution_method == "review_override":
                 continue
-            if item.status == "resolved" and "postal_city_differs_from_legal_city" not in item.warnings:
+            if (
+                item.status == "resolved"
+                and "postal_city_differs_from_legal_city" not in item.warnings
+            ):
                 continue
             writer.writerow(
                 {

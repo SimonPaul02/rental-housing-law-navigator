@@ -53,7 +53,9 @@ class GeocodeResponse:
 @dataclass(frozen=True)
 class LookupAttempt:
     query: AddressQuery
-    outcome: str  # match, normalized_match, no_match, rejected, ambiguous, invalid_input, cache_miss, or service_error
+    # match, normalized_match, no_match, rejected, ambiguous, invalid_input,
+    # cache_miss, or service_error
+    outcome: str
     detail: str = ""
 
 

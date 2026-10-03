@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 from datetime import date
-from typing import Generic, Literal, TypeVar
-
+from typing import Literal
 
 FactStatus = Literal["present", "not_supplied", "invalid", "conflicted"]
-T = TypeVar("T")
 
 
 @dataclass(frozen=True)
@@ -39,7 +36,7 @@ class PropertyInput:
 
 
 @dataclass(frozen=True)
-class Fact(Generic[T]):
+class Fact[T]:
     """A typed value, its distinct meaning, and the exact source value."""
 
     kind: str

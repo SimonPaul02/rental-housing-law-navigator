@@ -136,8 +136,16 @@ coverage conditions against the building.
 
 The mailing city is not the legal city. 37 rows in the sample are Boston
 neighbourhoods (Dorchester, Roxbury, Allston, …) and one is San Ysidro, which
-is the City of San Diego. Resolution goes through the Census geocoder's
-incorporated-places layer, with a clearly-labelled postal fallback.
+is the City of San Diego. The independent `address_resolution` package validates
+Census incorporated-place candidates and preserves unresolved results for review.
+It never substitutes a mailing city for a verified legal city. The supplied
+Census response cache supports reproducible offline runs; documented review
+overrides can be supplied through `data/address_overrides.csv`.
+
+The separate `property_facts` package retains raw values, missingness, fact
+kind and source provenance. Its status flags prevent an invalid or contradictory
+unit count from silently determining rule coverage. Both packages live under
+`backend/app/modules/address_lookup/`; the IO bridges live in `adapters/`.
 
 Coverage conditions are parsed into predicates and evaluated deterministically
 (`coverage.py`). **"Unknown" is a first-class answer**, not a failure:

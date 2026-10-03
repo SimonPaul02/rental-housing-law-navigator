@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.db.models import Address, AddressJurisdiction, Lookup
 from app.modules.address_lookup import service
+from app.modules.address_lookup.adapters.property_facts import from_db_address, to_payload
 from app.modules.address_lookup.schemas import (
     AddressDetail,
     AddressRecord,
@@ -71,9 +72,16 @@ async def list_addresses(
     elif missing_units is False:
         stmt = stmt.where(Address.units.isnot(None))
     if resolved is True:
-        stmt = stmt.join(AddressJurisdiction)
+        stmt = stmt.join(AddressJurisdiction).where(
+            AddressJurisdiction.method.in_(service.VERIFIED_METHODS)
+        )
     elif resolved is False:
-        stmt = stmt.outerjoin(AddressJurisdiction).where(AddressJurisdiction.address_id.is_(None))
+        stmt = stmt.outerjoin(AddressJurisdiction).where(
+            or_(
+                AddressJurisdiction.address_id.is_(None),
+                AddressJurisdiction.method.notin_(service.VERIFIED_METHODS),
+            )
+        )
 
     rows = (await session.execute(stmt.limit(limit).offset(offset))).scalars().all()
     return [AddressRecord.model_validate(a) for a in rows]
@@ -91,6 +99,7 @@ async def get_address(
     return AddressDetail(
         **AddressRecord.model_validate(address).model_dump(),
         jurisdiction=(JurisdictionRecord.model_validate(juris) if juris else None),
+        property_facts=address.property_facts or to_payload(from_db_address(address)),
         postal_city_differs=bool(
             juris
             and juris.legal_city
@@ -111,7 +120,12 @@ async def resolve_jurisdictions(
     if payload.address_ids:
         stmt = stmt.where(Address.address_id.in_(payload.address_ids))
     elif not payload.force:
-        stmt = stmt.outerjoin(AddressJurisdiction).where(AddressJurisdiction.address_id.is_(None))
+        stmt = stmt.outerjoin(AddressJurisdiction).where(
+            or_(
+                AddressJurisdiction.address_id.is_(None),
+                AddressJurisdiction.method.notin_(service.VERIFIED_METHODS),
+            )
+        )
     addresses = (await session.execute(stmt.limit(limit))).scalars().all()
     if not addresses:
         return ResolveSummary(requested=0, resolved=0, by_method={}, city_corrections=0)
@@ -123,12 +137,16 @@ async def resolve_jurisdictions(
     postal = {a.address_id: a.postal_city for a in addresses}
     for row in rows:
         by_method[row.method] = by_method.get(row.method, 0) + 1
-        if row.legal_city and row.legal_city.casefold() != postal[row.address_id].casefold():
+        if (
+            row.method in service.VERIFIED_METHODS
+            and row.legal_city
+            and row.legal_city.casefold() != postal[row.address_id].casefold()
+        ):
             corrections += 1
 
     return ResolveSummary(
         requested=len(addresses),
-        resolved=len(rows),
+        resolved=sum(row.method in service.VERIFIED_METHODS for row in rows),
         by_method=by_method,
         city_corrections=corrections,
     )
@@ -234,7 +252,11 @@ async def address_stats(session: AsyncSession = Depends(get_session)) -> Address
 
     total = (await session.execute(select(func.count()).select_from(Address))).scalar_one()
     resolved = (
-        await session.execute(select(func.count()).select_from(AddressJurisdiction))
+        await session.execute(
+            select(func.count())
+            .select_from(AddressJurisdiction)
+            .where(AddressJurisdiction.method.in_(service.VERIFIED_METHODS))
+        )
     ).scalar_one()
     no_year = (
         await session.execute(

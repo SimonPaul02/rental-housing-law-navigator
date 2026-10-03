@@ -5,18 +5,28 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import logging
+from dataclasses import asdict
+from threading import Lock
 
-import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.db.models import Address, AddressJurisdiction, Lookup, Rule
 from app.modules.address_lookup import coverage
-from app.modules.address_lookup.geocode import geocode_address
+from app.modules.address_lookup.adapters.address_files import read_review_overrides_csv
+from app.modules.address_lookup.adapters.property_facts import from_db_address
+from app.modules.address_lookup.address_resolution.census import CachedGeocoder, CensusGeocoder
+from app.modules.address_lookup.address_resolution.models import AddressInput, ResolvedAddress
+from app.modules.address_lookup.address_resolution.resolver import (
+    apply_review_overrides,
+    resolve_addresses,
+)
 from app.modules.address_lookup.schemas import LookupResponse, RuleOutcome
 
 log = logging.getLogger(__name__)
+_GEOCODE_LOCK = Lock()
+VERIFIED_METHODS = frozenset({"geocoder", "review_override", "census", "manual"})
 
 
 def parse_effective_date(value: str | None) -> dt.date | None:
@@ -36,58 +46,81 @@ def parse_effective_date(value: str | None) -> dt.date | None:
 
 def facts_for(address: Address) -> coverage.AddressFacts:
     juris = address.jurisdiction
+    property_record = from_db_address(address)
     return coverage.AddressFacts(
         address_id=address.address_id,
-        legal_city=(juris.legal_city if juris else address.postal_city),
-        legal_state=(juris.legal_state if juris else address.state),
-        year_built=address.year_built,
-        units=address.units,
-        use_code=address.use_code,
+        legal_city=(juris.legal_city if juris and juris.method in VERIFIED_METHODS else None),
+        legal_state=(juris.legal_state or address.state) if juris else address.state,
+        year_built=(
+            property_record.year_built.value
+            if property_record.year_built.status == "present"
+            else None
+        ),
+        units=(property_record.units.value if property_record.units.status == "present" else None),
+        use_code=(
+            property_record.use_code.value if property_record.use_code.status == "present" else None
+        ),
+        certificate_of_occupancy_date=(
+            property_record.certificate_of_occupancy_date.value
+            if property_record.certificate_of_occupancy_date.status == "present"
+            else None
+        ),
     )
 
 
 # ------------------------------------------------------------- resolution ---
-async def resolve_one(
-    session: AsyncSession, address: Address, client: httpx.AsyncClient
-) -> AddressJurisdiction:
-    result = await geocode_address(
-        client,
-        street=address.street_address,
-        city=address.postal_city,
-        state=address.state,
-        zipcode=address.zip,
+def _resolve_batch(addresses: list[AddressInput]) -> list[ResolvedAddress]:
+    """Run the synchronous, cached resolver once per batch in a worker thread."""
+    cache = settings.data_root / "data" / "census_geocode_cache.jsonl"
+    live = CensusGeocoder(
+        timeout=settings.geocoder_timeout_seconds,
+        url=settings.census_geocoder_url,
     )
-    row = address.jurisdiction or AddressJurisdiction(address_id=address.address_id)
-    row.legal_city = result.legal_city
-    row.legal_state = result.legal_state
-    row.county = result.county
-    row.method = result.method
-    row.matched_address = result.matched_address
-    row.latitude = result.latitude
-    row.longitude = result.longitude
-    row.place_geoid = result.place_geoid
-    row.confidence = result.confidence
-    row.note = result.note
-    session.add(row)
-    return row
+    with _GEOCODE_LOCK:
+        results = resolve_addresses(addresses, CachedGeocoder(cache, live))
+        overrides_path = settings.data_root / "data" / "address_overrides.csv"
+        if overrides_path.exists():
+            ids = {address.address_id for address in addresses}
+            overrides = [
+                item for item in read_review_overrides_csv(overrides_path) if item.address_id in ids
+            ]
+            results = apply_review_overrides(results, overrides)
+        return results
 
 
 async def resolve_many(
     session: AsyncSession, addresses: list[Address]
 ) -> list[AddressJurisdiction]:
-    """Geocode concurrently. The Census endpoint is public and rate-limited,
-    so concurrency is capped by settings.geocode_concurrency."""
-    sem = asyncio.Semaphore(settings.geocode_concurrency)
+    """Persist resolver decisions, including unresolved records needing review."""
+    inputs = [
+        AddressInput(
+            address_id=address.address_id,
+            street_address=address.street_address,
+            postal_city=address.postal_city,
+            state=address.state,
+            zip=address.zip or "",
+        )
+        for address in addresses
+    ]
+    results = await asyncio.to_thread(_resolve_batch, inputs)
     rows: list[AddressJurisdiction] = []
-
-    async with httpx.AsyncClient() as client:
-
-        async def one(addr: Address) -> None:
-            async with sem:
-                rows.append(await resolve_one(session, addr, client))
-
-        await asyncio.gather(*(one(a) for a in addresses))
-
+    by_id = {address.address_id: address for address in addresses}
+    for result in results:
+        address = by_id[result.address_id]
+        row = address.jurisdiction or AddressJurisdiction(address_id=result.address_id)
+        row.legal_city = result.legal_city
+        row.legal_state = result.legal_state
+        row.county = result.legal_county
+        row.method = result.resolution_method
+        row.matched_address = result.matched_address
+        row.latitude = result.latitude
+        row.longitude = result.longitude
+        row.place_geoid = result.city_geoid
+        row.confidence = None  # No calibrated probability is supplied by Census.
+        row.note = "; ".join(result.warnings) or None
+        row.resolution_evidence = asdict(result)
+        session.add(row)
+        rows.append(row)
     await session.flush()
     return rows
 
@@ -109,6 +142,16 @@ def evaluate_rule_for_address(
         "source_url": rule.source_url,
         "quoted_span": rule.quoted_span,
     }
+
+    if rule.level == "city" and rule.status != "failed" and facts.legal_city is None:
+        city_state = rule.jurisdiction.rpartition(",")[2].strip().upper()
+        if not city_state or city_state == (facts.legal_state or "").upper():
+            return RuleOutcome(
+                result="unknown",
+                explanation="The legal city has not been verified for this address.",
+                unresolved_fields=["legal_city"],
+                **context,
+            )
 
     # 1. Geography.
     geo_ok, geo_reason = coverage.jurisdiction_matches(

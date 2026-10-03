@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import datetime as dt
+
 import pytest
 
 from app.modules.address_lookup.coverage import (
@@ -54,6 +56,17 @@ def test_co_clearly_after_fails():
 
 def test_co_without_year_built_is_unknown():
     assert verdict(SF, year_built=None)[0] is Outcome.unknown
+
+
+def test_exact_certificate_date_takes_precedence_over_year_built():
+    assert (
+        verdict(SF, year_built=1979, certificate_of_occupancy_date=dt.date(1979, 6, 13))[0]
+        is Outcome.applies
+    )
+    assert (
+        verdict(SF, year_built=1979, certificate_of_occupancy_date=dt.date(1979, 6, 14))[0]
+        is Outcome.fails
+    )
 
 
 def test_la_cutoff_year_is_unknown():

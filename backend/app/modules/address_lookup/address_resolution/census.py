@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
-from datetime import datetime, timezone
 import json
-from pathlib import Path
 import time
+from dataclasses import asdict
+from datetime import UTC, datetime
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -26,12 +26,14 @@ class CensusGeocoder:
         timeout: float = 20.0,
         retries: int = 2,
         min_interval: float = 0.1,
+        url: str | None = None,
     ) -> None:
         self.benchmark = benchmark
         self.vintage = vintage
         self.timeout = timeout
         self.retries = retries
         self.min_interval = min_interval
+        self.url = url or self.URL
         self._last_request_at = 0.0
 
     def lookup(self, query: AddressQuery) -> GeocodeResponse:
@@ -45,7 +47,9 @@ class CensusGeocoder:
         }
         if query.zip:
             params["zip"] = query.zip
-        request = Request(f"{self.URL}?{urlencode(params)}", headers={"User-Agent": "housing-law-navigator/0.1"})
+        request = Request(
+            f"{self.url}?{urlencode(params)}", headers={"User-Agent": "housing-law-navigator/0.1"}
+        )
 
         for attempt in range(self.retries + 1):
             try:
@@ -143,7 +147,7 @@ class CachedGeocoder:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         record = {
             "key": key,
-            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "retrieved_at": datetime.now(UTC).isoformat(),
             "candidates": [asdict(item) for item in response.candidates],
             "raw_response": response.raw_response,
         }

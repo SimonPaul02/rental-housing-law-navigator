@@ -37,6 +37,7 @@ class AddressFacts:
     year_built: int | None
     units: int | None
     use_code: str | None = None
+    certificate_of_occupancy_date: dt.date | None = None
 
 
 @dataclass(slots=True)
@@ -214,6 +215,12 @@ def _evaluate_one(pred: Predicate, facts: AddressFacts) -> tuple[Outcome, str]:
         )
 
     if pred.kind in {"co_date", "co_unspecified"}:
+        if pred.co_date is not None and facts.certificate_of_occupancy_date is not None:
+            issued = facts.certificate_of_occupancy_date
+            return (
+                Outcome.applies if issued <= pred.co_date else Outcome.fails,
+                f"Certificate of occupancy dated {issued.isoformat()}; {pred.describe}.",
+            )
         if facts.year_built is None:
             return (
                 Outcome.unknown,

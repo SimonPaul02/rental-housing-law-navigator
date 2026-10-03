@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import csv
+import json
 import sys
 from pathlib import Path
 
@@ -23,17 +24,12 @@ from sqlalchemy import func, select  # noqa: E402
 
 from app.core.config import settings  # noqa: E402
 from app.core.db import SessionLocal, engine  # noqa: E402
-from app.db.models import Address, Base, Document  # noqa: E402
-
-
-def _int_or_none(value: str | None) -> int | None:
-    value = (value or "").strip()
-    if not value:
-        return None
-    try:
-        return int(float(value))
-    except ValueError:
-        return None
+from app.db.models import Address, AddressJurisdiction, Base, Document  # noqa: E402
+from app.modules.address_lookup.adapters.property_facts import to_payload  # noqa: E402
+from app.modules.address_lookup.property_facts import (  # noqa: E402
+    PropertyInput,
+    build_property_facts,
+)
 
 
 async def seed_documents() -> tuple[int, int]:
@@ -81,6 +77,23 @@ async def seed_addresses() -> tuple[int, int]:
     created = updated = 0
     with settings.addresses_csv.open(newline="", encoding="utf-8-sig") as fh:
         rows = list(csv.DictReader(fh))
+    facts_by_id = {
+        facts.address_id: facts
+        for facts in build_property_facts(
+            [
+                PropertyInput(
+                    address_id=(row.get("address_id") or "").strip(),
+                    year_built=row.get("year_built") or "",
+                    units=row.get("units") or "",
+                    use_code=row.get("use_code") or "",
+                    use_description=row.get("use_description") or "",
+                    source_dataset=row.get("source_dataset") or "",
+                    retrieved_at=row.get("retrieved_at") or "",
+                )
+                for row in rows
+            ]
+        )
+    }
 
     async with SessionLocal() as session:
         for row in rows:
@@ -100,13 +113,51 @@ async def seed_addresses() -> tuple[int, int]:
             address.postal_city = (row.get("postal_city") or "").strip()
             address.state = (row.get("state") or "").strip().upper()
             address.zip = (row.get("zip") or "").strip() or None
-            address.year_built = _int_or_none(row.get("year_built"))
-            address.units = _int_or_none(row.get("units"))
+            facts = facts_by_id[address_id]
+            address.year_built = facts.year_built.value
+            address.units = facts.units.value
             address.use_code = (row.get("use_code") or "").strip() or None
             address.use_description = (row.get("use_description") or "").strip() or None
             address.source_dataset = (row.get("source_dataset") or "").strip() or None
             address.retrieved_at = (row.get("retrieved_at") or "").strip() or None
+            address.property_facts = to_payload(facts)
 
+        await session.commit()
+    return created, updated
+
+
+async def seed_jurisdictions() -> tuple[int, int]:
+    """Load the checked-in offline snapshot without replacing reviewed/live decisions."""
+    path = settings.data_root / "data" / "resolved_addresses.json"
+    if not path.exists():
+        return 0, 0
+    snapshot = json.loads(path.read_text(encoding="utf-8"))
+    created = updated = 0
+    async with SessionLocal() as session:
+        for result in snapshot:
+            address_id = result["address_id"]
+            row = await session.get(AddressJurisdiction, address_id)
+            if row and row.method in {"manual", "review_override"}:
+                continue
+            if row and row.method == "geocoder" and row.resolution_evidence:
+                continue
+            if row is None:
+                row = AddressJurisdiction(address_id=address_id)
+                session.add(row)
+                created += 1
+            else:
+                updated += 1
+            row.legal_city = result.get("legal_city")
+            row.legal_state = result.get("legal_state")
+            row.county = result.get("legal_county")
+            row.method = result.get("resolution_method") or "unresolved"
+            row.matched_address = result.get("matched_address")
+            row.latitude = result.get("latitude")
+            row.longitude = result.get("longitude")
+            row.place_geoid = result.get("city_geoid")
+            row.confidence = None
+            row.note = "; ".join(result.get("warnings") or ()) or None
+            row.resolution_evidence = result
         await session.commit()
     return created, updated
 
@@ -158,6 +209,8 @@ async def main() -> None:
     if args.only != "corpus":
         created, updated = await seed_addresses()
         print(f"addresses: {created} created, {updated} updated")
+        juris_created, juris_updated = await seed_jurisdictions()
+        print(f"jurisdictions: {juris_created} created, {juris_updated} updated")
 
     print("\nnow in the database:")
     await report()

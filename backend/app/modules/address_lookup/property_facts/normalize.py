@@ -2,21 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import date
 import re
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from datetime import date
 
 from .models import Fact, PropertyInput, Provenance
 
-
-T = TypeVar("T")
 _FOUR_DIGIT_YEAR = re.compile(r"[0-9]{4}\Z")
 _POSITIVE_INTEGER = re.compile(r"[0-9]+\Z")
 
 
-def _fact(
-    source: PropertyInput, field: str, kind: str, parser: Callable[[str], T]
-) -> Fact[T]:
+def _fact[T](source: PropertyInput, field: str, kind: str, parser: Callable[[str], T]) -> Fact[T]:
     raw = getattr(source, field)
     if not isinstance(raw, str):
         raise TypeError(f"{field} must be a raw string for {source.address_id}")

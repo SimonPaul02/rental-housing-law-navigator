@@ -30,7 +30,7 @@ The Census API client and the local cache are implementations of this interface 
 To resolve the addresses from the provided CSV using the Census geocoder:
 
 ```bash
-python3 -m address_resolution.run
+cd backend && python3 scripts/resolve_addresses.py
 ```
 
 The command produces:
@@ -47,16 +47,16 @@ addresses remain in the review file without making a partly successful run fail.
 After a successful online run, the resolver can also run entirely from the cache:
 
 ```bash
-python3 -m address_resolution.run --offline
+cd backend && python3 scripts/resolve_addresses.py --offline
 ```
 
 If an address is not available in the cache while running offline, it is added to the review file instead of guessing a result, and the command exits with code `2`.
 
 After checking a review case against a public source, copy
-`review_overrides.example.csv` to a new CSV and supply it with `--overrides`:
+`data/review_overrides.example.csv` to a new CSV and supply it with `--overrides`:
 
 ```bash
-python3 -m address_resolution.run --offline --overrides data/address_overrides.csv
+cd backend && python3 scripts/resolve_addresses.py --offline --overrides ../data/address_overrides.csv
 ```
 
 Each override needs an `address_id`, the original `input_street_address`,
@@ -117,6 +117,6 @@ ResolvedAddress
 Legal rule evaluation
 ```
 
-The file-based reader and writer functions currently live in `io.py`.
+The file-based reader and writer functions live in `adapters/address_files.py`.
 
 They can later be replaced with database-backed implementations without changing the core `resolve_addresses()` logic.

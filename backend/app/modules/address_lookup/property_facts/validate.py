@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import re
+from datetime import datetime
 
 from .models import Fact, PropertyInput
-
 
 _RANGE = re.compile(r"\b(\d+)\s*(?:to|-)\s*(\d+)\s*[- ]?\s*units?\b", re.I)
 _AT_MOST = re.compile(r"\b(\d+)\s*units?\s+or\s+less\b", re.I)
@@ -53,7 +52,8 @@ def validate_fields(source: PropertyInput, facts: dict[str, Fact]) -> tuple[str,
             continue
         if fact.value is not None:
             after_retrieval = (
-                fact.value > observed.year if field == "year_built"
+                fact.value > observed.year
+                if field == "year_built"
                 else fact.value > observed.date()
             )
             if after_retrieval:
