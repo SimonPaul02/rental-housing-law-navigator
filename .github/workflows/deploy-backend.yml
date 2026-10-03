@@ -24,6 +24,15 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
+      # Idempotent: create the app on the first deploy, no-op afterwards.
+      # Fly requires payment info on the account before an app can exist.
+      - name: Ensure the Fly app exists
+        run: |
+          flyctl status --config backend/fly.toml >/dev/null 2>&1 \
+            || flyctl apps create rhln-api --org personal
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
       # Build context is the repo root; fly.toml lives in backend/.
       - name: Deploy
         run: flyctl deploy --remote-only --config backend/fly.toml
