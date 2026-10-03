@@ -81,6 +81,12 @@ A `legal_city` is assigned from a validated Census **Incorporated Place** or a d
 
 For address ranges, both endpoints must resolve to the same incorporated place before that place is accepted as the legal city.
 
+The resolver accepts a small set of equivalent street spellings (for example,
+`SECOND`/`2ND`, `WY`/`WAY`, and `SOUTH`/`S`) while keeping the house number and
+every directional component. These results carry a `street_normalized_match`
+warning. Missing or changed directions, street-name typos, and unmatched range
+endpoints remain in the review queue; they need source-backed verification.
+
 ## Confidence and edge cases
 
 Census geocoding coordinates are estimates based on street ranges. They are not exact property-boundary determinations.

@@ -10036,21 +10036,22 @@
       "source_dataset": "NJOGIS Parcels & MOD-IV Composite",
       "retrieved_at": "2026-10-01T22:50Z"
     },
-    "status": "needs_review",
-    "legal_state": null,
-    "legal_county": null,
-    "legal_city": null,
-    "city_geoid": null,
-    "longitude": null,
-    "latitude": null,
-    "matched_address": null,
-    "benchmark": null,
-    "vintage": null,
-    "resolution_method": "unresolved",
+    "status": "resolved",
+    "legal_state": "NJ",
+    "legal_county": "Hudson",
+    "legal_city": "Jersey City",
+    "city_geoid": "3436000",
+    "longitude": -74.043498156328,
+    "latitude": 40.722390774695,
+    "matched_address": "233 2ND ST, JERSEY CITY, NJ, 07302",
+    "benchmark": "Public_AR_Current",
+    "vintage": "Current_Current",
+    "resolution_method": "geocoder",
     "review_override": null,
     "warnings": [
       "house_number_range_checked_at_both_endpoints",
-      "jurisdiction_needs_review"
+      "street_normalized_match",
+      "input_zip_differs_from_match"
     ],
     "attempts": [
       {
@@ -10060,18 +10061,8 @@
           "state": "NJ",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
-      },
-      {
-        "query": {
-          "street": "233 SECOND ST.",
-          "city": "Jersey City",
-          "state": "NJ",
-          "zip": "07042"
-        },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "233 2ND ST, JERSEY CITY, NJ, 07302"
       },
       {
         "query": {
@@ -10080,18 +10071,8 @@
           "state": "NJ",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
-      },
-      {
-        "query": {
-          "street": "235 SECOND ST.",
-          "city": "Jersey City",
-          "state": "NJ",
-          "zip": "07042"
-        },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "235 2ND ST, JERSEY CITY, NJ, 07302"
       }
     ],
     "candidates": [
@@ -13009,21 +12990,21 @@
       "source_dataset": "DataSF wv5m-vpq2 (2025 roll)",
       "retrieved_at": "2026-10-01T22:50Z"
     },
-    "status": "needs_review",
-    "legal_state": null,
-    "legal_county": null,
-    "legal_city": null,
-    "city_geoid": null,
-    "longitude": null,
-    "latitude": null,
-    "matched_address": null,
-    "benchmark": null,
-    "vintage": null,
-    "resolution_method": "unresolved",
+    "status": "resolved",
+    "legal_state": "CA",
+    "legal_county": "San Francisco",
+    "legal_city": "San Francisco",
+    "city_geoid": "0667000",
+    "longitude": -122.4161731875,
+    "latitude": 37.752168513331,
+    "matched_address": "1311 S VAN NESS AVE, SAN FRANCISCO, CA, 94110",
+    "benchmark": "Public_AR_Current",
+    "vintage": "Current_Current",
+    "resolution_method": "geocoder",
     "review_override": null,
     "warnings": [
       "missing_input_zip",
-      "jurisdiction_needs_review"
+      "street_normalized_match"
     ],
     "attempts": [
       {
@@ -13033,8 +13014,8 @@
           "state": "CA",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "1311 S VAN NESS AVE, SAN FRANCISCO, CA, 94110"
       }
     ],
     "candidates": [
@@ -14207,21 +14188,21 @@
       "source_dataset": "Cambridge Property Database FY2026 (waa7-ibdu)",
       "retrieved_at": "2026-10-01T22:50Z"
     },
-    "status": "needs_review",
-    "legal_state": null,
-    "legal_county": null,
-    "legal_city": null,
-    "city_geoid": null,
-    "longitude": null,
-    "latitude": null,
-    "matched_address": null,
-    "benchmark": null,
-    "vintage": null,
-    "resolution_method": "unresolved",
+    "status": "resolved",
+    "legal_state": "MA",
+    "legal_county": "Middlesex",
+    "legal_city": "Cambridge",
+    "city_geoid": "2511000",
+    "longitude": -71.080956110328,
+    "latitude": 42.367926768436,
+    "matched_address": "189 3RD ST, CAMBRIDGE, MA, 02141",
+    "benchmark": "Public_AR_Current",
+    "vintage": "Current_Current",
+    "resolution_method": "geocoder",
     "review_override": null,
     "warnings": [
       "missing_input_zip",
-      "jurisdiction_needs_review"
+      "street_normalized_match"
     ],
     "attempts": [
       {
@@ -14231,8 +14212,8 @@
           "state": "MA",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "189 3RD ST, CAMBRIDGE, MA, 02141"
       }
     ],
     "candidates": [
@@ -15527,21 +15508,21 @@
       "source_dataset": "DataSF wv5m-vpq2 (2025 roll)",
       "retrieved_at": "2026-10-01T22:50Z"
     },
-    "status": "needs_review",
-    "legal_state": null,
-    "legal_county": null,
-    "legal_city": null,
-    "city_geoid": null,
-    "longitude": null,
-    "latitude": null,
-    "matched_address": null,
-    "benchmark": null,
-    "vintage": null,
-    "resolution_method": "unresolved",
+    "status": "resolved",
+    "legal_state": "CA",
+    "legal_county": "San Francisco",
+    "legal_city": "San Francisco",
+    "city_geoid": "0667000",
+    "longitude": -122.444275084577,
+    "latitude": 37.802722582821,
+    "matched_address": "2250 N POINT ST, SAN FRANCISCO, CA, 94123",
+    "benchmark": "Public_AR_Current",
+    "vintage": "Current_Current",
+    "resolution_method": "geocoder",
     "review_override": null,
     "warnings": [
       "missing_input_zip",
-      "jurisdiction_needs_review"
+      "street_normalized_match"
     ],
     "attempts": [
       {
@@ -15551,8 +15532,8 @@
           "state": "CA",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "2250 N POINT ST, SAN FRANCISCO, CA, 94123"
       }
     ],
     "candidates": [
@@ -15870,21 +15851,21 @@
       "source_dataset": "DataSF wv5m-vpq2 (2025 roll)",
       "retrieved_at": "2026-10-01T22:50Z"
     },
-    "status": "needs_review",
-    "legal_state": null,
-    "legal_county": null,
-    "legal_city": null,
-    "city_geoid": null,
-    "longitude": null,
-    "latitude": null,
-    "matched_address": null,
-    "benchmark": null,
-    "vintage": null,
-    "resolution_method": "unresolved",
+    "status": "resolved",
+    "legal_state": "CA",
+    "legal_county": "San Francisco",
+    "legal_city": "San Francisco",
+    "city_geoid": "0667000",
+    "longitude": -122.421551166435,
+    "latitude": 37.805617181224,
+    "matched_address": "872 N POINT ST, SAN FRANCISCO, CA, 94109",
+    "benchmark": "Public_AR_Current",
+    "vintage": "Current_Current",
+    "resolution_method": "geocoder",
     "review_override": null,
     "warnings": [
       "missing_input_zip",
-      "jurisdiction_needs_review"
+      "street_normalized_match"
     ],
     "attempts": [
       {
@@ -15894,8 +15875,8 @@
           "state": "CA",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "872 N POINT ST, SAN FRANCISCO, CA, 94109"
       }
     ],
     "candidates": [
@@ -16109,20 +16090,20 @@
       "source_dataset": "Alameda County parcels",
       "retrieved_at": "2026-10-01T22:50Z"
     },
-    "status": "needs_review",
-    "legal_state": null,
-    "legal_county": null,
-    "legal_city": null,
-    "city_geoid": null,
-    "longitude": null,
-    "latitude": null,
-    "matched_address": null,
-    "benchmark": null,
-    "vintage": null,
-    "resolution_method": "unresolved",
+    "status": "resolved",
+    "legal_state": "CA",
+    "legal_county": "Alameda",
+    "legal_city": "Berkeley",
+    "city_geoid": "0606000",
+    "longitude": -122.273753258644,
+    "latitude": 37.877104430999,
+    "matched_address": "1636 MARTIN LUTHER KING JR WAY, BERKELEY, CA, 94709",
+    "benchmark": "Public_AR_Current",
+    "vintage": "Current_Current",
+    "resolution_method": "geocoder",
     "review_override": null,
     "warnings": [
-      "jurisdiction_needs_review"
+      "street_normalized_match"
     ],
     "attempts": [
       {
@@ -16132,18 +16113,8 @@
           "state": "CA",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
-      },
-      {
-        "query": {
-          "street": "1636 M L KING JR WAY",
-          "city": "Berkeley",
-          "state": "CA",
-          "zip": "94709"
-        },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "1636 MARTIN LUTHER KING JR WAY, BERKELEY, CA, 94709"
       }
     ],
     "candidates": [
@@ -16606,21 +16577,21 @@
       "source_dataset": "DataSF wv5m-vpq2 (2025 roll)",
       "retrieved_at": "2026-10-01T22:50Z"
     },
-    "status": "needs_review",
-    "legal_state": null,
-    "legal_county": null,
-    "legal_city": null,
-    "city_geoid": null,
-    "longitude": null,
-    "latitude": null,
-    "matched_address": null,
-    "benchmark": null,
-    "vintage": null,
-    "resolution_method": "unresolved",
+    "status": "resolved",
+    "legal_state": "CA",
+    "legal_county": "San Francisco",
+    "legal_city": "San Francisco",
+    "city_geoid": "0667000",
+    "longitude": -122.502100180635,
+    "latitude": 37.764244000512,
+    "matched_address": "4115 LINCOLN WAY, SAN FRANCISCO, CA, 94122",
+    "benchmark": "Public_AR_Current",
+    "vintage": "Current_Current",
+    "resolution_method": "geocoder",
     "review_override": null,
     "warnings": [
       "missing_input_zip",
-      "jurisdiction_needs_review"
+      "street_normalized_match"
     ],
     "attempts": [
       {
@@ -16630,8 +16601,8 @@
           "state": "CA",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "4115 LINCOLN WAY, SAN FRANCISCO, CA, 94122"
       }
     ],
     "candidates": [
@@ -17659,20 +17630,20 @@
       "source_dataset": "Alameda County parcels",
       "retrieved_at": "2026-10-01T22:50Z"
     },
-    "status": "needs_review",
-    "legal_state": null,
-    "legal_county": null,
-    "legal_city": null,
-    "city_geoid": null,
-    "longitude": null,
-    "latitude": null,
-    "matched_address": null,
-    "benchmark": null,
-    "vintage": null,
-    "resolution_method": "unresolved",
+    "status": "resolved",
+    "legal_state": "CA",
+    "legal_county": "Alameda",
+    "legal_city": "Berkeley",
+    "city_geoid": "0606000",
+    "longitude": -122.273285380013,
+    "latitude": 37.874873789783,
+    "matched_address": "1741 MARTIN LUTHER KING JR WAY, BERKELEY, CA, 94709",
+    "benchmark": "Public_AR_Current",
+    "vintage": "Current_Current",
+    "resolution_method": "geocoder",
     "review_override": null,
     "warnings": [
-      "jurisdiction_needs_review"
+      "street_normalized_match"
     ],
     "attempts": [
       {
@@ -17682,18 +17653,8 @@
           "state": "CA",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
-      },
-      {
-        "query": {
-          "street": "1741 M L KING JR WAY",
-          "city": "Berkeley",
-          "state": "CA",
-          "zip": "94709"
-        },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "1741 MARTIN LUTHER KING JR WAY, BERKELEY, CA, 94709"
       }
     ],
     "candidates": [
@@ -20220,22 +20181,23 @@
       "source_dataset": "NJOGIS Parcels & MOD-IV Composite",
       "retrieved_at": "2026-10-01T22:50Z"
     },
-    "status": "needs_review",
-    "legal_state": null,
-    "legal_county": null,
-    "legal_city": null,
-    "city_geoid": null,
-    "longitude": null,
-    "latitude": null,
-    "matched_address": null,
-    "benchmark": null,
-    "vintage": null,
-    "resolution_method": "unresolved",
+    "status": "resolved",
+    "legal_state": "NJ",
+    "legal_county": "Essex",
+    "legal_city": "Newark",
+    "city_geoid": "3451000",
+    "longitude": -74.193293266905,
+    "latitude": 40.722575256637,
+    "matched_address": "342 IRVINE TURNER BLVD, NEWARK, NJ, 07108",
+    "benchmark": "Public_AR_Current",
+    "vintage": "Current_Current",
+    "resolution_method": "geocoder",
     "review_override": null,
     "warnings": [
       "suspicious_input_zip",
       "house_number_range_checked_at_both_endpoints",
-      "jurisdiction_needs_review"
+      "street_normalized_match",
+      "input_zip_differs_from_match"
     ],
     "attempts": [
       {
@@ -20245,8 +20207,8 @@
           "state": "NJ",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "342 IRVINE TURNER BLVD, NEWARK, NJ, 07108"
       },
       {
         "query": {
@@ -20255,8 +20217,8 @@
           "state": "NJ",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "344 IRVINE TURNER BLVD, NEWARK, NJ, 07108"
       }
     ],
     "candidates": [
@@ -20529,21 +20491,21 @@
       "source_dataset": "Cambridge Property Database FY2026 (waa7-ibdu)",
       "retrieved_at": "2026-10-01T22:50Z"
     },
-    "status": "needs_review",
-    "legal_state": null,
-    "legal_county": null,
-    "legal_city": null,
-    "city_geoid": null,
-    "longitude": null,
-    "latitude": null,
-    "matched_address": null,
-    "benchmark": null,
-    "vintage": null,
-    "resolution_method": "unresolved",
+    "status": "resolved",
+    "legal_state": "MA",
+    "legal_county": "Middlesex",
+    "legal_city": "Cambridge",
+    "city_geoid": "2511000",
+    "longitude": -71.075526736217,
+    "latitude": 42.372482137906,
+    "matched_address": "151 N FIRST ST, CAMBRIDGE, MA, 02141",
+    "benchmark": "Public_AR_Current",
+    "vintage": "Current_Current",
+    "resolution_method": "geocoder",
     "review_override": null,
     "warnings": [
       "missing_input_zip",
-      "jurisdiction_needs_review"
+      "street_normalized_match"
     ],
     "attempts": [
       {
@@ -20553,8 +20515,8 @@
           "state": "MA",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "151 N FIRST ST, CAMBRIDGE, MA, 02141"
       }
     ],
     "candidates": [
@@ -21407,20 +21369,21 @@
       "source_dataset": "NJOGIS Parcels & MOD-IV Composite",
       "retrieved_at": "2026-10-01T22:50Z"
     },
-    "status": "needs_review",
-    "legal_state": null,
-    "legal_county": null,
-    "legal_city": null,
-    "city_geoid": null,
-    "longitude": null,
-    "latitude": null,
-    "matched_address": null,
-    "benchmark": null,
-    "vintage": null,
-    "resolution_method": "unresolved",
+    "status": "resolved",
+    "legal_state": "NJ",
+    "legal_county": "Hudson",
+    "legal_city": "Jersey City",
+    "city_geoid": "3436000",
+    "longitude": -74.070961149168,
+    "latitude": 40.735168801416,
+    "matched_address": "1051 W SIDE AVE, JERSEY CITY, NJ, 07306",
+    "benchmark": "Public_AR_Current",
+    "vintage": "Current_Current",
+    "resolution_method": "geocoder",
     "review_override": null,
     "warnings": [
-      "jurisdiction_needs_review"
+      "street_normalized_match",
+      "input_zip_differs_from_match"
     ],
     "attempts": [
       {
@@ -21430,18 +21393,8 @@
           "state": "NJ",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
-      },
-      {
-        "query": {
-          "street": "1051 WEST SIDE AVE.",
-          "city": "Jersey City",
-          "state": "NJ",
-          "zip": "07446"
-        },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "1051 W SIDE AVE, JERSEY CITY, NJ, 07306"
       }
     ],
     "candidates": [
@@ -22767,20 +22720,20 @@
       "source_dataset": "NJOGIS Parcels & MOD-IV Composite",
       "retrieved_at": "2026-10-01T22:50Z"
     },
-    "status": "needs_review",
-    "legal_state": null,
-    "legal_county": null,
-    "legal_city": null,
-    "city_geoid": null,
-    "longitude": null,
-    "latitude": null,
-    "matched_address": null,
-    "benchmark": null,
-    "vintage": null,
-    "resolution_method": "unresolved",
+    "status": "resolved",
+    "legal_state": "NJ",
+    "legal_county": "Hudson",
+    "legal_city": "Jersey City",
+    "city_geoid": "3436000",
+    "longitude": -74.047955557321,
+    "latitude": 40.726486238182,
+    "matched_address": "314 7TH ST, JERSEY CITY, NJ, 07302",
+    "benchmark": "Public_AR_Current",
+    "vintage": "Current_Current",
+    "resolution_method": "geocoder",
     "review_override": null,
     "warnings": [
-      "jurisdiction_needs_review"
+      "street_normalized_match"
     ],
     "attempts": [
       {
@@ -22790,18 +22743,8 @@
           "state": "NJ",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
-      },
-      {
-        "query": {
-          "street": "314 SEVENTH ST.",
-          "city": "Jersey City",
-          "state": "NJ",
-          "zip": "07302"
-        },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "314 7TH ST, JERSEY CITY, NJ, 07302"
       }
     ],
     "candidates": [
@@ -25692,20 +25635,20 @@
       "source_dataset": "LA County eGIS parcels",
       "retrieved_at": "2026-10-01T22:50Z"
     },
-    "status": "needs_review",
-    "legal_state": null,
-    "legal_county": null,
-    "legal_city": null,
-    "city_geoid": null,
-    "longitude": null,
-    "latitude": null,
-    "matched_address": null,
-    "benchmark": null,
-    "vintage": null,
-    "resolution_method": "unresolved",
+    "status": "resolved",
+    "legal_state": "CA",
+    "legal_county": "Los Angeles",
+    "legal_city": "Los Angeles",
+    "city_geoid": "0644000",
+    "longitude": -118.505814381942,
+    "latitude": 34.264737200693,
+    "matched_address": "17106 CHATSWORTH ST, GRANADA HILLS, CA, 91344",
+    "benchmark": "Public_AR_Current",
+    "vintage": "Current_Current",
+    "resolution_method": "geocoder",
     "review_override": null,
     "warnings": [
-      "jurisdiction_needs_review"
+      "street_normalized_match"
     ],
     "attempts": [
       {
@@ -25725,8 +25668,8 @@
           "state": "CA",
           "zip": "91344"
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "17106 CHATSWORTH ST, GRANADA HILLS, CA, 91344"
       }
     ],
     "candidates": [
@@ -29019,20 +28962,20 @@
       "source_dataset": "NJOGIS Parcels & MOD-IV Composite",
       "retrieved_at": "2026-10-01T22:50Z"
     },
-    "status": "needs_review",
-    "legal_state": null,
-    "legal_county": null,
-    "legal_city": null,
-    "city_geoid": null,
-    "longitude": null,
-    "latitude": null,
-    "matched_address": null,
-    "benchmark": null,
-    "vintage": null,
-    "resolution_method": "unresolved",
+    "status": "resolved",
+    "legal_state": "NJ",
+    "legal_county": "Hudson",
+    "legal_city": "Hoboken",
+    "city_geoid": "3432250",
+    "longitude": -74.035828506414,
+    "latitude": 40.738241528429,
+    "matched_address": "361 1ST ST, HOBOKEN, NJ, 07030",
+    "benchmark": "Public_AR_Current",
+    "vintage": "Current_Current",
+    "resolution_method": "geocoder",
     "review_override": null,
     "warnings": [
-      "jurisdiction_needs_review"
+      "street_normalized_match"
     ],
     "attempts": [
       {
@@ -29042,18 +28985,8 @@
           "state": "NJ",
           "zip": ""
         },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
-      },
-      {
-        "query": {
-          "street": "361 FIRST ST",
-          "city": "Hoboken",
-          "state": "NJ",
-          "zip": "07030"
-        },
-        "outcome": "rejected",
-        "detail": "No candidate passed address and place checks"
+        "outcome": "normalized_match",
+        "detail": "361 1ST ST, HOBOKEN, NJ, 07030"
       }
     ],
     "candidates": [

@@ -41,6 +41,13 @@ _SUFFIXES = {
     "DRIVE": "DR", "LANE": "LN", "PLACE": "PL", "ROAD": "RD",
     "STREET": "ST", "TERRACE": "TER", "WAY": "WAY",
 }
+_DIRECTIONS = {"NORTH": "N", "SOUTH": "S", "EAST": "E", "WEST": "W"}
+_ORDINALS = {
+    "FIRST": "1ST", "SECOND": "2ND", "THIRD": "3RD", "FOURTH": "4TH",
+    "FIFTH": "5TH", "SIXTH": "6TH", "SEVENTH": "7TH", "EIGHTH": "8TH",
+    "NINTH": "9TH", "TENTH": "10TH",
+}
+_EXTRA_SUFFIXES = {"BLV": "BLVD", "WY": "WAY"}
 _ZIP_PREFIXES = {"CA": ("9",), "NJ": ("07", "08"), "MA": ("01", "02", "055")}
 
 
@@ -54,6 +61,35 @@ def _house_number_and_street(value: str) -> tuple[str | None, tuple[str, ...]]:
     words = re.findall(r"[A-Z0-9]+", match.group(2).upper())
     words = [re.sub(r"^0+(\d+)(ST|ND|RD|TH)$", r"\1\2", word) for word in words]
     return number, tuple(_SUFFIXES.get(word, word) for word in words)
+
+
+def _canonical_street(words: tuple[str, ...]) -> tuple[str, ...]:
+    """Normalize only address spellings that preserve every street component."""
+    normalized = list(words)
+    if len(normalized) >= 3 and normalized[-2] in {"APT", "UNIT"}:
+        normalized = normalized[:-2]
+    if normalized and normalized[0] in _DIRECTIONS:
+        normalized[0] = _DIRECTIONS[normalized[0]]
+    ordinal_index = 1 if normalized and normalized[0] in {"N", "S", "E", "W"} else 0
+    if len(normalized) > ordinal_index:
+        normalized[ordinal_index] = _ORDINALS.get(normalized[ordinal_index], normalized[ordinal_index])
+    if normalized[:4] == ["M", "L", "KING", "JR"]:
+        normalized[:4] = ["MARTIN", "LUTHER", "KING", "JR"]
+    if normalized:
+        normalized[-1] = _EXTRA_SUFFIXES.get(normalized[-1], normalized[-1])
+    return tuple(normalized)
+
+
+def _street_match_kind(query: AddressQuery, candidate: GeocodeCandidate) -> str | None:
+    expected_number, expected_street = _house_number_and_street(query.street)
+    matched_number, matched_street = _house_number_and_street(candidate.street_address)
+    if expected_number is None or expected_number != matched_number or not expected_street:
+        return None
+    if expected_street == matched_street:
+        return "exact"
+    if _canonical_street(expected_street) == _canonical_street(matched_street):
+        return "normalized"
+    return None
 
 
 def _street_endpoints(street_address: str) -> tuple[str, ...]:
@@ -91,15 +127,10 @@ def _queries(
 
 
 def _credible(candidate: GeocodeCandidate, query: AddressQuery) -> bool:
-    expected_number, expected_street = _house_number_and_street(query.street)
-    matched_number, matched_street = _house_number_and_street(candidate.street_address)
     return (
         bool(candidate.city and candidate.city_geoid)
         and candidate.state.upper() == query.state.upper()
-        and expected_number is not None
-        and expected_number == matched_number
-        and bool(expected_street)
-        and expected_street == matched_street
+        and _street_match_kind(query, candidate) is not None
     )
 
 
@@ -127,8 +158,15 @@ def _lookup_endpoint(
         credible = [item for item in response.candidates if _credible(item, query)]
         places = {item.city_geoid for item in credible}
         if len(places) == 1:
-            attempts.append(LookupAttempt(query, "match", credible[0].matched_address))
-            return credible[0], attempts, candidates_seen
+            selected = next(
+                (item for item in credible if _street_match_kind(query, item) == "exact"),
+                credible[0],
+            )
+            kind = _street_match_kind(query, selected)
+            attempts.append(LookupAttempt(
+                query, "match" if kind == "exact" else "normalized_match", selected.matched_address
+            ))
+            return selected, attempts, candidates_seen
         if len(places) > 1:
             attempts.append(LookupAttempt(query, "ambiguous", "Multiple incorporated places"))
         elif response.candidates:
@@ -153,6 +191,8 @@ def choose_resolution(
         warnings.append("suspicious_input_zip")
     if len(endpoint_results) > 1:
         warnings.append("house_number_range_checked_at_both_endpoints")
+    if any(attempt.outcome == "normalized_match" for attempt in attempts):
+        warnings.append("street_normalized_match")
 
     selected: GeocodeCandidate | None = None
     if endpoint_results and all(item is not None for item in endpoint_results):

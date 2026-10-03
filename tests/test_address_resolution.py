@@ -103,6 +103,63 @@ class AddressResolutionTests(unittest.TestCase):
         self.assertIsNone(result.legal_city)
         self.assertEqual(result.candidates[0].matched_address, "14 OAK ST, Newark, NJ")
 
+    def test_safe_street_spelling_variants_keep_an_audit_warning(self) -> None:
+        examples = (
+            ("233 SECOND ST.", "233 2ND ST"),
+            ("1311 SOUTH VAN NESS AV", "1311 S VAN NESS AVE"),
+            ("4115 LINCOLN WY", "4115 LINCOLN WAY"),
+            ("1636 M L KING JR WAY", "1636 MARTIN LUTHER KING JR WAY"),
+            ("17106 CHATSWORTH ST APT 0001", "17106 CHATSWORTH ST"),
+            ("151 North First St", "151 N 1ST ST"),
+        )
+        for input_street, matched_street in examples:
+            with self.subTest(input_street=input_street):
+                address = AddressInput("A1", input_street, "Newark", "NJ")
+                result = resolve_addresses([address], FakeGeocoder({
+                    input_street: [candidate(matched_street, "Newark", "3451000")]
+                }))[0]
+                self.assertEqual(result.status, "resolved")
+                self.assertEqual(result.attempts[0].outcome, "normalized_match")
+                self.assertIn("street_normalized_match", result.warnings)
+
+    def test_normalization_does_not_drop_directions_or_guess_streets(self) -> None:
+        unsafe_pairs = (
+            ("409 5TH ST", "409 N 5TH ST"),
+            ("3784 E BROADWAY", "3784 BROADWAY"),
+            ("4545 N 39TH ST", "4545 39TH ST"),
+            ("65 NORFLOK ST", "65 NORFOLK ST"),
+            ("368 RIVERWAY ST", "368 RIVERWAY"),
+            ("12 OAK ST", "12 OAK RD"),
+            ("14 OAK ST", "12 OAK ST"),
+        )
+        for input_street, matched_street in unsafe_pairs:
+            with self.subTest(input_street=input_street):
+                address = AddressInput("A1", input_street, "Newark", "NJ")
+                result = resolve_addresses([address], FakeGeocoder({
+                    input_street: [candidate(matched_street, "Newark", "3451000")]
+                }))[0]
+                self.assertEqual(result.status, "needs_review")
+
+    def test_range_with_one_normalized_endpoint_still_needs_review(self) -> None:
+        address = AddressInput("A1", "233-235 SECOND ST.", "Jersey City", "NJ")
+        result = resolve_addresses([address], FakeGeocoder({
+            "233 SECOND ST.": [candidate("233 2ND ST", "Jersey City", "3401336000")],
+            "235 SECOND ST.": [],
+        }))[0]
+        self.assertEqual(result.status, "needs_review")
+        self.assertIn("street_normalized_match", result.warnings)
+
+    def test_normalized_candidates_in_different_places_remain_ambiguous(self) -> None:
+        address = AddressInput("A1", "233 SECOND ST", "Jersey City", "NJ")
+        result = resolve_addresses([address], FakeGeocoder({
+            "233 SECOND ST": [
+                candidate("233 2ND ST", "Jersey City", "3401336000"),
+                candidate("233 2ND ST", "Hoboken", "3401332250"),
+            ],
+        }))[0]
+        self.assertEqual(result.status, "needs_review")
+        self.assertEqual(result.attempts[0].outcome, "ambiguous")
+
     def test_unexpected_legal_city_is_kept_and_flagged_for_review(self) -> None:
         address = AddressInput("A1", "12 OAK ST", "Newark", "NJ")
         geocoder = FakeGeocoder({"12 OAK ST": [candidate("12 OAK ST", "Jersey City", "3401336000")]})
