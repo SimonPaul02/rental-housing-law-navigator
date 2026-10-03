@@ -36,4 +36,4 @@ docker:  ## Build the backend image (context = repo root)
 	docker build -f backend/Dockerfile -t rhln-api:local .
 
 deploy:  ## Deploy the backend to Fly
-	flyctl deploy --remote-only --config backend/fly.toml
+	flyctl deploy . --remote-only --config backend/fly.toml

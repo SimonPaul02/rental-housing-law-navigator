@@ -10,7 +10,10 @@ app = "rhln-api"
 primary_region = "lhr"
 
 [build]
-  dockerfile = "backend/Dockerfile"
+  # Relative to THIS file's directory (backend/), not the repo root.
+  # The build context is passed separately on the command line as the repo
+  # root, because the image needs corpus/, data/, schema/ and dev/ too.
+  dockerfile = "Dockerfile"
 
 [env]
   ENVIRONMENT = "production"
