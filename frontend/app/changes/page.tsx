@@ -63,7 +63,6 @@ export default async function ChangesPage({
   return (
     <div className="space-y-8">
       <PageHeading
-        eyebrow="Module C"
         title="Change tracking"
         lede="Which rules change, when, and for which buildings. Every answer here is produced by re-running the ordinary address lookup on the dates each case names — never by writing down an expected outcome in advance."
       />
@@ -89,8 +88,7 @@ export default async function ChangesPage({
           rather than reporting that it affects nobody — except the failed
           measure, whose empty answer rests on a rent-cap check that runs
           without its record, so it is answered and marked partly answered.
-          Running a Module A extraction pass over the corpus is what fills them
-          in.
+          Running an extraction pass over the corpus is what fills them in.
         </Notice>
       )}
 

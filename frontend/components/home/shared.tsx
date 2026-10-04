@@ -23,8 +23,8 @@ export function BackendDown() {
 export function NoRules() {
   return (
     <Notice title="No rules have been read in yet" tone="warning">
-      Module A has not run on this deployment, so there is nothing to measure an
-      address against. Nothing is wrong with the address.{" "}
+      No extraction pass has run on this deployment, so there is nothing to
+      measure an address against. Nothing is wrong with the address.{" "}
       <code className="mono">POST /api/rule-extraction/extract</code> starts a pass.
     </Notice>
   );

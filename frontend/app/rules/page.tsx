@@ -37,7 +37,6 @@ export default async function RulesPage({
   return (
     <div className="space-y-8">
       <PageHeading
-        eyebrow="Module A"
         title="Rule extraction"
         lede="Every record is read out of the corpus by the model, then kept only if its quoted span is found verbatim in the source document."
       />

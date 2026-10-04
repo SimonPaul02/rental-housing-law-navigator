@@ -12,15 +12,13 @@ export function Card({
   return <div className={`card ${className}`}>{children}</div>;
 }
 
-/** The heading at the top of a page: small eyebrow, display title, one line
- *  of explanation, optional actions on the right. */
+/** The heading at the top of a page: display title, one line of explanation,
+ *  optional actions on the right. */
 export function PageHeading({
-  eyebrow,
   title,
   lede,
   actions,
 }: {
-  eyebrow?: string;
   title: string;
   lede?: ReactNode;
   actions?: ReactNode;
@@ -28,7 +26,6 @@ export function PageHeading({
   return (
     <header className="page-heading">
       <div>
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1>{title}</h1>
         {lede && <p>{lede}</p>}
       </div>

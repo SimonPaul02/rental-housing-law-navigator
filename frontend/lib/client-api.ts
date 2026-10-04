@@ -59,3 +59,51 @@ export async function clientUpload<T>(path: string, form: FormData): Promise<T> 
   }
   return (await response.json()) as T;
 }
+
+/** Open a file the API will only hand over to a bearer token.
+ *
+ * `<a href="/api/.../file" target="_blank">` cannot work here and the failure
+ * is a confusing one: a new tab is a plain navigation, it carries no
+ * `Authorization` header, and the API answers `{"detail":"Please sign in."}`
+ * to somebody who plainly is signed in.
+ *
+ * So the file is fetched with the token and opened from a blob instead. The
+ * window is opened *before* the await, because a popup blocker allows one
+ * opened in the click and blocks one opened a second later — and then pointed
+ * at the blob once the bytes are here.
+ *
+ * The bytes still live in the database row. An object store would make the
+ * link trivially shareable and would also be a second place a deleted lease
+ * could survive its own deletion, which is the trade this app has already
+ * made deliberately.
+ */
+export async function openFile(path: string, filename: string): Promise<void> {
+  const tab = window.open("", "_blank");
+  const token = await accessToken();
+  const response = await fetch(`/api${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (response.status === 401) forgetAccessToken();
+  if (!response.ok) {
+    tab?.close();
+    const body = await response.json().catch(() => ({}));
+    throw new Error(
+      typeof body.detail === "string" ? body.detail : "That file could not be opened.",
+    );
+  }
+
+  const url = URL.createObjectURL(await response.blob());
+  if (tab) {
+    tab.location.href = url;
+  } else {
+    // The popup was blocked, so fall back to a download, which a click can
+    // always do. Better a file in the downloads folder than a dead button.
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+  }
+  // Long enough for the tab to have loaded it; the blob is held by this
+  // document and would otherwise live until the page is closed.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}

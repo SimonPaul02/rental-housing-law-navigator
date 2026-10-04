@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { clientApi, clientUpload } from "@/lib/client-api";
+import { clientApi, clientUpload, openFile } from "@/lib/client-api";
 import { bytes, money, term } from "@/lib/format";
 import type { ContractVocabulary } from "@/lib/roles";
 import type { Contract } from "@/lib/types";
@@ -85,6 +85,17 @@ export function Contracts({
     setBusy(null);
   }
 
+  async function show(contract: Contract) {
+    setBusy(contract.id);
+    setError("");
+    try {
+      await openFile(`/accounts/me/contracts/${contract.id}/file`, contract.filename);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Could not open that file.");
+    }
+    setBusy(null);
+  }
+
   async function remove(contract: Contract) {
     setBusy(contract.id);
     setError("");
@@ -159,14 +170,14 @@ export function Contracts({
                     </p>
                   )}
                 </div>
-                <a
+                <button
+                  type="button"
                   className="btn btn-quiet"
-                  href={`/api/accounts/me/contracts/${contract.id}/file`}
-                  target="_blank"
-                  rel="noreferrer"
+                  disabled={busy === contract.id}
+                  onClick={() => show(contract)}
                 >
-                  Open
-                </a>
+                  Open {busy === contract.id && <Spinner size={13} />}
+                </button>
                 <button
                   type="button"
                   className="btn btn-quiet"

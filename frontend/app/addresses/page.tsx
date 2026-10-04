@@ -38,7 +38,6 @@ export default async function AddressesPage() {
   return (
     <div className="space-y-8">
       <PageHeading
-        eyebrow="Module B"
         title="Address lookup"
         lede="Which legal jurisdiction each address resolves to, and which records still need review. A ZIP discrepancy is tracked separately because it does not change the legal city."
       />

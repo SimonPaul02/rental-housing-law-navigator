@@ -377,7 +377,16 @@ somebody else is reported as missing rather than forbidden.
 The bytes live in the row. There is no object store in this deployment, a lease
 is a few hundred kilobytes, and a second home for the data would be a second
 way for a deleted lease to survive its own deletion — `DELETE` here is the whole
-deletion. Uploads are checked against an allowlist of types, because the file is
+deletion.
+
+That has one consequence worth naming, because it looks like a bug when it
+bites. The file route answers only to a bearer token, and a new tab is a plain
+navigation that carries no header — so `<a href="…/file" target="_blank">`
+returns `{"detail":"Please sign in."}` to somebody who plainly is signed in.
+`openFile()` in `lib/client-api.ts` fetches with the token and opens the blob
+instead, opening the tab inside the click so a popup blocker allows it. A
+signed URL from an object store would make that trivial, and would also hand
+out a link that outlives the session and survives the deletion above. Uploads are checked against an allowlist of types, because the file is
 served back from the same origin the app runs on: nothing a browser could
 execute is storable, downloads carry `nosniff` and `private, no-store`, and only
 a PDF or an image is shown in place.
