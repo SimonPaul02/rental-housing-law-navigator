@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type PointerEvent } from "react";
 import { DEMO_ACCOUNTS, type DemoAccount } from "@/lib/demo";
 import { ROLES, ROLE_SLUGS, type Cardinality, type Role } from "@/lib/roles";
 import { RoleArt } from "./role-art";
@@ -42,6 +42,20 @@ const CARDINALITY: Record<Cardinality, string> = {
   caseload: "A caseload",
   stock: "The whole sample",
 };
+
+/** Light that follows the cursor across a tile.
+ *
+ * Two custom properties and a radial gradient — no state, so moving the
+ * pointer never re-renders React. A tile that has never been pointed at falls
+ * back to a highlight at its own top edge, which is where the light would be
+ * coming from anyway.
+ */
+function track(event: PointerEvent<HTMLElement>) {
+  const tile = event.currentTarget;
+  const box = tile.getBoundingClientRect();
+  tile.style.setProperty("--mx", `${event.clientX - box.left}px`);
+  tile.style.setProperty("--my", `${event.clientY - box.top}px`);
+}
 
 function Arrow() {
   return (
@@ -119,6 +133,7 @@ export function RoleGrid({ configured }: { configured: boolean }) {
               type="button"
               className={`role-tile${busy === slug ? " busy" : ""}`}
               aria-label={`Sign in as the ${role.label.toLowerCase()} demo account`}
+              onPointerMove={track}
               onClick={() => signInAs(account)}
               disabled={busy !== ""}
             >

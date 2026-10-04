@@ -1,26 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { RoleGrid } from "@/components/role-grid";
-import { SignIn } from "@/components/sign-in";
-import { Card, Notice } from "@/components/ui";
+import { RoleCards } from "@/components/role-cards";
+import { Specimen } from "@/components/specimen";
+import { Notice } from "@/components/ui";
 import { signInConfigured, viewer } from "@/lib/auth";
 import { tryApi } from "@/lib/api";
 import type { Health, Meta } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-/** `rent_increase_limits` → `Rent increase limits`.
- *
- * The categories are the API's own list rather than a second copy kept here,
- * so what the front door claims to answer cannot drift from what the corpus
- * actually carries. Only the casing is ours.
- */
-function humanise(category: string): string {
-  const words = category.replace(/_/g, " ");
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
-
-/** `2026-10-01` → `1 October 2026`, in UTC.
+/** `2026-10-01` -> `1 October 2026`, in UTC.
  *
  * Parsed by hand rather than through `new Date(iso)`: a bare date string is
  * UTC midnight, which in a western timezone renders as the day before.
@@ -36,16 +25,30 @@ function longDate(iso: string): string {
   });
 }
 
+function ArrowRight() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M3.2 8h9.1m0 0L8.9 4.6M12.3 8l-3.4 3.4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 /** The front door.
  *
  * Signed in, it is not a page at all — it forwards to whichever of the four
  * apps the person's role names, because there is no shared workspace to land
- * in. Not signed in, it is the only thing they see, so it has one job: say
- * what the navigator answers, and offer the ways in.
+ * in. Not signed in, it has one job: say what the navigator answers, show it
+ * answering, and point at the door.
  *
- * The four roles appear once, as the tiles that sign in as them. They used to
- * appear twice — a bulleted explanation and a separate grid of demo accounts —
- * which is two places for the same four facts to drift apart in.
+ * It holds no sign-in form. That is /login, and the split is the point: a
+ * returning person should not have to scroll past the pitch to get in, and the
+ * pitch should not be laid out around a form.
  */
 export default async function FrontDoor() {
   const seen = await viewer();
@@ -53,8 +56,8 @@ export default async function FrontDoor() {
   if (seen.state === "unregistered") redirect("/welcome");
 
   // Both are public: `/health` names no row and `/meta` is the vocabulary the
-  // filters are built from. A cold backend costs the scope strip and raises
-  // the notice at the foot; it never costs the page or the sign-in card.
+  // filters are built from. A cold backend costs the scope line and raises the
+  // notice at the foot; it never costs the page.
   const [health, meta] = await Promise.all([
     tryApi<Health>("/api/health", { anonymous: true }),
     tryApi<Meta>("/api/meta", { anonymous: true, revalidate: 300 }),
@@ -62,66 +65,64 @@ export default async function FrontDoor() {
 
   return (
     <div className="front">
-      <section className="front-hero">
-        <div>
-          <p className="eyebrow">Rental Housing Law Navigator</p>
-          <h1 className="front-title">
-            Which housing rules apply <em>here, on this date</em>?
-          </h1>
-          <p className="front-lede">
-            Rental housing law for one building on one day, with the span of
-            source text quoted behind every answer.
-          </p>
+      {/* Light that moves, behind everything. Decoration, so it is hidden from
+          assistive technology and stops entirely under reduced motion. */}
+      <div className="front-aurora" aria-hidden>
+        <span />
+        <span />
+      </div>
+      <div className="front-grain" aria-hidden />
 
-          {meta && (
-            <div className="front-scope">
-              <p className="front-scope-label">What it answers</p>
-              <ul className="front-chips">
-                {meta.categories.map((category) => (
-                  <li key={category}>{humanise(category)}</li>
-                ))}
-              </ul>
-              <p className="front-note">
-                State and city law, as it stood on the day you ask about —
-                today that is {longDate(meta.default_as_of)}. A rule not yet in
-                force says so rather than being left out, and a fact the public
-                record does not carry is named instead of guessed.
-              </p>
-            </div>
-          )}
+      <section className="front-hero">
+        <p className="front-badge rise rise-1">
+          <span className="front-pulse" aria-hidden />
+          Rental Housing Law Navigator
+        </p>
+
+        <h1 className="front-title rise rise-2">
+          Which housing rules apply <em>here, on this date</em>?
+        </h1>
+
+        <p className="front-lede rise rise-3">
+          One building, one day, and the source text behind every answer.
+        </p>
+
+        <div className="front-cta rise rise-4">
+          <Link className="cta cta-primary" href="/login">
+            Sign in <ArrowRight />
+          </Link>
+          <a className="cta cta-ghost" href="#apps">
+            See the four apps
+          </a>
         </div>
 
-        <Card className="front-auth">
-          <h2>Sign in</h2>
-          <p className="front-auth-lede">
-            Accounts live in WorkOS. Google works for both signing up and
-            signing in.
+        {meta && (
+          <p className="front-scope rise rise-4">
+            {meta.categories.length} obligations · state and city law · answered
+            as of {longDate(meta.default_as_of)}
           </p>
-          <SignIn configured={signInConfigured} />
-        </Card>
+        )}
       </section>
 
-      <section>
+      <section className="front-specimen rise rise-5">
+        <Specimen />
+      </section>
+
+      <section className="front-apps rise rise-6" id="apps">
         <div className="front-section-head">
-          <h2>One record, four apps</h2>
+          <p className="front-eyebrow">One record, four apps</p>
+          <h2>What separates them is how many addresses each has</h2>
           <p>
-            The four roles are not four skins of one page. What separates them
-            is how many addresses each one has — one home, a portfolio, the
-            whole sample and none of their own, or a caseload that never adds
-            up — which decides whether a page can be one building in depth, a
-            set in aggregate, or neither.
-            {signInConfigured &&
-              " Pick one to sign in: they are ordinary accounts with nothing withheld."}
+            Not four skins of one page — and that difference decides what a page
+            can even be about.
           </p>
         </div>
 
-        <RoleGrid configured={signInConfigured} />
+        <RoleCards />
 
         <p className="front-fine">
-          A role is never a permission. Every row this app serves is either
-          public corpus material or your own, so a role decides what you are
-          shown, not what you may read. There is no team, no sharing and no
-          inbox either — nothing in the app can address another account.
+          A role is never a permission: it decides what you are shown, never
+          what you may read. No teams, no sharing, no inboxes.
         </p>
       </section>
 
