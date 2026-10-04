@@ -70,7 +70,7 @@ export const ROLES: Record<Role, RoleSpec> = {
       "What each of your buildings is subject to, which exemptions it can claim, and which facts are still missing before an answer is possible.",
     cardinality: "portfolio",
     cardinalityNote:
-      "You are answerable for every building at once, so the portfolio is the page and a single building is the drill-down.",
+      "Your account was set up with the buildings you are answerable for, so the portfolio is the page and a single building is the drill-down.",
   },
   agency: {
     label: "Housing agency",
@@ -141,7 +141,7 @@ export const PLACES = {
     lede:
       "The buildings you are answerable for. Private to you — this app has no sharing, so a portfolio is only ever your own.",
     empty:
-      "Add the buildings you own or manage. The overview then answers them together: what binds the portfolio, which exemptions each building claims, and which missing fact is blocking the most answers.",
+      "Your buildings arrive with the account, and the overview answers them together: what binds the portfolio, which exemptions each building claims, and which missing fact is blocking the most answers. Add one here if the import missed it.",
     search: "Add a building — street or city",
     label: "A name you use for it internally",
     note: "Anything you need to remember about it",

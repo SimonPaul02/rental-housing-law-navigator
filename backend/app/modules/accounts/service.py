@@ -91,6 +91,13 @@ async def register(
     if user is None:
         user = User(workos_user_id=principal.user_id, role=role.value, email=email)
         session.add(user)
+        await session.flush()
+        # The import is the account. A housing provider does not arrive at an
+        # empty page and type in the buildings they already own - the book was
+        # loaded before they ever signed in, and signing in is where it becomes
+        # theirs. Only on creation: a provider who removes a building has
+        # removed it, and signing in again is not a reason to hand it back.
+        await adopt_the_import(session, user)
     user.email = email
     user.name = name
     user.picture_url = picture_url
@@ -164,9 +171,86 @@ def _owned(owner_id: str):
     )
 
 
+#: Which roles the imported book belongs to.
+#:
+#: A housing provider is *answerable for* buildings, and the book is exactly
+#: that set - so it is theirs on arrival. The other three are not a shorter
+#: version of the same list, which is why this is not a setting:
+#:
+#:  - a renter has one home and it is wherever they actually live, so it is
+#:    the one thing only they can say;
+#:  - an advocate's cases are each a different person's situation, and five
+#:    hundred of somebody else's buildings are not five hundred matters;
+#:  - an agency holds no addresses at all - the whole stock is their subject
+#:    and they read it directly.
+ADOPTS_THE_IMPORT = {Role.provider}
+
+
+async def adopt_the_import(session: AsyncSession, user: User) -> int:
+    """Give this account the buildings the deployment was loaded with.
+
+    Rows rather than a computed list, so that everything hanging off a saved
+    place keeps working unchanged: a note, an agreement, the unit label on it,
+    and removing a building one no longer manages. The alternative - a list
+    assembled on read - would have no id to attach any of that to until the
+    moment somebody did.
+
+    Returns how many were added, and adds nothing the account already holds, so
+    it is safe to call on an account that has some.
+    """
+    if Role(user.role) not in ADOPTS_THE_IMPORT:
+        return 0
+    held = set(
+        (
+            await session.execute(
+                select(SavedPlace.address_id).where(SavedPlace.owner_id == user.workos_user_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    ids = (
+        (await session.execute(select(Address.address_id).where(Address.imported))).scalars().all()
+    )
+    fresh = [address_id for address_id in ids if address_id not in held]
+    session.add_all(
+        SavedPlace(owner_id=user.workos_user_id, address_id=address_id) for address_id in fresh
+    )
+    await session.flush()
+    if fresh:
+        log.info("adopted %s imported buildings for %s", len(fresh), user.workos_user_id)
+    return len(fresh)
+
+
 async def places(session: AsyncSession, principal: Principal) -> list[Place]:
     stmt = _owned(principal.user_id).order_by(SavedPlace.created_at)
     return [_place(row) for row in (await session.execute(stmt)).scalars()]
+
+
+async def portfolio(session: AsyncSession, principal: Principal, as_of: dt.date):
+    """The caller's buildings, rolled up.
+
+    Lives here because whose buildings these are is this module's question;
+    the arithmetic is Module B's and stays there. What comes back is counts
+    and ids - see `address_lookup.schemas.Portfolio` for why a page over five
+    hundred buildings cannot be given the outcomes themselves.
+    """
+    from app.modules.address_lookup import service as lookups
+
+    rows = (
+        (
+            await session.execute(
+                select(Address)
+                .join(SavedPlace, SavedPlace.address_id == Address.address_id)
+                .where(SavedPlace.owner_id == principal.user_id)
+                .options(selectinload(Address.jurisdiction))
+                .order_by(Address.address_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return await lookups.portfolio(session, list(rows), as_of)
 
 
 async def one_place(session: AsyncSession, principal: Principal, place_id: int) -> SavedPlace:

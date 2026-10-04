@@ -10,11 +10,13 @@ from __future__ import annotations
 import datetime as dt
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal, require_principal
+from app.core.config import settings
 from app.core.db import get_session
+from app.modules.address_lookup.schemas import Portfolio
 
 from . import service
 from .schemas import (
@@ -128,6 +130,24 @@ async def add_place(
         address_id=payload.address_id,
         label=payload.label,
         note=payload.note,
+    )
+
+
+@router.get("/me/portfolio", response_model=Portfolio)
+async def my_portfolio(
+    as_of: dt.date | None = Query(None, description=f"Defaults to {settings.default_as_of}."),
+    principal: Principal = Depends(require_principal),
+    session: AsyncSession = Depends(get_session),
+) -> Portfolio:
+    """Every building the caller holds, counted rather than listed.
+
+    A page that asks "what binds my portfolio" over the whole imported book
+    cannot be handed the outcomes it is a roll-up of: five hundred buildings
+    against a hundred and fifteen rules is 75 MB of JSON. This is the same
+    answer at 200 KB. One building's evidence is a `GET /lookup/{id}` away.
+    """
+    return await service.portfolio(
+        session, principal, as_of or dt.date.fromisoformat(settings.default_as_of)
     )
 
 

@@ -140,6 +140,15 @@ they are why the book is the thing everything here is measured against: it is
 the agency's denominator, the extent of `lookups.json`, and the set each change
 case scans.
 
+**A housing provider holds that book from the moment the account exists.** They
+do not arrive at an empty page and type in the buildings they already own —
+`register()` hands it over, once, on creation. The other three roles do not get
+it, and that is not a shorter version of the same list: a renter has one home
+and it is wherever they actually live, an advocate's cases are each a different
+person's situation, and an agency holds no addresses at all. `ADOPTS_THE_IMPORT`
+in `accounts/service.py` is that single fact; accounts created before it existed
+are caught up by `backend/scripts/adopt_import.py`.
+
 **A renter's home is wherever they actually live**, which may not be in it. So
 a renter can type one — `415 Mission St, San Francisco, CA` — and keep it. It
 is geocoded by the same resolver the import ran, with the same candidate
@@ -269,6 +278,42 @@ hold no key at all.
 > record behind it** — the same data and the same figures, none of it produced
 > by a model. An agent is a good way to ask and a poor way to scan five hundred
 > rows.
+
+## A portfolio is counted on the server
+
+Handing a provider the whole book broke the page that answers it, and the
+numbers are worth writing down because they are the reason the code is shaped
+the way it is. The overview used to fetch every outcome for every building and
+do the arithmetic in the browser — fine for nine buildings, impossible for five
+hundred:
+
+| Buildings | Compute | Payload | Renders |
+|---|---|---|---|
+| 9 | 0.2 s | 1.3 MB | yes |
+| 100 | 2.1 s | 15 MB | slowly |
+| 500 | 10.6 s | **75 MB** | never |
+
+Those are 57,500 outcomes, each carrying its checks, its explanation and its
+quoted span. Dropping the audit trail only reaches 17 MB, so the fix was not a
+thinner outcome — it was to send the roll-up instead of the thing it was rolled
+up from. `GET /api/accounts/me/portfolio` returns the same answer in **204 KB**:
+counts per building per obligation, the blocking-fact queue, and the rules that
+miss **aggregated by rule rather than by building**. That last one is the better
+answer and not merely the cheaper one — "this rent cap was tested against 312 of
+your buildings and misses all of them on the unit count" is the compliance fact,
+and the same thing one building at a time is thousands of rows nobody reads.
+
+What it gives up is evidence, deliberately: a reader checking one answer wants
+every check behind it, and `GET /lookup/{address_id}` is where that lives. A
+reader looking at a portfolio wants none of them.
+
+The first render still costs ten seconds of arithmetic, so two things carry it.
+The result is cached in process, keyed by the set of addresses and the date —
+so adding a building cannot read a stale answer, there being nothing to
+invalidate, while `clear_compiled_cache()` drops the roll-ups too, because a
+portfolio is an answer about a set of rules as much as a set of buildings. And
+the record streams in behind its own Suspense boundary, so the assistant paints
+in 0.7 s and asking a question never waits on a roll-up.
 
 ## The map, and the table beside it
 

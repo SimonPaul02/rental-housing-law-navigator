@@ -7,8 +7,10 @@ import datetime as dt
 import logging
 import re
 import secrets
+from collections import Counter
 from dataclasses import asdict
 from threading import Lock
+from time import monotonic
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,7 +43,16 @@ from app.modules.address_lookup.rule_evaluation.export import (
     validate_submission,
 )
 from app.modules.address_lookup.rule_evaluation.interactions import resolve_interactions
-from app.modules.address_lookup.schemas import LookupResponse, RuleOutcome
+from app.modules.address_lookup.schemas import (
+    BlockingFact,
+    CategoryCell,
+    LookupResponse,
+    Portfolio,
+    PortfolioBuilding,
+    PortfolioRule,
+    PortfolioTotals,
+    RuleOutcome,
+)
 from app.modules.address_lookup.status import VERIFIED_METHODS
 
 log = logging.getLogger(__name__)
@@ -149,6 +160,14 @@ def compiled_for(record: Rule) -> CompiledRule:
 
 
 def clear_compiled_cache() -> None:
+    """Drop the compiled rules - and the roll-ups computed from them.
+
+    A portfolio is an answer about a set of buildings *and* a set of rules, so
+    a re-import that changes the rules has to take the roll-ups with it. The
+    TTL would get there eventually; five minutes of a page insisting the old
+    answer is current is five minutes too many.
+    """
+    clear_portfolio_cache()
     with _COMPILED_LOCK:
         _COMPILED.clear()
 
@@ -420,7 +439,7 @@ async def lookup_address(
         outcomes = [
             *outcomes,
             *(
-                _outcome_from(d, by_id[d.team_rule_id])
+                _outcome_from(d, by_id[d.team_rule_id], compiled[d.team_rule_id])
                 for d in decisions
                 if d.result is BaseResult.does_not_apply
             ),
@@ -480,6 +499,146 @@ async def _persist_lookups(
 
 
 # ----------------------------------------------------------- submission run ---
+# -------------------------------------------------------------- portfolio ---
+#: Roll-ups already computed, keyed by what went into them.
+#:
+#: Evaluating five hundred buildings against a hundred and fifteen rules is
+#: ten seconds of arithmetic that produces the same answer every time until a
+#: rule changes or a building is added - so the second render of a page is not
+#: worth paying for. In-process because this backend is a persistent container
+#: rather than a function; a deploy empties it, which is correct, because a
+#: deploy is also how the rules change.
+_PORTFOLIO_CACHE: dict[tuple, tuple[float, Portfolio]] = {}
+PORTFOLIO_TTL_SECONDS = 300
+#: How many buildings to name on a rule that misses, or on a missing fact.
+#: Enough to go and look at one; not a second copy of the portfolio.
+NAMED = 8
+
+
+def clear_portfolio_cache() -> None:
+    _PORTFOLIO_CACHE.clear()
+
+
+async def portfolio(session: AsyncSession, addresses: list[Address], as_of: dt.date) -> Portfolio:
+    """Everything a portfolio page shows, counted here instead of in the browser.
+
+    The caller gets counts and ids. The evidence behind any one of them -
+    the checks, the explanation, the quoted span - is a `GET /lookup/{id}`
+    away, which is where a reader checking a single answer should be anyway.
+    See `schemas.Portfolio` for why this exists at all.
+    """
+    key = (as_of, tuple(sorted(a.address_id for a in addresses)))
+    cached = _PORTFOLIO_CACHE.get(key)
+    if cached and monotonic() - cached[0] < PORTFOLIO_TTL_SECONDS:
+        return cached[1]
+
+    buildings: list[PortfolioBuilding] = []
+    categories: set[str] = set()
+    blocked_answers: Counter[str] = Counter()
+    blocked_where: dict[str, list[str]] = {}
+    misses: dict[str, dict] = {}
+    untranslated: set[str] = set()
+    not_binding_total = 0
+
+    for address in addresses:
+        answer = await lookup_address(
+            session, address, as_of, persist=False, include_not_applicable=True
+        )
+        row = PortfolioBuilding(address_id=address.address_id)
+        blocked: set[str] = set()
+
+        for outcome in answer.outcomes:
+            category = outcome.category or "uncategorised"
+            # `checks` is carried as plain dicts on the wire, so read it as one.
+            if outcome.in_jurisdiction and any(
+                check.get("reason") == "rule_clause_unmapped" for check in outcome.checks
+            ):
+                untranslated.add(outcome.team_rule_id)
+
+            if outcome.result == "applies":
+                row.applies += 1
+                categories.add(category)
+                row.by_category.setdefault(
+                    category, CategoryCell(binding=0, unsettled=0)
+                ).binding += 1
+            elif outcome.result == "unknown":
+                row.unknown += 1
+                categories.add(category)
+                row.by_category.setdefault(
+                    category, CategoryCell(binding=0, unsettled=0)
+                ).unsettled += 1
+                for field in outcome.unresolved_fields:
+                    blocked.add(field)
+                    blocked_answers[field] += 1
+                    blocked_where.setdefault(field, []).append(address.address_id)
+            elif outcome.result == "does_not_apply" and outcome.in_jurisdiction:
+                # Out-of-jurisdiction misses are dropped: "a Berkeley ordinance
+                # does not cover your Boston building" is a map, not compliance
+                # information, and there are eighty of them per address.
+                row.not_binding += 1
+                not_binding_total += 1
+                exemption = next(
+                    (
+                        c
+                        for c in outcome.checks
+                        if c.get("check") == "exemption" and c.get("value") == "true"
+                    ),
+                    None,
+                )
+                miss = misses.setdefault(
+                    outcome.team_rule_id,
+                    {
+                        "rule": outcome.team_rule_id,
+                        "title": outcome.title,
+                        "jurisdiction": outcome.jurisdiction,
+                        "category": outcome.category,
+                        "citation": outcome.citation,
+                        "buildings": 0,
+                        "address_ids": [],
+                        "why": (exemption.get("detail") if exemption else None)
+                        or outcome.explanation,
+                        "exemption": exemption is not None,
+                    },
+                )
+                miss["buildings"] += 1
+                if len(miss["address_ids"]) < NAMED:
+                    miss["address_ids"].append(address.address_id)
+
+        row.blocked_by = sorted(blocked)
+        buildings.append(row)
+
+    rolled = [PortfolioRule(**miss) for miss in misses.values()]
+    rolled.sort(key=lambda r: (-r.buildings, r.rule))
+
+    result = Portfolio(
+        as_of=as_of,
+        totals=PortfolioTotals(
+            buildings=len(addresses),
+            evaluated=sum(1 for b in buildings if b.evaluated),
+            fully_answered=sum(1 for b in buildings if b.evaluated and not b.blocked_by),
+            not_binding=not_binding_total,
+            untranslated_rules=len(untranslated),
+        ),
+        categories=sorted(categories),
+        buildings=buildings,
+        # Ordered by how many answers one field would settle, because that is
+        # the only ordering that says what to go and find first.
+        blocking=[
+            BlockingFact(
+                field=field,
+                answers=answers,
+                buildings=len(set(blocked_where[field])),
+                address_ids=sorted(set(blocked_where[field]))[:NAMED],
+            )
+            for field, answers in blocked_answers.most_common()
+        ],
+        exemptions=[r for r in rolled if r.exemption],
+        missed=[r for r in rolled if not r.exemption],
+    )
+    _PORTFOLIO_CACHE[key] = (monotonic(), result)
+    return result
+
+
 async def run_lookup_export(
     session: AsyncSession,
     as_of: dt.date,
