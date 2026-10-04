@@ -128,6 +128,14 @@ export function Assistant({ role }: { role: Role }) {
             said += frame.data.text;
             setWriting(said);
           } else if (frame.event === "tool") {
+            // A turn can write, run a lookup, then write again. Those are two
+            // streams of text with a tool call between them, and concatenating
+            // them gives "…one building directly.Nothing in the five cases…".
+            // The break belongs where the turn actually broke.
+            if (said && !said.endsWith("\n")) {
+              said += "\n\n";
+              setWriting(said);
+            }
             setDoing(frame.data.label);
           } else if (frame.event === "card") {
             setCards((current) => [...current, frame.data]);
