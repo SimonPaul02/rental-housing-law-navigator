@@ -14,7 +14,8 @@ more than expressiveness:
     list for prose it did not recognise, and an empty list read as "no
     condition to test", which read as `applies` - so unrecognised legal text
     silently became unconditional coverage. An empty coverage expression means
-    unconditional coverage only when a reviewer has said so.
+    unconditional coverage only with a verified unconditional source statement
+    or a version-bound human review.
 
 The tree is JSON-serialisable by construction: no Python expressions, no
 eval, nothing that could execute arbitrary code from a model proposal.
@@ -29,7 +30,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Literal
 
-COMPILER_VERSION = "1"
+COMPILER_VERSION = "2"
 
 
 class Field(StrEnum):
@@ -54,6 +55,7 @@ class Field(StrEnum):
     owner_unit_count = "owner_unit_count"
     seasonal_rental = "seasonal_rental"
     building_is_subsidised = "building_is_subsidised"
+    los_angeles_rso_membership = "los_angeles_rso_membership"
 
 
 class Op(StrEnum):
@@ -76,6 +78,7 @@ BOOLEAN_FIELDS = {
     Field.owner_is_natural_person,
     Field.seasonal_rental,
     Field.building_is_subsidised,
+    Field.los_angeles_rso_membership,
 }
 #: Facts this corpus cannot supply for any address. Kept explicit so an
 #: explanation can say *why* something is unknown rather than only that it is.
@@ -85,6 +88,7 @@ NEVER_SUPPLIED = {
     Field.owner_unit_count,
     Field.seasonal_rental,
     Field.building_is_subsidised,
+    Field.los_angeles_rso_membership,
 }
 
 _ORDERED = {Op.lt, Op.lte, Op.gt, Op.gte}
@@ -100,9 +104,17 @@ class Origin(StrEnum):
 
 
 class ReviewState(StrEnum):
-    approved = "approved"
+    machine_verified = "machine_verified"
+    human_approved = "human_approved"
+    approved = "approved"  # legacy relation state; never grants coverage approval
     needs_review = "needs_review"
     rejected = "rejected"
+
+
+class CoverageBasis(StrEnum):
+    explicit_unconditional = "explicit_unconditional"
+    conditions = "conditions"
+    unresolved = "unresolved"
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,12 +124,18 @@ class SourceAnchor:
     source_span: str
     source_doc_id: str | None = None
     source_url: str | None = None
+    clause_id: str | None = None
+    origin: Origin | None = None
+    source_hash: str | None = None
 
     def to_json(self) -> dict[str, Any]:
         return {
             "source_span": self.source_span,
             "source_doc_id": self.source_doc_id,
             "source_url": self.source_url,
+            "clause_id": self.clause_id,
+            "origin": str(self.origin) if self.origin else None,
+            "source_hash": self.source_hash,
         }
 
 
@@ -184,9 +202,23 @@ class UnmappedClause:
     text: str
     origin: Origin
     reason: str
+    clause_id: str = ""
+    source_span: str | None = None
+    source_doc_id: str | None = None
+    source_hash: str | None = None
+    proposal: dict[str, Any] | None = None
 
     def to_json(self) -> dict[str, Any]:
-        return {"text": self.text, "origin": str(self.origin), "reason": self.reason}
+        return {
+            "text": self.text,
+            "origin": str(self.origin),
+            "reason": self.reason,
+            "clause_id": self.clause_id,
+            "source_span": self.source_span,
+            "source_doc_id": self.source_doc_id,
+            "source_hash": self.source_hash,
+            "proposal": self.proposal,
+        }
 
 
 class RelationType(StrEnum):
@@ -263,6 +295,9 @@ class CompiledRule:
     rule_version_hash: str
     compiler_version: str = COMPILER_VERSION
     review_state: ReviewState = ReviewState.needs_review
+    coverage_basis: CoverageBasis = CoverageBasis.unresolved
+    source_hash: str | None = None
+    source_doc_id: str | None = None
     # Geography and time are compiled into their own fields rather than into
     # the coverage tree, so the evaluator never tests the same jurisdiction
     # twice and can report geography separately from coverage.
@@ -283,7 +318,11 @@ class CompiledRule:
     @property
     def is_usable(self) -> bool:
         """Approved, and with nothing untranslated that could change a result."""
-        return self.review_state is ReviewState.approved and not self.unmapped_text
+        return (
+            self.review_state in (ReviewState.machine_verified, ReviewState.human_approved)
+            and not self.unmapped_text
+            and self.coverage_basis is not CoverageBasis.unresolved
+        )
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -291,6 +330,9 @@ class CompiledRule:
             "rule_version_hash": self.rule_version_hash,
             "compiler_version": self.compiler_version,
             "review_state": str(self.review_state),
+            "coverage_basis": str(self.coverage_basis),
+            "source_hash": self.source_hash,
+            "source_doc_id": self.source_doc_id,
             "level": self.level,
             "jurisdiction": self.jurisdiction,
             "status": self.status,
@@ -308,6 +350,12 @@ class CompiledRule:
 #: keep the id, and the old translation would then describe text that no
 #: longer exists.
 HASHED_FIELDS = (
+    "title",
+    "requirement",
+    "source_doc_id",
+    "source_url",
+    "conflict_flag",
+    "conflict_note",
     "jurisdiction",
     "level",
     "status",

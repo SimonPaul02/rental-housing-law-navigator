@@ -14,6 +14,7 @@ import pytest
 from app.modules.address_lookup.rule_adapter.models import (
     Atom,
     CompiledRule,
+    CoverageBasis,
     EffectiveDate,
     Expr,
     Field,
@@ -67,7 +68,8 @@ def rule(**kw) -> CompiledRule:
     base = dict(
         team_rule_id="r-city",
         rule_version_hash="sha256:test",
-        review_state=ReviewState.approved,
+        review_state=ReviewState.human_approved,
+        coverage_basis=CoverageBasis.explicit_unconditional,
         level="city",
         jurisdiction="San Francisco, CA",
         status="in_force",
@@ -364,9 +366,13 @@ def test_an_unmapped_clause_does_not_rescue_a_definite_exclusion():
 
 
 def test_empty_coverage_needs_approval_to_mean_unconditional():
-    unreviewed = rule(review_state=ReviewState.needs_review, coverage=Expr("all", ()))
+    unreviewed = rule(
+        review_state=ReviewState.needs_review,
+        coverage_basis=CoverageBasis.unresolved,
+        coverage=Expr("all", ()),
+    )
     assert decide(unreviewed, evidence()).result is BaseResult.unknown
-    approved = rule(review_state=ReviewState.approved, coverage=Expr("all", ()))
+    approved = rule(review_state=ReviewState.human_approved, coverage=Expr("all", ()))
     assert decide(approved, evidence()).result is BaseResult.applies
 
 

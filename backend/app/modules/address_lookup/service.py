@@ -121,18 +121,21 @@ _COMPILED_LOCK = Lock()
 
 def compiled_for(record: Rule) -> CompiledRule:
     version = rule_version_hash(record)
-    key = f"{record.team_rule_id}@{version}"
+    document = getattr(record, "__dict__", {}).get("document")
+    source_text = document.body if document is not None else None
+    from app.modules.address_lookup.rule_adapter import compiler
+
+    source_hash = compiler.content_hash(source_text)
+    key = f"{record.team_rule_id}@{version}@{source_hash}@{COMPILER_VERSION}"
     with _COMPILED_LOCK:
         hit = _COMPILED.get(key)
     if hit is not None:
         return hit
 
     store = rule_adapters.store()
-    compiled = store.get(record.team_rule_id, version)
+    compiled = store.get(record.team_rule_id, version, source_hash)
     if compiled is None:
-        from app.modules.address_lookup.rule_adapter import compiler
-
-        compiled, _ = compiler.compile_rule(record)
+        compiled, _ = compiler.compile_rule(record, source_text=source_text)
     compiled = store.apply_reviews(compiled)
     with _COMPILED_LOCK:
         _COMPILED[key] = compiled
@@ -148,11 +151,23 @@ async def compiled_rules(
     session: AsyncSession,
 ) -> tuple[list[Rule], dict[str, CompiledRule], list[Relation]]:
     """Every rule, its compiled form, and the reviewed relations between them."""
-    rows = await session.execute(select(Rule).order_by(Rule.team_rule_id))
+    rows = await session.execute(
+        select(Rule).options(selectinload(Rule.document)).order_by(Rule.team_rule_id)
+    )
     records = list(rows.scalars().all())
     store = rule_adapters.store()
-    compiled = {r.team_rule_id: compiled_for(r) for r in records}
-    return records, compiled, store.all_relations()
+    sources = {
+        r.source_doc_id: r.document.body
+        for r in records
+        if r.source_doc_id and r.document and r.document.body
+    }
+    compiled, relations, fresh = rule_adapters.compile_all(
+        records, review_store=store, sources=sources, persist=False
+    )
+    if fresh:
+        store.save()
+        clear_compiled_cache()
+    return records, compiled, relations
 
 
 def _outcome_from(decision: Decision, record: Rule) -> RuleOutcome:

@@ -15,6 +15,7 @@ class CanonicalMatch(BaseModel):
     matched_rule_ids: list[str] = Field(default_factory=list)
     matched: bool = False
     note: str | None = None
+    sources: list[dict[str, str | None]] = Field(default_factory=list)
 
 
 class ChangeTest(BaseModel):

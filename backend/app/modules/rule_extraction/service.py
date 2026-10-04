@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import hashlib
 import logging
 import re
 import uuid
@@ -26,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.llm import get_client
-from app.db.models import Document, ExtractionRun, Rule
+from app.db.models import Document, ExtractionCache, ExtractionRun, Rule
 from app.modules.rule_extraction.pipeline import models as model_specs
 from app.modules.rule_extraction.pipeline.merge import group_key_for, rule_id_for
 from app.modules.rule_extraction.pipeline.text import unwrap
@@ -51,8 +52,8 @@ CATEGORIES = [
 
 SYSTEM_PROMPT = f"""\
 You extract structured rule records from United States residential rental \
-housing law. You are given the full text of one official document (a statute, \
-ordinance, regulation, ballot measure or bill) and you return every in-scope \
+housing law. You are given the full text of one source document (a statute, \
+ordinance, regulation, bill, court decision or official adoption notice) and return every in-scope \
 rule it contains.
 
 The query date is {settings.default_as_of}. Judge `status` as of that date.
@@ -76,6 +77,12 @@ pricing software used to set rents or manage occupancy.
 - `not_yet_effective` - enacted, but its effective date is after the query date.
 - `pending` - still a bill or measure; not enacted.
 - `failed` - defeated, struck, repealed or rejected.
+
+A bill text without evidence of enactment remains `pending`, even if it says \
+"Be it enacted" as legislative drafting language. A court decision that bars \
+a proposed measure can support one `failed` measure record; quote the ruling \
+and do not report the proposal as current law. An official adoption notice may \
+support a rule when it states an enacted obligation, but do not infer details it omits.
 
 ## Rules for every record
 
@@ -102,6 +109,8 @@ that is only procedural, a notice, or out of scope.
 Do not invent rules that the document does not state. Do not carry over \
 knowledge of a law that is not in this document's text.
 """
+
+PROMPT_VERSION = "module-a-2026-10-04-v1"
 
 
 def _normalise(text: str) -> str:
@@ -183,7 +192,6 @@ async def extract_document(
             "link-only sources cannot be extracted."
         )
 
-    client = get_client()
     spec = model_specs.spec_for(settings.extraction_model)
     # The model is shown the body with the extractor's hard line breaks undone,
     # so a quoted span comes back as a whole sentence instead of one 77-column
@@ -196,43 +204,70 @@ async def extract_document(
             f"{doc.doc_id} is too large for {spec.model_id} ({spec.context_tokens:,} token context)"
         )
 
-    extra: dict = {}
-    if spec.supports_adaptive_thinking:
-        # Opus 5 runs adaptive by default; Sonnet must be asked. Haiku 4.5
-        # rejects the parameter outright, hence the capability check.
-        extra["thinking"] = {"type": "adaptive"}
+    digest = hashlib.sha256(
+        "|".join(
+            (
+                doc.doc_id,
+                doc.jurisdictions,
+                doc.url,
+                body,
+                SYSTEM_PROMPT,
+                PROMPT_VERSION,
+                spec.model_id,
+            )
+        ).encode("utf-8")
+    ).hexdigest()
+    cached = await session.get(ExtractionCache, digest)
+    if cached is not None:
+        parsed = DocumentExtraction.model_validate(cached.response)
+        usage_in = usage_out = 0
+    else:
+        client = get_client()
+        extra: dict = {}
+        if spec.supports_adaptive_thinking:
+            extra["thinking"] = {"type": "adaptive"}
 
-    response = await client.messages.parse(
-        model=spec.model_id,
-        max_tokens=settings.extraction_max_tokens,
-        **extra,
-        system=[
-            {
-                "type": "text",
-                "text": SYSTEM_PROMPT,
-                # Stable across all 54 documents - cache it once per run.
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
-        messages=[
-            {
-                "role": "user",
-                "content": (
-                    f'<document doc_id="{doc.doc_id}" '
-                    f'jurisdictions="{doc.jurisdictions}" '
-                    f'source_url="{doc.url}">\n'
-                    f"{body}\n"
-                    f"</document>\n\n"
-                    "Extract every in-scope rule record from this document."
-                ),
-            }
-        ],
-        output_format=DocumentExtraction,
-    )
-
-    parsed: DocumentExtraction = response.parsed_output
-    usage_in = getattr(response.usage, "input_tokens", 0) or 0
-    usage_out = getattr(response.usage, "output_tokens", 0) or 0
+        response = await client.messages.parse(
+            model=spec.model_id,
+            max_tokens=settings.extraction_max_tokens,
+            **extra,
+            system=[
+                {
+                    "type": "text",
+                    "text": SYSTEM_PROMPT,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f'<document doc_id="{doc.doc_id}" '
+                        f'jurisdictions="{doc.jurisdictions}" '
+                        f'source_url="{doc.url}">\n'
+                        f"{body}\n"
+                        f"</document>\n\n"
+                        "Extract every in-scope rule record from this document."
+                    ),
+                }
+            ],
+            output_format=DocumentExtraction,
+        )
+        parsed = response.parsed_output
+        usage_in = getattr(response.usage, "input_tokens", 0) or 0
+        usage_out = getattr(response.usage, "output_tokens", 0) or 0
+        session.add(
+            ExtractionCache(
+                cache_key=digest,
+                doc_id=doc.doc_id,
+                content_hash=hashlib.sha256(body.encode("utf-8")).hexdigest(),
+                prompt_version=PROMPT_VERSION,
+                model=spec.model_id,
+                response=parsed.model_dump(),
+                input_tokens=usage_in,
+                output_tokens=usage_out,
+            )
+        )
 
     # Keep what the model said about the document, not just what it extracted.
     # For a document that yielded nothing this note is the whole answer to
@@ -287,6 +322,15 @@ async def extract_document(
         kept.append(RuleRecord.model_validate(rule))
 
     await session.flush()
+
+    # A source-backed date correction survives a later D022 re-extraction.
+    if doc.doc_id == "D022" and kept:
+        date_doc = await session.get(Document, "D092")
+        if date_doc and date_doc.body and date_doc.content_hash:
+            from app.modules.change_tracking.effective_date_review import apply_ab325_date
+
+            await apply_ab325_date(session)
+            kept = [RuleRecord.model_validate(await session.get(Rule, rid)) for rid in ids.values()]
 
     return ExtractDocResult(
         doc_id=doc.doc_id,
@@ -504,6 +548,12 @@ async def import_rules(
             notes_applied += 1
 
     await session.flush()
+    if any(r.source_doc_id == "D022" for r in records):
+        date_doc = await session.get(Document, "D092")
+        if date_doc and date_doc.body and date_doc.content_hash:
+            from app.modules.change_tracking.effective_date_review import apply_ab325_date
+
+            await apply_ab325_date(session)
     total = (await session.execute(select(func.count()).select_from(Rule))).scalar_one()
 
     return RuleImportResult(

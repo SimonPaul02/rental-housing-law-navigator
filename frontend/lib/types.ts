@@ -169,6 +169,14 @@ export interface CanonicalMatch {
   matched_rule_ids: string[];
   matched: boolean;
   note: string | null;
+  sources: {
+    team_rule_id: string;
+    source_doc_id: string | null;
+    source_url: string;
+    citation: string;
+    quoted_span: string;
+    retrieved_at: string | null;
+  }[];
 }
 
 export interface ChangeTestResult {

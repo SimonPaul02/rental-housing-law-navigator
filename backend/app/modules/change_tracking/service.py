@@ -17,12 +17,12 @@ import datetime as dt
 import json
 from dataclasses import dataclass, replace
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.db.models import Address, ChangeResult, Rule
+from app.db.models import Address, ChangeResult, Document, Rule
 from app.modules.address_lookup import service as lookup_service
 from app.modules.change_tracking.schemas import (
     CanonicalMatch,
@@ -39,23 +39,36 @@ class Selector:
     level: str
     category: str
     status: str | None = None
+    source_doc_ids: tuple[str, ...] = ()
 
     def describe(self) -> str:
         base = f"{self.level} rule for {self.jurisdiction}, category {self.category}"
-        return f"{base}, status {self.status}" if self.status else base
+        if self.status:
+            base += f", status {self.status}"
+        if self.source_doc_ids:
+            base += f", source {', '.join(self.source_doc_ids)}"
+        return base
 
 
 # The id scheme is JURISDICTION-CATEGORY-index, with a P prefix on the index
 # for measures that never took effect.
 CANONICAL_RULES: dict[str, Selector] = {
-    "CA-ALG-01": Selector("CA", "state", "algorithmic_rent_setting"),
-    "NJ-ALG-01": Selector("NJ", "state", "algorithmic_rent_setting"),
-    "HOB-ALG-01": Selector("Hoboken, NJ", "city", "algorithmic_rent_setting"),
-    "JC-ALG-01": Selector("Jersey City, NJ", "city", "algorithmic_rent_setting"),
-    "MA-ALG-P1": Selector("MA", "state", "algorithmic_rent_setting", "pending"),
-    "MA-ALG-P2": Selector("MA", "state", "algorithmic_rent_setting", "pending"),
-    "MA-RENT-P1": Selector("MA", "state", "rent_increase_limits", "failed"),
+    "CA-ALG-01": Selector("CA", "state", "algorithmic_rent_setting", source_doc_ids=("D022",)),
+    "NJ-ALG-01": Selector("NJ", "state", "algorithmic_rent_setting", source_doc_ids=("D069",)),
+    "HOB-ALG-01": Selector(
+        "Hoboken, NJ", "city", "algorithmic_rent_setting", source_doc_ids=("D093",)
+    ),
+    "JC-ALG-01": Selector(
+        "Jersey City, NJ", "city", "algorithmic_rent_setting", source_doc_ids=("D088",)
+    ),
+    "MA-ALG-P1": Selector("MA", "state", "algorithmic_rent_setting", "pending", ("D089",)),
+    "MA-ALG-P2": Selector("MA", "state", "algorithmic_rent_setting", "pending", ("D090",)),
+    "MA-RENT-P1": Selector("MA", "state", "rent_increase_limits", "failed", ("D091",)),
 }
+
+
+class ChangeInputError(ValueError):
+    """A required source, mapping, or complete sample is unavailable."""
 
 
 def load_tests() -> list[ChangeTest]:
@@ -81,13 +94,19 @@ async def resolve_canonical(
             [],
         )
 
-    stmt = select(Rule).where(
-        Rule.jurisdiction.ilike(selector.jurisdiction),
-        Rule.level == selector.level,
-        Rule.category == selector.category,
+    stmt = (
+        select(Rule)
+        .options(selectinload(Rule.document))
+        .where(
+            Rule.jurisdiction.ilike(selector.jurisdiction),
+            Rule.level == selector.level,
+            Rule.category == selector.category,
+        )
     )
     if selector.status:
         stmt = stmt.where(Rule.status == selector.status)
+    if selector.source_doc_ids:
+        stmt = stmt.where(Rule.source_doc_id.in_(selector.source_doc_ids))
     rules = list((await session.execute(stmt.order_by(Rule.team_rule_id))).scalars())
 
     note = None
@@ -96,8 +115,29 @@ async def resolve_canonical(
             "No extracted rule matches this selector yet - run Module A "
             "extraction over the corpus first."
         )
-    elif len(rules) > 1 and canonical_id in {"MA-ALG-P1", "MA-ALG-P2"}:
-        note = "Two Massachusetts bills share this selector (S.2983 and H.5222); both are reported."
+    elif len(rules) > 1:
+        note = "Multiple provisions from this source match; review the grouped obligations."
+
+    source_ids = {r.source_doc_id for r in rules if r.source_doc_id}
+    documents = {
+        d.doc_id: d
+        for d in (
+            await session.execute(select(Document).where(Document.doc_id.in_(source_ids)))
+        ).scalars()
+    }
+    from app.modules.rule_extraction.service import span_occurs_in
+
+    verified_rules = [
+        rule
+        for rule in rules
+        if (document := documents.get(rule.source_doc_id)) is not None
+        and document.body
+        and document.url == rule.source_url
+        and span_occurs_in(rule.quoted_span, document.body)
+    ]
+    if len(verified_rules) != len(rules):
+        note = "A matched rule has no stored source body or its quote/URL is unverified."
+        rules = []
 
     return (
         CanonicalMatch(
@@ -106,6 +146,21 @@ async def resolve_canonical(
             matched_rule_ids=[r.team_rule_id for r in rules],
             matched=bool(rules),
             note=note,
+            sources=[
+                {
+                    "team_rule_id": r.team_rule_id,
+                    "source_doc_id": r.source_doc_id,
+                    "source_url": r.source_url,
+                    "citation": r.citation,
+                    "quoted_span": r.quoted_span,
+                    "retrieved_at": (
+                        documents[r.source_doc_id].retrieved_at
+                        if r.source_doc_id in documents
+                        else None
+                    ),
+                }
+                for r in rules
+            ],
         ),
         rules,
     )
@@ -128,13 +183,15 @@ def _applies(rule: Rule, address: Address, day: dt.date) -> bool:
 
 
 #: Results that mean the rule is not in force for this address on this day.
-_NOT_IN_FORCE = {"not_yet_effective", "pending"}
+_NOT_IN_FORCE = {"not_yet_effective"}
 #: Results that mean the temporal gate is open - the rule is law here now, even
 #: if a missing fact leaves its coverage unresolved.
 _LIVE = {"applies", "unknown", "superseded"}
 
 
-def _gate_opened(rule: Rule, address: Address, before: dt.date, after: dt.date) -> str | None:
+def _gate_opened(
+    rule: Rule, address: Address, before: dt.date, after: dt.date
+) -> tuple[str, str] | None:
     """Did this rule start reaching this address between the two dates?
 
     Asking "did it move from applies to applies" would miss every address whose
@@ -146,11 +203,11 @@ def _gate_opened(rule: Rule, address: Address, before: dt.date, after: dt.date) 
     """
     was, now = _result_for(rule, address, before), _result_for(rule, address, after)
     if was in _NOT_IN_FORCE and now in _LIVE:
-        return now
+        return was, now
     return None
 
 
-def _in_scope(rule: Rule, address: Address) -> bool:
+def _in_scope(rule: Rule, address: Address, as_of: dt.date) -> bool:
     """Jurisdiction and coverage reach this address, ignoring status and date -
     i.e. who *would* be affected if the measure took effect.
 
@@ -176,8 +233,18 @@ def _in_scope(rule: Rule, address: Address) -> bool:
     # Evaluate as if the measure were in force, so only geography and coverage
     # decide. Everything else about the rule is unchanged.
     as_if = replace(compiled, status="in_force", effective_dates=())
-    decision = evaluate_base(as_if, evidence, dt.date(2026, 10, 1))
+    decision = evaluate_base(as_if, evidence, as_of)
     return decision.result in (BaseResult.applies, BaseResult.unknown)
+
+
+def _local_may_apply(rule: Rule, address: Address, day: dt.date) -> bool:
+    """Only flag a local overlap within its verified city, including unknown coverage."""
+    from app.modules.address_lookup.rule_evaluation.base import evaluate_geography
+    from app.modules.address_lookup.rule_evaluation.decisions import Ternary
+
+    evidence = lookup_service.evidence_for(address)
+    geography, _ = evaluate_geography(lookup_service.compiled_for(rule), evidence)
+    return geography is Ternary.true and _result_for(rule, address, day) in _LIVE
 
 
 async def run_test(
@@ -187,6 +254,8 @@ async def run_test(
     address_limit: int = 500,
     persist: bool = True,
 ) -> ChangeTestResult:
+    if address_limit < 500 and persist:
+        raise ChangeInputError("Partial address runs may not be persisted.")
     matches: list[CanonicalMatch] = []
     rules_by_canonical: dict[str, list[Rule]] = {}
     for canonical_id in test.rule_ids + test.conflict_with:
@@ -194,6 +263,29 @@ async def run_test(
         if canonical_id in test.rule_ids:
             matches.append(match)
         rules_by_canonical[canonical_id] = rules
+
+    missing = [cid for cid, rules in rules_by_canonical.items() if not rules]
+    if missing:
+        raise ChangeInputError(f"{test.test_id} has no verified rule for: {', '.join(missing)}")
+    if test.type == "pending":
+        incorrect = [
+            r.team_rule_id
+            for cid in test.rule_ids
+            for r in rules_by_canonical[cid]
+            if r.status != "pending"
+        ]
+        if incorrect:
+            raise ChangeInputError(
+                f"{test.test_id} requires pending records; check status of {', '.join(incorrect)}"
+            )
+    if len(test.rule_ids) > 1:
+        identities = [
+            (cid, r.team_rule_id) for cid in test.rule_ids for r in rules_by_canonical[cid]
+        ]
+        if len({rule_id for _, rule_id in identities}) != len(identities):
+            raise ChangeInputError(
+                f"{test.test_id} maps one extracted rule to multiple canonical IDs."
+            )
 
     primary = [r for cid in test.rule_ids for r in rules_by_canonical.get(cid, [])]
     addresses = await _addresses_for(session, test.states, address_limit)
@@ -213,12 +305,22 @@ async def run_test(
         changed: list[str] = []
         now_applies: list[str] = []
         now_unknown: list[str] = []
+        transitions: dict[str, dict[str, dict[str, str]]] = {}
         for address in addresses:
-            opened = [o for o in (_gate_opened(r, address, before, after) for r in primary) if o]
+            opened = {
+                r.team_rule_id: transition
+                for r in primary
+                if (transition := _gate_opened(r, address, before, after))
+            }
             if not opened:
                 continue
             changed.append(address.address_id)
-            (now_applies if "applies" in opened else now_unknown).append(address.address_id)
+            transitions[address.address_id] = {
+                rule_id: {"before": was, "after": now} for rule_id, (was, now) in opened.items()
+            }
+            (
+                now_applies if any(now == "applies" for _, now in opened.values()) else now_unknown
+            ).append(address.address_id)
         affected = changed
         detail = {
             "as_of_before": before.isoformat(),
@@ -226,6 +328,7 @@ async def run_test(
             "addresses_examined": len(addresses),
             "covered_after": len(now_applies),
             "coverage_unresolved_after": len(now_unknown),
+            "transitions": transitions,
             "rule_status": {
                 r.team_rule_id: {
                     "status": r.status,
@@ -234,6 +337,26 @@ async def run_test(
                 for r in primary
             },
         }
+        records, compiled, relations = await lookup_service.compiled_rules(session)
+        category_by_id = {r.team_rule_id: r.category for r in records}
+        rule_sets: dict[str, dict[str, dict[str, str]]] = {}
+        for address in addresses:
+            if address.address_id not in transitions:
+                continue
+            evidence = lookup_service.evidence_for(address)
+            snapshots = {}
+            for label, day in (("before", before), ("after", after)):
+                decisions = lookup_service.decide_for_address(
+                    records, compiled, relations, evidence, day
+                )
+                snapshots[label] = {
+                    d.team_rule_id: str(d.result)
+                    for d in decisions
+                    if category_by_id[d.team_rule_id] == "algorithmic_rent_setting"
+                    and str(d.result) not in {"does_not_apply", "failed"}
+                }
+            rule_sets[address.address_id] = snapshots
+        detail["rule_sets"] = rule_sets
         notes = (
             f"{len(changed)} of {len(addresses)} addresses in "
             f"{', '.join(test.states) or 'the sample'} move from not in force on "
@@ -246,7 +369,9 @@ async def run_test(
         for conflict_id in test.conflict_with:
             for conflict_rule in rules_by_canonical.get(conflict_id, []):
                 for address in addresses:
-                    if address.address_id in changed and _applies(conflict_rule, address, after):
+                    if address.address_id in transitions and _local_may_apply(
+                        conflict_rule, address, before
+                    ):
                         conflicted.append(address.address_id)
         conflicted = sorted(set(conflicted))
         if conflicted:
@@ -282,11 +407,22 @@ async def run_test(
             notes += f". {len(overlap)} addresses matched more than one city rule."
 
     elif test.type == "pending":
-        would = [a.address_id for a in addresses if any(_in_scope(r, a) for r in primary)]
-        affected = sorted(set(would))
+        per_rule = {
+            cid: sorted(
+                {
+                    a.address_id
+                    for a in addresses
+                    for r in rules_by_canonical[cid]
+                    if _in_scope(r, a, as_of)
+                }
+            )
+            for cid in test.rule_ids
+        }
+        affected = sorted({aid for ids in per_rule.values() for aid in ids})
         detail = {
             "in_force_now": False,
             "addresses_examined": len(addresses),
+            "per_rule": per_rule,
             "rule_status": {r.team_rule_id: r.status for r in primary},
         }
         notes = (
@@ -296,13 +432,45 @@ async def run_test(
         )
 
     elif test.type == "negative":
+        if any(r.status != "failed" for r in primary):
+            raise ChangeInputError(f"{test.test_id} requires a failed measure record.")
         still_applying = [
             a.address_id for a in addresses if any(_applies(r, a, as_of) for r in primary)
         ]
         affected = []
+        ma_cap_rules = list(
+            (
+                await session.execute(
+                    select(Rule)
+                    .options(selectinload(Rule.document))
+                    .where(
+                        Rule.jurisdiction.in_(("MA", "Boston, MA", "Cambridge, MA")),
+                        Rule.category == "rent_increase_limits",
+                        # ch. 40P is a bar, not a cap. Unknown provenance must
+                        # remain in the guardrail set rather than disappearing
+                        # through SQL's NULL comparison semantics.
+                        or_(Rule.source_doc_id != "D048", Rule.source_doc_id.is_(None)),
+                    )
+                )
+            ).scalars()
+        )
+        live_caps = sorted(
+            {
+                a.address_id
+                for a in addresses
+                for r in ma_cap_rules
+                if _result_for(r, a, as_of) in {"applies", "unknown", "superseded"}
+            }
+        )
+        if still_applying or live_caps:
+            raise ChangeInputError(
+                f"{test.test_id} negative guardrail failed: failed measure applied at "
+                f"{len(still_applying)} addresses; rent cap applied at {len(live_caps)}."
+            )
         detail = {
             "addresses_examined": len(addresses),
             "unexpected_applications": still_applying,
+            "unexpected_rent_caps": live_caps,
             "rule_status": {r.team_rule_id: r.status for r in primary},
         }
         notes = (

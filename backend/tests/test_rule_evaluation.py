@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from app.db.models import Address, AddressJurisdiction, Rule
+from app.db.models import Address, AddressJurisdiction, Document, Rule
 from app.modules.address_lookup.adapters.property_facts import to_payload
 from app.modules.address_lookup.property_facts import PropertyInput, build_property_facts
 from app.modules.address_lookup.rule_evaluation.decisions import BaseResult
@@ -65,11 +65,21 @@ def make_rule(**kw) -> Rule:
         citation="Cal. Civ. Code § 1",
         source_url="https://example.gov/1",
         quoted_span="x" * 25,
+        coverage_conditions="All residential rental units",
+        source_doc_id="DTEST",
         overrides=[],
         conflict_flag=False,
     )
     defaults.update(kw)
-    return Rule(**defaults)
+    rule = Rule(**defaults)
+    source = "\n".join(str(value) for value in (rule.coverage_conditions, rule.exemptions) if value)
+    rule.document = Document(
+        doc_id="DTEST",
+        jurisdictions=rule.jurisdiction,
+        url=rule.source_url,
+        body=source,
+    )
+    return rule
 
 
 def decide(rule: Rule, address: Address, as_of: dt.date = AS_OF) -> tuple[str, str]:
@@ -210,7 +220,7 @@ def test_a_rule_with_no_building_condition_applies_across_its_jurisdiction():
     assert result == "applies"
 
 
-def test_a_large_building_defeats_the_small_landlord_exemption():
+def test_a_compound_small_landlord_exemption_stays_pending_without_review():
     rule = make_rule(
         category="security_deposits",
         jurisdiction="NJ",
@@ -218,8 +228,8 @@ def test_a_large_building_defeats_the_small_landlord_exemption():
     )
     address = make_address(postal_city="Newark", legal_city="Newark", state="NJ", units=40)
     result, why = decide(rule, address)
-    assert result == "applies"
-    assert "exemption cannot apply" in why
+    assert result == "unknown"
+    assert "could not be translated" in why
 
 
 def test_untranslatable_coverage_text_is_unknown_not_applies():

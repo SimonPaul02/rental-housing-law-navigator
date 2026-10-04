@@ -63,11 +63,14 @@ async def seed_documents() -> tuple[int, int]:
             doc.url = (row.get("url") or "").strip()
             doc.source_type = (row.get("source_type") or "").strip() or None
             doc.capture = (row.get("capture") or "").strip() or None
-            doc.retrieved_at = (row.get("retrieved_at") or "").strip() or None
-            doc.sha256 = (row.get("sha256") or "").strip() or None
-            doc.text_file = text_file or None
-            doc.status = (row.get("status") or "").strip() or None
-            doc.body = body
+            # A link-only document may have been fetched and reviewed after the
+            # starter-pack seed.  Re-seeding must not erase that evidence.
+            if body is not None or doc.origin == "provided":
+                doc.retrieved_at = (row.get("retrieved_at") or "").strip() or None
+                doc.sha256 = (row.get("sha256") or "").strip() or None
+                doc.text_file = text_file or None
+                doc.status = (row.get("status") or "").strip() or None
+                doc.body = body
 
         await session.commit()
     return created, updated

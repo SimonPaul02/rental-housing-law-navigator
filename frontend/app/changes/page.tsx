@@ -20,7 +20,11 @@ import type {
 
 export const dynamic = "force-dynamic";
 
-export default async function ChangesPage() {
+export default async function ChangesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ address_id?: string }>;
+}) {
   // Signed in is the whole check here: this page serves public corpus material,
   // which reads the same to all four roles. What differs by role is which
   // questions the dashboard puts to it, not what the record says.
@@ -40,6 +44,8 @@ export default async function ChangesPage() {
 
   const resultsById = new Map((results ?? []).map((r) => [r.test_id, r]));
   const unmatched = (canonical ?? []).filter((c) => !c.matched);
+  const requestedAddress = (await searchParams).address_id?.trim().toUpperCase() ?? "";
+  const selectedAddress = /^A\d{4}$/.test(requestedAddress) ? requestedAddress : "";
 
   // Only the buildings some case actually touches cross to the browser. The
   // map needs their coordinates; it has no use for the rest of the sample, and
@@ -64,7 +70,39 @@ export default async function ChangesPage() {
         </Notice>
       )}
 
+      {!results && (
+        <Notice title="Current change results are unavailable" tone="warning">
+          A required rule or source is missing, or a change check failed. The page
+          will show results once all five cases can be replayed from current data.
+        </Notice>
+      )}
+
+      <Notice title="Research aid, not legal advice">
+        Check the cited law and current status before acting on a result.
+      </Notice>
+
       <ChangesExplorer tests={tests} results={results ?? []} addresses={involved} />
+
+      <Card>
+        <form action="/changes" method="get" className="flex flex-wrap items-end gap-3">
+          <label className="text-sm">
+            Inspect one address across the date cases
+            <input
+              name="address_id"
+              type="text"
+              pattern="A[0-9]{4}"
+              defaultValue={selectedAddress}
+              placeholder="A0001"
+              className="mt-1 block rounded border px-3 py-2 mono"
+              style={{ borderColor: "var(--line)", background: "#ffffff91" }}
+            />
+          </label>
+          <button type="submit" className="rounded border px-4 py-2 text-sm" style={{ borderColor: "var(--line)" }}>
+            Inspect
+          </button>
+        </form>
+      </Card>
+
 
       <div className="space-y-4">
         <SectionTitle
@@ -73,6 +111,17 @@ export default async function ChangesPage() {
         />
         {tests.map((test) => {
           const result = resultsById.get(test.test_id);
+          const ruleSets = (result?.detail.rule_sets ?? {}) as Record<
+            string,
+            { before: Record<string, string>; after: Record<string, string> }
+          >;
+          const selectedSets = selectedAddress ? ruleSets[selectedAddress] : undefined;
+          const perRule = (result?.detail.per_rule ?? {}) as Record<string, string[]>;
+          const selectedRuleIds = selectedAddress
+            ? Object.entries(perRule)
+                .filter(([, ids]) => ids.includes(selectedAddress))
+                .map(([id]) => id)
+            : [];
           return (
             <Card key={test.test_id}>
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -114,10 +163,44 @@ export default async function ChangesPage() {
                       as of {result.as_of}
                     </span>
                   </div>
+                  {/* `detail` is Record<string, unknown>, so the raw member is
+                      `unknown` and React will not render it — and `x && <p/>`
+                      carries that type through. `perRule` above is the same
+                      value already narrowed, so use it. */}
+                  {Object.keys(perRule).length > 0 && (
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>
+                      Per rule: {Object.entries(perRule)
+                        .map(([id, ids]) => `${id}: ${ids.length}`)
+                        .join(" · ")}
+                    </p>
+                  )}
+                  <details className="text-xs" style={{ color: "var(--muted)" }}>
+                    <summary className="cursor-pointer">Inspect affected address IDs</summary>
+                    <p className="mt-2 max-h-32 overflow-y-auto mono break-words">
+                      {result.affected_address_ids.join(", ") || "None"}
+                    </p>
+                  </details>
+                  {selectedSets && (
+                    <div className="mt-3 rounded border p-3 text-xs" style={{ borderColor: "var(--line)" }}>
+                      <strong>{selectedAddress} · before and after rule set</strong>
+                      <p className="mt-1 mono">Before: {JSON.stringify(selectedSets.before)}</p>
+                      <p className="mt-1 mono">After: {JSON.stringify(selectedSets.after)}</p>
+                    </div>
+                  )}
+                  {selectedAddress && (
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>
+                      {selectedAddress}: {result.affected_address_ids.includes(selectedAddress)
+                        ? test.type === "pending" ? "in scope if enacted" : "in affected set"
+                        : "outside affected set"}
+                      {selectedRuleIds.length > 0 && ` · ${selectedRuleIds.join(", ")}`}
+                      {result.conflict_flag_address_ids.includes(selectedAddress) &&
+                        " · possible state/local conflict for review"}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <p className="mt-3 text-sm" style={{ color: "var(--faint)" }}>
-                  Not run yet — <code className="mono">POST /api/change-tracking/tests/{test.test_id}/run</code>
+                  Current replay unavailable. Check the required sources and rule mapping.
                 </p>
               )}
             </Card>
@@ -149,6 +232,17 @@ export default async function ChangesPage() {
                   ) : (
                     <span style={{ color: "var(--faint)" }}>none</span>
                   )}
+                  {c.sources.map((source) => (
+                    <div key={source.team_rule_id} className="mt-2 font-sans text-xs">
+                      <a href={source.source_url} target="_blank" rel="noreferrer">
+                        {source.citation}
+                      </a>
+                      <span> · {source.source_doc_id} · retrieved {source.retrieved_at ?? "unknown"}</span>
+                      <p className="mt-1" style={{ color: "var(--muted)" }}>
+                        “{source.quoted_span}”
+                      </p>
+                    </div>
+                  ))}
                 </Td>
               </tr>
             ))}
