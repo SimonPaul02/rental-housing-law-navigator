@@ -179,6 +179,11 @@ export interface CanonicalMatch {
   }[];
 }
 
+/** complete: answered. partial: the affected set stands, but something the case
+ *  also asks for is missing. blocked: no answer — its empty sets mean "not
+ *  computed", never "nothing moved". */
+export type ChangeStatus = "complete" | "partial" | "blocked";
+
 export interface ChangeTestResult {
   test_id: string;
   title: string;
@@ -191,14 +196,25 @@ export interface ChangeTestResult {
   canonical_matches: CanonicalMatch[];
   detail: Record<string, unknown>;
   rules_resolved: boolean;
+  // Optional because Vercel and Fly deploy independently; read them through
+  // `lib/changes.ts`, which treats an API that predates them as complete.
+  status?: ChangeStatus;
+  blocked_reason?: string | null;
+  warnings?: string[];
 }
 
 export interface ChangeStats {
   tests_defined: number;
   tests_run: number;
+  tests_answered?: number;
+  blocked?: string[];
+  partial?: string[];
   total_affected: number;
   total_conflicts: number;
-  by_test: Record<string, { affected: number; conflicts: number; as_of: string }>;
+  by_test: Record<
+    string,
+    { affected: number; conflicts: number; as_of: string; status?: ChangeStatus }
+  >;
 }
 
 /** What the rule adapter made of Module A's prose, and what still needs a human.

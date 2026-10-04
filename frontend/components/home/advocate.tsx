@@ -13,6 +13,7 @@ import {
 } from "@/components/ui";
 import { MapPanel } from "@/components/map/map-panel";
 import { tryApi } from "@/lib/api";
+import { answered } from "@/lib/changes";
 import { categoryName, evaluate, fieldName, split } from "@/lib/lookups";
 import { placePoint, unplaced } from "@/lib/points";
 import { PLACES, ROLES } from "@/lib/roles";
@@ -84,7 +85,7 @@ export async function AdvocateHome({ places, health }: { places: Place[]; health
     item.conflicts.map((outcome) => ({ place: item.place, outcome })),
   );
   const affected = new Map(
-    (changeResults ?? []).flatMap((result) =>
+    answered(changeResults).flatMap((result) =>
       result.affected_address_ids.map((id) => [id, result] as const),
     ),
   );

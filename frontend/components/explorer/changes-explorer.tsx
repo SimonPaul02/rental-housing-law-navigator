@@ -3,8 +3,17 @@
 import { useMemo, useState } from "react";
 import { LazyAddressMap as AddressMap } from "@/components/map/lazy-map";
 import { ViewToggle, type View } from "@/components/view-toggle";
-import { Card, JurisdictionBadge, SectionTitle, Table, Td, Th } from "@/components/ui";
+import {
+  Card,
+  ChangeStatusBadge,
+  JurisdictionBadge,
+  SectionTitle,
+  Table,
+  Td,
+  Th,
+} from "@/components/ui";
 import type { MapPoint } from "@/components/map/model";
+import { statusOf } from "@/lib/changes";
 import { placeable } from "./filters";
 import type { AddressRecord, ChangeTest, ChangeTestResult } from "@/lib/types";
 
@@ -40,10 +49,12 @@ export function ChangesExplorer({
   );
   // Open on a case that actually moved something. A case with an empty result
   // is a legitimate answer, but landing on one means the page opens with
-  // nothing drawn and nothing to read — and T1 happens to be one.
+  // nothing drawn and nothing to read. A blocked case has no answer at all.
   const opening =
-    tests.find((test) => (resultsById.get(test.test_id)?.affected_address_ids.length ?? 0) > 0) ??
-    tests.find((test) => resultsById.has(test.test_id));
+    tests.find((test) => {
+      const ran = resultsById.get(test.test_id);
+      return ran && statusOf(ran) !== "blocked" && ran.affected_address_ids.length > 0;
+    }) ?? tests.find((test) => resultsById.has(test.test_id));
   const [selected, setSelected] = useState<string>(opening?.test_id ?? "");
   const [view, setView] = useState<View>("map");
   const [pin, setPin] = useState<string | null>(null);
@@ -54,6 +65,7 @@ export function ChangesExplorer({
   );
 
   const result = selected ? resultsById.get(selected) : undefined;
+  const isBlocked = result ? statusOf(result) === "blocked" : false;
   const test = tests.find((item) => item.test_id === selected);
 
   const affected = useMemo(() => {
@@ -126,7 +138,11 @@ export function ChangesExplorer({
             >
               <span className="mono">{item.test_id}</span> {item.title}
               <span className="chip-count">
-                {ran ? ran.affected_address_ids.length : "not run"}
+                {!ran
+                  ? "not run"
+                  : statusOf(ran) === "blocked"
+                    ? "not computed"
+                    : ran.affected_address_ids.length}
               </span>
             </button>
           );
@@ -144,6 +160,7 @@ export function ChangesExplorer({
             >
               {test.type}
             </span>
+            {result && <ChangeStatusBadge status={statusOf(result)} />}
             {result && (
               <span className="mono text-xs" style={{ color: "var(--faint)" }}>
                 as of {result.as_of}
@@ -153,8 +170,22 @@ export function ChangesExplorer({
           <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
             <strong>Expected:</strong> {test.expected_behavior}
           </p>
-          {result ? (
-            <p className="mt-2 text-sm">{result.notes}</p>
+          {result && isBlocked ? (
+            <p className="mt-2 text-sm">
+              <strong style={{ color: "var(--critical)" }}>Not computed.</strong>{" "}
+              {result.blocked_reason}
+            </p>
+          ) : result ? (
+            <>
+              <p className="mt-2 text-sm">{result.notes}</p>
+              {(result.warnings ?? []).length > 0 && (
+                <ul className="mt-2 list-disc pl-5 text-xs" style={{ color: "var(--warn)" }}>
+                  {(result.warnings ?? []).map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              )}
+            </>
           ) : (
             <p className="mt-3 text-sm" style={{ color: "var(--faint)" }}>
               Not run yet —{" "}
@@ -166,7 +197,15 @@ export function ChangesExplorer({
         </Card>
       )}
 
-      {result && (
+      {result && isBlocked && (
+        <p className="text-sm" style={{ color: "var(--faint)" }}>
+          This case could not be computed, so there are no buildings to draw. That
+          is not a finding that nothing moved — it is left out of changes.json
+          until the missing input above exists.
+        </p>
+      )}
+
+      {result && !isBlocked && (
         <>
           <div className="result-line">
             <span>

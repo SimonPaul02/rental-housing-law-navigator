@@ -13,6 +13,7 @@ import {
 } from "@/components/ui";
 import { MapPanel } from "@/components/map/map-panel";
 import { tryApi } from "@/lib/api";
+import { answered, blocked } from "@/lib/changes";
 import { placePoint, unplaced } from "@/lib/points";
 import {
   blockingFacts,
@@ -130,7 +131,9 @@ export async function ProviderHome({ places, health }: { places: Place[]; health
     ),
   ).size;
 
-  const moved = (changeResults ?? [])
+  // A blocked case's empty set is not "it moves none of yours"; it is no answer.
+  const notComputed = blocked(changeResults);
+  const moved = answered(changeResults)
     .map((result) => ({
       result,
       hit: result.affected_address_ids.filter((id) => byAddress.has(id)),
@@ -470,7 +473,9 @@ export async function ProviderHome({ places, health }: { places: Place[]; health
         />
         {moved.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--faint)" }}>
-            None of the change cases moves an answer at any of your buildings.
+            None of the change cases
+            {notComputed.length > 0 ? " that could be computed" : ""} moves an answer
+            at any of your buildings.
           </p>
         ) : (
           <ul className="space-y-3">

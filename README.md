@@ -339,6 +339,14 @@ Each module exports its submission file in the shape
 `include_not_applicable` touches none of these: the exports are built from the
 five reportable results, exactly as before.
 
+Each change case is answered on its own and reports a `status`: `complete`,
+`partial` (the affected set stands, but e.g. T3's conflict check could not run),
+or `blocked` with a `blocked_reason`. `/export` leaves a blocked case out of
+`changes.json` rather than writing an empty list — which would claim nothing
+moved — and names it in the `X-Changes-Omitted` header; `?strict=true` refuses
+unless all five are complete, which is the bar `scripts/freeze_submission.py`
+applies unless given `--allow-incomplete`.
+
 ## Layout
 
 ```

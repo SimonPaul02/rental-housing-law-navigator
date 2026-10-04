@@ -2,8 +2,10 @@ import { gate } from "@/lib/auth";
 import { Unavailable } from "@/components/gate-notice";
 import { tryApi } from "@/lib/api";
 import { ChangesExplorer } from "@/components/explorer/changes-explorer";
+import { answered, statusOf } from "@/lib/changes";
 import {
   Card,
+  ChangeStatusBadge,
   Notice,
   PageHeading,
   SectionTitle,
@@ -51,7 +53,7 @@ export default async function ChangesPage({
   // map needs their coordinates; it has no use for the rest of the sample, and
   // shipping all five hundred to draw a hundred would be paying for geography
   // nobody asked to see.
-  const touched = new Set((results ?? []).flatMap((r) => r.affected_address_ids));
+  const touched = new Set(answered(results).flatMap((r) => r.affected_address_ids));
   const involved = (addresses ?? []).filter((a) => touched.has(a.address_id));
 
   return (
@@ -64,16 +66,18 @@ export default async function ChangesPage({
 
       {unmatched.length > 0 && (
         <Notice title="Some challenge rule ids have no extracted rule yet" tone="warning">
-          {unmatched.map((c) => c.canonical_id).join(", ")} — any test that
-          references these will report an empty set for an uninteresting
-          reason. Run Module A extraction first.
+          {unmatched.map((c) => c.canonical_id).join(", ")} — a case that needs
+          one of these names it below. Most are not computed and left out of
+          changes.json until the rule is extracted; T5 is answered by its
+          rent-cap check alone and marked partly answered.
         </Notice>
       )}
 
       {!results && (
         <Notice title="Current change results are unavailable" tone="warning">
-          A required rule or source is missing, or a change check failed. The page
-          will show results once all five cases can be replayed from current data.
+          The change-tracking API did not answer. Once it does, each case reports
+          its own status, so one case that cannot be computed does not hide the
+          others.
         </Notice>
       )}
 
@@ -117,6 +121,12 @@ export default async function ChangesPage({
           >;
           const selectedSets = selectedAddress ? ruleSets[selectedAddress] : undefined;
           const perRule = (result?.detail.per_rule ?? {}) as Record<string, string[]>;
+          // T2 says how many of each city's buildings are covered outright and
+          // how many wait on a fact; older APIs and the other cases do not.
+          const perRuleSplit = (result?.detail.per_rule_split ?? {}) as Record<
+            string,
+            { applies: string[]; coverage_unresolved: string[] }
+          >;
           const selectedRuleIds = selectedAddress
             ? Object.entries(perRule)
                 .filter(([, ids]) => ids.includes(selectedAddress))
@@ -133,15 +143,35 @@ export default async function ChangesPage({
                 >
                   {test.type}
                 </span>
+                {result && <ChangeStatusBadge status={statusOf(result)} />}
               </div>
 
               <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
                 <strong>Expected:</strong> {test.expected_behavior}
               </p>
 
-              {result ? (
+              {result && statusOf(result) === "blocked" ? (
+                <div className="mt-3 space-y-1">
+                  <p className="text-sm">
+                    <strong style={{ color: "var(--critical)" }}>Not computed.</strong>{" "}
+                    {result.blocked_reason}
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--faint)" }}>
+                    Left out of changes.json until it can be answered. Having no
+                    affected addresses here is the absence of an answer, not a
+                    finding that nothing moved.
+                  </p>
+                </div>
+              ) : result ? (
                 <div className="mt-3 space-y-2">
                   <p className="text-sm">{result.notes}</p>
+                  {(result.warnings ?? []).length > 0 && (
+                    <ul className="list-disc pl-5 text-xs" style={{ color: "var(--warn)" }}>
+                      {(result.warnings ?? []).map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  )}
                   <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
                     <span>
                       <strong className="tabular-nums">
@@ -170,7 +200,12 @@ export default async function ChangesPage({
                   {Object.keys(perRule).length > 0 && (
                     <p className="text-xs" style={{ color: "var(--muted)" }}>
                       Per rule: {Object.entries(perRule)
-                        .map(([id, ids]) => `${id}: ${ids.length}`)
+                        .map(([id, ids]) => {
+                          const split = perRuleSplit[id];
+                          return split
+                            ? `${id}: ${ids.length} (${split.applies.length} covered outright, ${split.coverage_unresolved.length} unresolved)`
+                            : `${id}: ${ids.length}`;
+                        })
                         .join(" · ")}
                     </p>
                   )}

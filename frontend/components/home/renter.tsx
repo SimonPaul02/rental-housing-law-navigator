@@ -4,6 +4,7 @@ import { Contracts } from "@/components/contracts";
 import { MapPanel } from "@/components/map/map-panel";
 import { Outcome } from "@/components/outcomes";
 import { tryApi } from "@/lib/api";
+import { answered, blocked } from "@/lib/changes";
 import { money } from "@/lib/format";
 import { categoryName, evaluate, fieldName, split } from "@/lib/lookups";
 import { placePoint } from "@/lib/points";
@@ -83,10 +84,12 @@ export async function RenterHome({ places, health }: { places: Place[]; health: 
   const rent = lease.find((contract) => contract.monthly_rent_cents !== null);
 
   // Only the cases that move an answer at this address. A renter has no use for
-  // the other four.
-  const mine = (changeResults ?? []).filter((result) =>
+  // the other four. A case that could not be computed is neither: it is said
+  // out loud, so "nothing changed for you" never rests on a case that did not run.
+  const mine = answered(changeResults).filter((result) =>
     result.affected_address_ids.includes(home.address_id),
   );
+  const notComputed = blocked(changeResults);
 
   return (
     <div className="space-y-10">
@@ -274,7 +277,9 @@ export async function RenterHome({ places, health }: { places: Place[]; health: 
         />
         {mine.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--faint)" }}>
-            None of the change cases moves an answer at your address.
+            None of the change cases
+            {notComputed.length > 0 ? " that could be checked" : ""} moves an answer
+            at your address.
           </p>
         ) : (
           <ul className="space-y-3">
@@ -290,6 +295,12 @@ export async function RenterHome({ places, health }: { places: Place[]; health: 
               </Card>
             ))}
           </ul>
+        )}
+        {notComputed.length > 0 && (
+          <p className="text-xs" style={{ color: "var(--faint)" }}>
+            {notComputed.length} of the change cases could not be checked yet, so
+            this list may not be complete.
+          </p>
         )}
       </section>
 

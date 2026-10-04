@@ -9,6 +9,11 @@ an unmatched id is visible instead of silently producing an empty set.
 
 Answers are computed by replaying Module B's evaluator at the relevant dates,
 not by hard-coding the expected outcome.
+
+Each case is answered on its own. A case whose inputs are missing comes back
+`blocked`, with the reason, instead of raising - so one unextracted ordinance
+cannot blank the other four cases, the export, and every dashboard that reads
+them.
 """
 
 from __future__ import annotations
@@ -29,6 +34,7 @@ from app.modules.change_tracking.schemas import (
     ChangeTest,
     ChangeTestResult,
 )
+from app.modules.change_tracking.validation import check_entry, export_entry
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,7 +74,10 @@ CANONICAL_RULES: dict[str, Selector] = {
 
 
 class ChangeInputError(ValueError):
-    """A required source, mapping, or complete sample is unavailable."""
+    """A run was requested that may not happen - e.g. persisting a truncated one.
+
+    Missing data is not this error: it makes one case `blocked`, not the run.
+    """
 
 
 def load_tests() -> list[ChangeTest]:
@@ -237,14 +246,77 @@ def _in_scope(rule: Rule, address: Address, as_of: dt.date) -> bool:
     return decision.result in (BaseResult.applies, BaseResult.unknown)
 
 
+def _geography(rule: Rule, address: Address):
+    """Whether the rule's jurisdiction holds this address: a `Ternary`, which is
+    `unknown` for a city rule when the address has no verified legal city."""
+    from app.modules.address_lookup.rule_evaluation.base import evaluate_geography
+
+    geography, _ = evaluate_geography(
+        lookup_service.compiled_for(rule), lookup_service.evidence_for(address)
+    )
+    return geography
+
+
 def _local_may_apply(rule: Rule, address: Address, day: dt.date) -> bool:
     """Only flag a local overlap within its verified city, including unknown coverage."""
-    from app.modules.address_lookup.rule_evaluation.base import evaluate_geography
     from app.modules.address_lookup.rule_evaluation.decisions import Ternary
 
-    evidence = lookup_service.evidence_for(address)
-    geography, _ = evaluate_geography(lookup_service.compiled_for(rule), evidence)
-    return geography is Ternary.true and _result_for(rule, address, day) in _LIVE
+    return _geography(rule, address) is Ternary.true and _result_for(rule, address, day) in _LIVE
+
+
+_TEST_TYPES = ("as_of", "boundary", "pending", "negative")
+
+
+def _undated(rules: list[Rule]) -> dict[str, str]:
+    """The rules in a date case that cannot change between two dates, and why.
+
+    Without this a date case whose rule has no usable effective date replays
+    cleanly and moves nobody, which reads exactly like a finding. It is not
+    one: the rule is `unknown` (or in force) on both dates for want of a date.
+    """
+    reasons: dict[str, str] = {}
+    for rule in rules:
+        compiled = lookup_service.compiled_for(rule)
+        if compiled.status in ("pending", "failed"):
+            reasons[rule.team_rule_id] = (
+                f"is recorded as {compiled.status}, so no date makes it law"
+            )
+        elif compiled.effective_date_unresolved:
+            recorded = f" {rule.effective_date}" if rule.effective_date else ""
+            reasons[rule.team_rule_id] = (
+                f"has an effective date{recorded} the source does not yet support, "
+                "so it needs a reviewed effective date"
+            )
+        elif not compiled.effective_dates:
+            reasons[rule.team_rule_id] = "has no effective date, so it reads the same on both dates"
+    return reasons
+
+
+def _blocked(
+    test: ChangeTest,
+    as_of: dt.date,
+    matches: list[CanonicalMatch],
+    reason: str,
+    *,
+    detail: dict | None = None,
+) -> ChangeTestResult:
+    """A case with no answer. Its empty sets mean "not computed", and every
+    consumer has to read them that way - which is why `status` says so."""
+    return ChangeTestResult(
+        test_id=test.test_id,
+        title=test.title,
+        type=test.type,
+        as_of=as_of,
+        affected_address_ids=[],
+        conflict_flag_address_ids=[],
+        notes=f"Not computed: {reason}",
+        expected_behavior=test.expected_behavior,
+        canonical_matches=matches,
+        detail=detail or {},
+        rules_resolved=all(m.matched for m in matches),
+        status="blocked",
+        blocked_reason=reason,
+    )
 
 
 async def run_test(
@@ -252,21 +324,35 @@ async def run_test(
     test: ChangeTest,
     *,
     address_limit: int = 500,
-    persist: bool = True,
 ) -> ChangeTestResult:
-    if address_limit < 500 and persist:
-        raise ChangeInputError("Partial address runs may not be persisted.")
+    """Replay one case. Missing or unverified inputs give a `blocked` result
+    naming what is missing; nothing here raises for want of data."""
+    as_of = test.as_of or test.as_of_after or dt.date.fromisoformat(settings.default_as_of)
     matches: list[CanonicalMatch] = []
     rules_by_canonical: dict[str, list[Rule]] = {}
-    for canonical_id in test.rule_ids + test.conflict_with:
+    for canonical_id in dict.fromkeys(test.rule_ids + test.conflict_with):
         match, rules = await resolve_canonical(session, canonical_id)
         if canonical_id in test.rule_ids:
             matches.append(match)
         rules_by_canonical[canonical_id] = rules
 
-    missing = [cid for cid, rules in rules_by_canonical.items() if not rules]
-    if missing:
-        raise ChangeInputError(f"{test.test_id} has no verified rule for: {', '.join(missing)}")
+    def blocked(reason: str, detail: dict | None = None) -> ChangeTestResult:
+        return _blocked(test, as_of, matches, reason, detail=detail)
+
+    if test.type not in _TEST_TYPES:
+        return blocked(f"Unsupported test type {test.type!r}.")
+    missing = [m for m in matches if not rules_by_canonical[m.canonical_id]]
+    # A negative case's answer rests on the guardrail below, which runs with or
+    # without the failed measure's own record; a missing record only makes the
+    # answer partial. Every other case needs its rule to say anything at all.
+    if missing and test.type != "negative":
+        return blocked(
+            "No verified rule for "
+            + " ".join(
+                f"{m.canonical_id} ({m.selector}): {(m.note or 'no match').rstrip('.')}."
+                for m in missing
+            )
+        )
     if test.type == "pending":
         incorrect = [
             r.team_rule_id
@@ -275,21 +361,46 @@ async def run_test(
             if r.status != "pending"
         ]
         if incorrect:
-            raise ChangeInputError(
-                f"{test.test_id} requires pending records; check status of {', '.join(incorrect)}"
+            return blocked(
+                f"This case requires pending records; check the status of {', '.join(incorrect)}."
             )
     if len(test.rule_ids) > 1:
         identities = [
             (cid, r.team_rule_id) for cid in test.rule_ids for r in rules_by_canonical[cid]
         ]
         if len({rule_id for _, rule_id in identities}) != len(identities):
-            raise ChangeInputError(
-                f"{test.test_id} maps one extracted rule to multiple canonical IDs."
-            )
+            return blocked("One extracted rule is mapped to more than one challenge rule id.")
 
-    primary = [r for cid in test.rule_ids for r in rules_by_canonical.get(cid, [])]
+    primary = [r for cid in test.rule_ids for r in rules_by_canonical[cid]]
+    warnings: list[str] = []
+
+    # A conflict partner that was never extracted leaves the affected set
+    # standing; only the flags it would have raised are missing.
+    absent_partners = [cid for cid in test.conflict_with if not rules_by_canonical[cid]]
+    if absent_partners:
+        warnings.append(
+            f"Conflict check not run: no verified rule for {', '.join(absent_partners)}, "
+            "so a possible conflict with it cannot be flagged."
+        )
+
+    if test.type == "as_of":
+        if test.as_of_before is None or test.as_of_after is None:
+            return blocked("The case definition has no as_of_before/as_of_after dates.")
+        undated = _undated(primary)
+        if len(undated) == len(primary):
+            return blocked(
+                "No rule in this case can change between "
+                f"{test.as_of_before} and {test.as_of_after}: "
+                + "; ".join(f"{rule_id} {why}" for rule_id, why in undated.items())
+                + ".",
+                detail={"undated_rules": undated},
+            )
+        warnings.extend(
+            f"{rule_id} cannot change between the two dates: it {why}."
+            for rule_id, why in undated.items()
+        )
+
     addresses = await _addresses_for(session, test.states, address_limit)
-    as_of = test.as_of or test.as_of_after or dt.date.fromisoformat(settings.default_as_of)
 
     affected: list[str] = []
     conflicted: list[str] = []
@@ -298,10 +409,6 @@ async def run_test(
 
     if test.type == "as_of":
         before, after = test.as_of_before, test.as_of_after
-        if before is None or after is None:
-            raise ValueError(
-                f"{test.test_id} is an as_of test but is missing as_of_before/as_of_after."
-            )
         changed: list[str] = []
         now_applies: list[str] = []
         now_unknown: list[str] = []
@@ -381,30 +488,64 @@ async def run_test(
             )
 
     elif test.type == "boundary":
+        # The question is where each ordinance reaches, so a building counts
+        # when its *verified* legal city is the ordinance's city and the rule is
+        # live there - including `unknown`, where only a building fact the data
+        # lacks is unsettled. Counting `applies` alone would report an empty
+        # city for every ordinance still awaiting coverage review. An address
+        # with no verified legal city is never placed by its mailing line.
+        from app.modules.address_lookup.rule_evaluation.decisions import Ternary
+
         per_rule: dict[str, list[str]] = {}
+        split: dict[str, dict[str, list[str]]] = {}
+        unplaced: set[str] = set()
         for canonical_id in test.rule_ids:
-            ids = [
-                a.address_id
-                for a in addresses
-                for r in rules_by_canonical.get(canonical_id, [])
-                if _applies(r, a, as_of)
-            ]
-            per_rule[canonical_id] = sorted(set(ids))
+            covered: set[str] = set()
+            unresolved: set[str] = set()
+            for a in addresses:
+                for r in rules_by_canonical[canonical_id]:
+                    geography = _geography(r, a)
+                    if geography is Ternary.unknown:
+                        unplaced.add(a.address_id)
+                        continue
+                    if geography is Ternary.false:
+                        continue
+                    result = _result_for(r, a, as_of)
+                    if result == "applies":
+                        covered.add(a.address_id)
+                    elif result in _LIVE:
+                        unresolved.add(a.address_id)
+            # One provision covering a building outright settles it.
+            unresolved -= covered
+            per_rule[canonical_id] = sorted(covered | unresolved)
+            split[canonical_id] = {
+                "applies": sorted(covered),
+                "coverage_unresolved": sorted(unresolved),
+            }
         affected = sorted({aid for ids in per_rule.values() for aid in ids})
         overlap = sorted(
             set.intersection(*(set(v) for v in per_rule.values())) if len(per_rule) > 1 else set()
         )
         detail = {
             "per_rule": per_rule,
+            "per_rule_split": split,
             "overlap": overlap,
+            "legal_city_unresolved": sorted(unplaced),
             "addresses_examined": len(addresses),
         }
-        notes = (
-            "; ".join(f"{cid}: {len(ids)} addresses" for cid, ids in per_rule.items())
-            or "no rules resolved"
+        notes = "; ".join(
+            f"{cid}: {len(per_rule[cid])} addresses inside its city "
+            f"({len(parts['applies'])} covered outright, "
+            f"{len(parts['coverage_unresolved'])} with coverage this data cannot resolve)"
+            for cid, parts in split.items()
         )
         if overlap:
             notes += f". {len(overlap)} addresses matched more than one city rule."
+        if unplaced:
+            notes += (
+                f". {len(unplaced)} addresses have no verified legal city and are left "
+                "out rather than placed by their mailing city."
+            )
 
     elif test.type == "pending":
         per_rule = {
@@ -432,8 +573,19 @@ async def run_test(
         )
 
     elif test.type == "negative":
+        # "No address has a live cap" says nothing when there were no
+        # addresses to look at.
+        if not addresses:
+            return blocked(
+                f"No sample address in {', '.join(test.states) or 'the sample'} was "
+                "available to check, so an empty set would be vacuous."
+            )
         if any(r.status != "failed" for r in primary):
-            raise ChangeInputError(f"{test.test_id} requires a failed measure record.")
+            return blocked(
+                "This case requires a failed measure record; check the status of "
+                + ", ".join(r.team_rule_id for r in primary if r.status != "failed")
+                + "."
+            )
         still_applying = [
             a.address_id for a in addresses if any(_applies(r, a, as_of) for r in primary)
         ]
@@ -462,45 +614,36 @@ async def run_test(
                 if _result_for(r, a, as_of) in {"applies", "unknown", "superseded"}
             }
         )
-        if still_applying or live_caps:
-            raise ChangeInputError(
-                f"{test.test_id} negative guardrail failed: failed measure applied at "
-                f"{len(still_applying)} addresses; rent cap applied at {len(live_caps)}."
-            )
         detail = {
             "addresses_examined": len(addresses),
             "unexpected_applications": still_applying,
             "unexpected_rent_caps": live_caps,
             "rule_status": {r.team_rule_id: r.status for r in primary},
         }
-        notes = (
-            f"Measure failed, so the affected set is empty on {as_of}."
-            if not still_applying
-            else (
-                f"WARNING: {len(still_applying)} addresses still report this rule "
-                "as applying even though it failed - check the extracted status."
+        detail["failed_record"] = bool(primary)
+        if still_applying or live_caps:
+            return blocked(
+                f"Negative guardrail failed: the failed measure applies at "
+                f"{len(still_applying)} addresses and a rent cap is live at "
+                f"{len(live_caps)}, so an empty set would be false.",
+                detail,
             )
-        )
-
-    else:
-        notes = f"Unsupported test type {test.type!r}."
-
-    if persist:
-        existing = (
-            await session.execute(
-                select(ChangeResult).where(
-                    ChangeResult.test_id == test.test_id, ChangeResult.as_of == as_of
-                )
+        if primary:
+            notes = (
+                f"Measure failed, so the affected set is empty on {as_of}; none of the "
+                f"{len(addresses)} addresses examined has a live rent cap."
             )
-        ).scalar_one_or_none()
-        row = existing or ChangeResult(test_id=test.test_id, as_of=as_of)
-        row.test_type = test.type
-        row.affected_address_ids = affected
-        row.conflict_flag_address_ids = conflicted
-        row.notes = notes
-        row.detail = detail
-        session.add(row)
-        await session.flush()
+        else:
+            notes = (
+                f"None of the {len(addresses)} addresses examined has a live rent cap on "
+                f"{as_of}, so the affected set is empty. The measure's failure is not yet "
+                "backed by a captured record."
+            )
+            warnings.extend(
+                f"No failed-measure record for {m.canonical_id} ({m.selector}) has been "
+                "captured. The empty set rests on the rent-cap check alone."
+                for m in missing
+            )
 
     return ChangeTestResult(
         test_id=test.test_id,
@@ -514,4 +657,83 @@ async def run_test(
         canonical_matches=matches,
         detail=detail,
         rules_resolved=all(m.matched for m in matches),
+        status="partial" if warnings else "complete",
+        warnings=warnings,
     )
+
+
+def _held_to_export(result: ChangeTestResult, address_ids: set[str]) -> ChangeTestResult:
+    """Judge a computed case by the rules the export applies, so a case the
+    page shows as answered is never one the export would leave out."""
+    if result.status == "blocked":
+        return result
+    invalid, incomplete = check_entry(result.test_id, export_entry(result), address_ids=address_ids)
+    if invalid:
+        detail = dict(result.detail)
+        if result.affected_address_ids:
+            detail["withheld_affected_address_ids"] = result.affected_address_ids
+        if result.conflict_flag_address_ids:
+            detail["withheld_conflict_flag_address_ids"] = result.conflict_flag_address_ids
+        return result.model_copy(
+            update={
+                "status": "blocked",
+                "blocked_reason": " ".join(invalid),
+                "affected_address_ids": [],
+                "conflict_flag_address_ids": [],
+                "detail": detail,
+            }
+        )
+    if incomplete:
+        return result.model_copy(
+            update={"status": "partial", "warnings": [*result.warnings, *incomplete]}
+        )
+    return result
+
+
+async def _persist(session: AsyncSession, result: ChangeTestResult) -> None:
+    existing = (
+        await session.execute(
+            select(ChangeResult).where(
+                ChangeResult.test_id == result.test_id, ChangeResult.as_of == result.as_of
+            )
+        )
+    ).scalar_one_or_none()
+    row = existing or ChangeResult(test_id=result.test_id, as_of=result.as_of)
+    row.test_type = result.type
+    row.affected_address_ids = result.affected_address_ids
+    row.conflict_flag_address_ids = result.conflict_flag_address_ids
+    row.notes = result.notes
+    row.detail = result.detail
+    session.add(row)
+    await session.flush()
+
+
+async def run_tests(
+    session: AsyncSession,
+    tests: list[ChangeTest],
+    *,
+    address_limit: int = 500,
+    persist: bool = False,
+    address_ids: set[str] | None = None,
+) -> list[ChangeTestResult]:
+    """Every case, each answered independently - the one entry point for the
+    routes and the freeze script.
+
+    A full run is held to the export's rules case by case. A truncated run is
+    exploration: it can never be exported, so it is not judged as if it could.
+    Blocked cases are never persisted.
+    """
+    if address_limit < 500 and persist:
+        raise ChangeInputError("Partial address runs may not be persisted.")
+    full = address_limit >= 500
+    if full and address_ids is None:
+        address_ids = set((await session.execute(select(Address.address_id))).scalars())
+    results: list[ChangeTestResult] = []
+    for test in tests:
+        result = await run_test(session, test, address_limit=address_limit)
+        if full and address_ids is not None:
+            result = _held_to_export(result, address_ids)
+        if persist and result.status != "blocked":
+            await _persist(session, result)
+        results.append(result)
+    return results

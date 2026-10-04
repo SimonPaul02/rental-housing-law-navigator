@@ -3,8 +3,15 @@
 from __future__ import annotations
 
 import datetime as dt
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+#: complete - every part of the case was answered from verified inputs.
+#: partial  - the affected set stands, but something the case also asks for
+#:            (a conflict check, a supporting record) could not be produced.
+#: blocked  - no answer. Its empty sets mean "not computed", never "nothing moved".
+ChangeStatus = Literal["complete", "partial", "blocked"]
 
 
 class CanonicalMatch(BaseModel):
@@ -46,6 +53,9 @@ class ChangeTestResult(BaseModel):
     detail: dict = Field(default_factory=dict)
     # True when every canonical id in the test resolved to a real rule.
     rules_resolved: bool = True
+    status: ChangeStatus = "complete"
+    blocked_reason: str | None = None
+    warnings: list[str] = Field(default_factory=list)
 
 
 class RunTestsRequest(BaseModel):
