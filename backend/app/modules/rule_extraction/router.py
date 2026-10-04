@@ -20,6 +20,8 @@ from app.modules.rule_extraction.schemas import (
     DocumentSummary,
     ExtractDocResult,
     ExtractRequest,
+    RuleImportRequest,
+    RuleImportResult,
     RuleRecord,
     RuleStats,
     RunSummary,
@@ -60,6 +62,7 @@ async def list_documents(
                     "capture",
                     "status",
                     "text_file",
+                    "document_note",
                 )
             },
             has_text=d.has_text,
@@ -86,6 +89,7 @@ async def get_document(doc_id: str, session: AsyncSession = Depends(get_session)
                 "capture",
                 "status",
                 "text_file",
+                "document_note",
                 "retrieved_at",
                 "sha256",
                 "body",
@@ -236,6 +240,30 @@ async def export_rules(session: AsyncSession = Depends(get_session)) -> Response
         content=json.dumps(body, indent=2, ensure_ascii=False),
         media_type="application/json",
         headers={"Content-Disposition": 'attachment; filename="rules.json"'},
+    )
+
+
+@router.post("/rules/import", response_model=RuleImportResult)
+async def import_rules(
+    payload: RuleImportRequest,
+    session: AsyncSession = Depends(get_session),
+) -> RuleImportResult:
+    """Load a rules.json payload produced by a pass run elsewhere.
+
+    Extraction costs money and does not repeat itself exactly, so a corpus
+    pass that has been reviewed in one environment is imported into the next
+    rather than run again there. Every record is re-checked against this
+    deployment's own copy of its source document, so the import carries the
+    same span guarantee as a local extraction; records that fail come back in
+    `rejected` rather than being written.
+    """
+    if not payload.rules:
+        raise HTTPException(422, "No rules in payload.")
+    return await service.import_rules(
+        session,
+        payload.rules,
+        replace=payload.replace,
+        document_notes=payload.document_notes,
     )
 
 

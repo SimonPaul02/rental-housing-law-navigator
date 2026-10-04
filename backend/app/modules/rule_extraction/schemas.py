@@ -135,6 +135,7 @@ class DocumentSummary(BaseModel):
     text_file: str | None = None
     has_text: bool = False
     rule_count: int = 0
+    document_note: str | None = None
 
 
 class DocumentDetail(DocumentSummary):
@@ -148,6 +149,48 @@ class ExtractRequest(BaseModel):
         default=None, description="Omit to extract every document that has text."
     )
     replace: bool = Field(default=True, description="Delete this document's existing rules first.")
+
+
+class RuleImportRequest(BaseModel):
+    """A rules.json payload from an extraction pass run somewhere else.
+
+    This is how a deployment receives the result of a pass without having to
+    re-run the model against it: extraction costs money and does not repeat
+    itself exactly, so a submission reviewed in one place should be the one
+    that is served, not a fresh approximation of it.
+    """
+
+    rules: list[RuleRecord]
+    document_notes: dict[str, str] | None = Field(
+        default=None,
+        description=(
+            "doc_id -> the note the model wrote about that document. A document "
+            "that yielded no rules has no record here to carry its explanation, "
+            "so the notes travel alongside rather than inside `rules`."
+        ),
+    )
+    replace: bool = Field(
+        default=False,
+        description=(
+            "Delete every existing rule first. Use it when the payload is a whole "
+            "corpus pass; leave it off to add to or update what is already there."
+        ),
+    )
+
+
+class RuleImportRejection(BaseModel):
+    team_rule_id: str
+    reason: str
+
+
+class RuleImportResult(BaseModel):
+    received: int
+    inserted: int
+    updated: int
+    deleted: int = Field(description="Existing rules removed because `replace` was set.")
+    rejected: list[RuleImportRejection]
+    total_after: int
+    notes_applied: int = 0
 
 
 class RunSummary(BaseModel):

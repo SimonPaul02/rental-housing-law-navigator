@@ -1,8 +1,11 @@
+import { Fragment } from "react";
 import { gate } from "@/lib/auth";
 import { Unavailable } from "@/components/gate-notice";
 import { tryApi } from "@/lib/api";
 import {
   Card,
+  Expand,
+  FieldList,
   Notice,
   PageHeading,
   SectionTitle,
@@ -12,6 +15,63 @@ import {
   Th,
 } from "@/components/ui";
 import type { DocumentSummary, RuleRecord, RuleStats } from "@/lib/types";
+
+
+/** `coverage_conditions` is a string on most records and an object on a few, so
+ *  it is rendered rather than assumed. */
+function asText(value: string | Record<string, unknown> | null): string | null {
+  if (value === null || value === undefined) return null;
+  return typeof value === "string" ? value : JSON.stringify(value, null, 2);
+}
+
+/** Every field of a rule record, in the order the submission schema lists them,
+ *  so this reads as the record itself rather than a curated summary of it. */
+function ruleFields(rule: RuleRecord): [string, React.ReactNode][] {
+  return [
+    ["Team rule id", <span className="mono">{rule.team_rule_id}</span>],
+    ["Title", rule.title],
+    ["Jurisdiction", `${rule.jurisdiction} (${rule.level})`],
+    ["Category", rule.category],
+    ["Status", rule.status],
+    ["Key value", rule.key_value],
+    ["Requirement", rule.requirement],
+    ["Coverage conditions", asText(rule.coverage_conditions)],
+    ["Exemptions", rule.exemptions],
+    ["Overrides", rule.overrides?.length ? rule.overrides.join(", ") : null],
+    ["Interaction", rule.interaction],
+    ["Effective date", rule.effective_date],
+    ["Citation", rule.citation],
+    ["Confidence", rule.confidence === null ? null : rule.confidence.toFixed(2)],
+    ["Conflict flag", rule.conflict_flag ? "true" : "false"],
+    ["Conflict note", rule.conflict_note],
+    ["Source document", <span className="mono">{rule.source_doc_id}</span>],
+    [
+      "Source url",
+      <a
+        href={rule.source_url}
+        target="_blank"
+        rel="noreferrer"
+        className="hover:underline"
+        style={{ color: "var(--accent)" }}
+      >
+        {rule.source_url}
+      </a>,
+    ],
+    [
+      "Quoted span",
+      <blockquote
+        style={{
+          borderLeft: "2px solid var(--line)",
+          paddingLeft: 12,
+          margin: 0,
+          fontStyle: "italic",
+        }}
+      >
+        {rule.quoted_span}
+      </blockquote>,
+    ],
+  ];
+}
 
 export const dynamic = "force-dynamic";
 
@@ -63,45 +123,62 @@ export default async function RulesPage() {
                 <Th>Status</Th>
                 <Th>Requirement</Th>
                 <Th>Citation</Th>
+                <Th>Conflict</Th>
               </tr>
             </thead>
             <tbody>
               {rules.map((rule) => (
-                <tr key={rule.team_rule_id}>
-                  <Td className="mono whitespace-nowrap">{rule.team_rule_id}</Td>
-                  <Td className="whitespace-nowrap">
-                    {rule.jurisdiction}
-                    <div className="text-xs" style={{ color: "var(--faint)" }}>
-                      {rule.level}
-                    </div>
-                  </Td>
-                  <Td className="whitespace-nowrap text-xs">{rule.category}</Td>
-                  <Td>
-                    <StatusBadge status={rule.status} />
-                    {rule.effective_date && (
-                      <div className="mt-1 text-xs mono" style={{ color: "var(--faint)" }}>
-                        {rule.effective_date}
+                <Fragment key={rule.team_rule_id}>
+                  <tr>
+                    <Td className="mono whitespace-nowrap">{rule.team_rule_id}</Td>
+                    <Td className="whitespace-nowrap">
+                      {rule.jurisdiction}
+                      <div className="text-xs" style={{ color: "var(--faint)" }}>
+                        {rule.level}
                       </div>
-                    )}
-                  </Td>
-                  <Td>
-                    <div className="max-w-md">{rule.requirement}</div>
-                    {rule.key_value && (
-                      <div className="mt-1 text-xs font-medium">{rule.key_value}</div>
-                    )}
-                  </Td>
-                  <Td>
-                    <a
-                      href={rule.source_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="hover:underline"
-                      style={{ color: "var(--accent)" }}
-                    >
-                      {rule.citation}
-                    </a>
-                  </Td>
-                </tr>
+                    </Td>
+                    <Td className="whitespace-nowrap text-xs">{rule.category}</Td>
+                    <Td>
+                      <StatusBadge status={rule.status} />
+                      {rule.effective_date && (
+                        <div className="mt-1 text-xs mono" style={{ color: "var(--faint)" }}>
+                          {rule.effective_date}
+                        </div>
+                      )}
+                    </Td>
+                    <Td>
+                      <div className="max-w-md">{rule.requirement}</div>
+                      {rule.key_value && (
+                        <div className="mt-1 text-xs font-medium">{rule.key_value}</div>
+                      )}
+                    </Td>
+                    <Td>
+                      <a
+                        href={rule.source_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:underline"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        {rule.citation}
+                      </a>
+                    </Td>
+                    <Td className="whitespace-nowrap text-xs">
+                      {rule.conflict_flag ? (
+                        <span style={{ color: "var(--accent-ink)", fontWeight: 600 }}>flagged</span>
+                      ) : (
+                        <span style={{ color: "var(--faint)" }}>none</span>
+                      )}
+                    </Td>
+                  </tr>
+                  <tr>
+                    <td colSpan={7} style={{ paddingTop: 0 }}>
+                      <Expand label="All fields">
+                        <FieldList fields={ruleFields(rule)} />
+                      </Expand>
+                    </td>
+                  </tr>
+                </Fragment>
               ))}
             </tbody>
           </Table>
@@ -113,6 +190,12 @@ export default async function RulesPage() {
           title="Corpus"
           hint={`${documents?.length ?? 0} documents with supplied text`}
         />
+        <p className="text-sm" style={{ marginBottom: 18, color: "var(--muted)" }}>
+          A document with no rules is usually a correct answer rather than a gap: a bill
+          status page carries no obligation to quote, and a notice ordinance, a relocation
+          rate table or a broker-fee statute falls outside the six categories in scope. The
+          note is what the model said about the document, so the two cases can be told apart.
+        </p>
         <Table>
           <thead>
             <tr>
@@ -120,6 +203,7 @@ export default async function RulesPage() {
               <Th>Jurisdictions</Th>
               <Th>Source</Th>
               <Th>Rules</Th>
+              <Th>What the model said</Th>
             </tr>
           </thead>
           <tbody>
@@ -129,6 +213,17 @@ export default async function RulesPage() {
                 <Td className="whitespace-nowrap">{doc.jurisdictions}</Td>
                 <Td className="text-xs">{doc.source_type}</Td>
                 <Td className="tabular-nums">{doc.rule_count}</Td>
+                <Td>
+                  {doc.document_note ? (
+                    <div className="text-xs" style={{ maxWidth: "46ch", color: "var(--muted)" }}>
+                      {doc.document_note}
+                    </div>
+                  ) : (
+                    <span className="text-xs" style={{ color: "var(--faint)" }}>
+                      {doc.rule_count > 0 ? "no caveat recorded" : "not yet extracted"}
+                    </span>
+                  )}
+                </Td>
               </tr>
             ))}
           </tbody>

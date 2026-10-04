@@ -7,7 +7,9 @@ Two guards matter for scoring:
   1. Every rule must carry a `quoted_span` that really occurs in the source
      document. We verify that in code and drop rules that fail, so a
      hallucinated citation can never reach the submission.
-  2. team_rule_id is assigned by us, not the model, so ids stay unique.
+  2. team_rule_id is assigned by us, not the model, and is derived from what
+     the rule *is* rather than from a counter, so re-extracting a document
+     leaves every id - and every lookups.json reference to it - unchanged.
 """
 
 from __future__ import annotations
@@ -18,16 +20,21 @@ import logging
 import re
 import uuid
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import cast, delete, func, select, update
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.llm import get_client
 from app.db.models import Document, ExtractionRun, Rule
 from app.modules.rule_extraction.pipeline import models as model_specs
+from app.modules.rule_extraction.pipeline.merge import group_key_for, rule_id_for
+from app.modules.rule_extraction.pipeline.text import unwrap
 from app.modules.rule_extraction.schemas import (
     DocumentExtraction,
     ExtractDocResult,
+    RuleImportRejection,
+    RuleImportResult,
     RuleRecord,
 )
 
@@ -113,15 +120,53 @@ def span_occurs_in(span: str, body: str) -> bool:
     return _normalise(span) in _normalise(body)
 
 
-async def _next_rule_index(session: AsyncSession) -> int:
-    """Highest existing r-NNNN index, so ids never collide across runs."""
-    result = await session.execute(select(Rule.team_rule_id))
-    highest = 0
-    for (rid,) in result:
-        m = re.fullmatch(r"r-(\d+)", rid or "")
-        if m:
-            highest = max(highest, int(m.group(1)))
-    return highest + 1
+def stable_rule_id(
+    doc_id: str, jurisdiction: str, category: str, citation: str, ordinal: int
+) -> str:
+    """An id derived from what the rule is, not from the order it was found in.
+
+    A counter cannot survive re-extraction: `replace=True` deletes a
+    document's rules and the next pass renumbers them, so every
+    `team_rule_id` already written into lookups.json or changes.json silently
+    points at a different rule - or at nothing.
+
+    `pipeline.merge` already defines the identity of a law (jurisdiction,
+    category, citation) and hashes it; this reuses that definition and adds
+    two parts:
+
+      * the document, because until the merge stage is wired in, two
+        documents describing one law are still two records and must not
+        collide on the primary key;
+      * an ordinal, for the case where one document draws several separately
+        actionable obligations from a single citation.
+    """
+    group_key = group_key_for(jurisdiction, category, citation)
+    return rule_id_for(f"{doc_id.strip().casefold()}|{group_key}|{ordinal}")
+
+
+def _assign_ids(doc_id: str, extracted: list) -> dict[int, str]:
+    """Map each record's position to its id.
+
+    Ordinals are handed out in a sorted order rather than the order the model
+    happened to return, so the same set of obligations gets the same ids on
+    every pass.
+    """
+    groups: dict[str, list[int]] = {}
+    for index, rule in enumerate(extracted):
+        key = group_key_for(rule.jurisdiction, rule.category.value, rule.citation)
+        groups.setdefault(key, []).append(index)
+
+    ids: dict[int, str] = {}
+    for indexes in groups.values():
+        ordered = sorted(
+            indexes, key=lambda i: (extracted[i].title or "", extracted[i].quoted_span)
+        )
+        for ordinal, index in enumerate(ordered):
+            rule = extracted[index]
+            ids[index] = stable_rule_id(
+                doc_id, rule.jurisdiction, rule.category.value, rule.citation, ordinal
+            )
+    return ids
 
 
 async def extract_document(
@@ -140,6 +185,12 @@ async def extract_document(
 
     client = get_client()
     spec = model_specs.spec_for(settings.extraction_model)
+    # The model is shown the body with the extractor's hard line breaks undone,
+    # so a quoted span comes back as a whole sentence instead of one 77-column
+    # line. Verification below still runs against the stored original, which is
+    # safe because unwrapping only ever replaces a newline with a space and the
+    # span check normalises whitespace anyway.
+    body = unwrap(doc.body)
     if len(doc.body) // 3 > spec.context_tokens:
         raise ValueError(
             f"{doc.doc_id} is too large for {spec.model_id} ({spec.context_tokens:,} token context)"
@@ -170,7 +221,7 @@ async def extract_document(
                     f'<document doc_id="{doc.doc_id}" '
                     f'jurisdictions="{doc.jurisdictions}" '
                     f'source_url="{doc.url}">\n'
-                    f"{doc.body}\n"
+                    f"{body}\n"
                     f"</document>\n\n"
                     "Extract every in-scope rule record from this document."
                 ),
@@ -183,14 +234,17 @@ async def extract_document(
     usage_in = getattr(response.usage, "input_tokens", 0) or 0
     usage_out = getattr(response.usage, "output_tokens", 0) or 0
 
+    # Keep what the model said about the document, not just what it extracted.
+    # For a document that yielded nothing this note is the whole answer to
+    # "why is this 0", and it used to be discarded with the response.
+    doc.document_note = parsed.document_note
+
     if replace:
         await session.execute(delete(Rule).where(Rule.source_doc_id == doc.doc_id))
         await session.flush()
 
-    next_idx = await _next_rule_index(session)
-    kept: list[RuleRecord] = []
+    verified = []
     rejected = 0
-
     for extracted in parsed.rules:
         if not span_occurs_in(extracted.quoted_span, doc.body):
             rejected += 1
@@ -200,12 +254,14 @@ async def extract_document(
                 extracted.quoted_span[:80],
             )
             continue
+        verified.append(extracted)
 
-        team_rule_id = f"r-{next_idx:04d}"
-        next_idx += 1
+    ids = _assign_ids(doc.doc_id, verified)
+    kept: list[RuleRecord] = []
 
+    for index, extracted in enumerate(verified):
         rule = Rule(
-            team_rule_id=team_rule_id,
+            team_rule_id=ids[index],
             jurisdiction=extracted.jurisdiction,
             level=extracted.level.value,
             category=extracted.category.value,
@@ -258,6 +314,33 @@ async def start_run(session: AsyncSession, doc_ids: list[str], model: str) -> Ex
     return run
 
 
+async def _record_progress(
+    session: AsyncSession, run_id: str, event: dict, **increments: int
+) -> None:
+    """Add to the run's counters and event log without reading them first.
+
+    Every document runs in its own session, and `extraction_concurrency` of
+    them run at once. Incrementing in Python - `run.docs_done += 1` on an
+    ORM-loaded row - makes each one read, add and write back, so two
+    documents that overlap both write the same value and one increment is
+    lost. A 54-document pass at concurrency 4 lost 39 of them, reporting
+    15/54 done with 0 failed while all 54 had in fact been extracted.
+
+    Postgres can do the arithmetic instead: `SET docs_done = docs_done + 1`
+    and `events = events || <entry>` resolve against the row as it is at
+    write time, so concurrent updates add up rather than overwrite. The
+    events log is append-only and feeds the SSE progress stream, which is
+    the other thing the lost updates were silently truncating.
+    """
+    values: dict = {
+        column: getattr(ExtractionRun, column) + amount for column, amount in increments.items()
+    }
+    values["events"] = ExtractionRun.events.concat(cast([event], JSONB))
+    await session.execute(
+        update(ExtractionRun).where(ExtractionRun.run_id == run_id).values(**values)
+    )
+
+
 async def run_extraction(run_id: str, doc_ids: list[str], replace: bool) -> None:
     """Background corpus pass. Each document gets its own session and commit,
     so progress survives a failure partway through and the SSE endpoint can
@@ -269,40 +352,43 @@ async def run_extraction(run_id: str, doc_ids: list[str], replace: bool) -> None
     async def one(doc_id: str) -> None:
         async with sem:
             async with SessionLocal() as session:
-                run = await session.get(ExtractionRun, run_id)
-                if run is None:
-                    return
+                now = lambda: dt.datetime.now(dt.UTC).isoformat()  # noqa: E731
                 try:
                     doc = await session.get(Document, doc_id)
                     if doc is None:
                         raise ValueError(f"unknown doc_id {doc_id}")
                     result = await extract_document(session, doc, run_id=run_id, replace=replace)
-                    run.docs_done += 1
-                    run.rules_extracted += len(result.rules)
-                    run.input_tokens += result.input_tokens
-                    run.output_tokens += result.output_tokens
-                    run.events = [
-                        *run.events,
+                    await _record_progress(
+                        session,
+                        run_id,
                         {
-                            "ts": dt.datetime.now(dt.UTC).isoformat(),
+                            "ts": now(),
                             "doc_id": doc_id,
                             "event": "extracted",
                             "rules": len(result.rules),
                             "rejected": result.spans_rejected,
                         },
-                    ]
+                        docs_done=1,
+                        rules_extracted=len(result.rules),
+                        input_tokens=result.input_tokens,
+                        output_tokens=result.output_tokens,
+                    )
                 except Exception as exc:  # noqa: BLE001 - recorded per document
                     log.exception("extraction failed for %s", doc_id)
-                    run.docs_failed += 1
-                    run.events = [
-                        *run.events,
+                    # The failed document's own writes must go, but the
+                    # progress note has to survive - so roll back first.
+                    await session.rollback()
+                    await _record_progress(
+                        session,
+                        run_id,
                         {
-                            "ts": dt.datetime.now(dt.UTC).isoformat(),
+                            "ts": now(),
                             "doc_id": doc_id,
                             "event": "failed",
                             "detail": str(exc)[:500],
                         },
-                    ]
+                        docs_failed=1,
+                    )
                 await session.commit()
 
     await asyncio.gather(*(one(d) for d in doc_ids))
@@ -313,6 +399,122 @@ async def run_extraction(run_id: str, doc_ids: list[str], replace: bool) -> None
             run.status = "failed" if run.docs_failed == run.docs_total else "complete"
             run.finished_at = dt.datetime.now(dt.UTC)
             await session.commit()
+
+
+IMPORTABLE = (
+    "jurisdiction",
+    "level",
+    "category",
+    "status",
+    "title",
+    "requirement",
+    "key_value",
+    "coverage_conditions",
+    "exemptions",
+    "overrides",
+    "interaction",
+    "effective_date",
+    "citation",
+    "source_doc_id",
+    "source_url",
+    "quoted_span",
+    "confidence",
+    "conflict_flag",
+    "conflict_note",
+)
+
+
+async def import_rules(
+    session: AsyncSession,
+    records: list[RuleRecord],
+    *,
+    replace: bool,
+    document_notes: dict[str, str] | None = None,
+) -> RuleImportResult:
+    """Load records produced by an extraction pass run elsewhere.
+
+    The span guard runs again here rather than being trusted from the payload.
+    An imported record has to quote text that occurs in *this* deployment's
+    copy of its source document, so an import cannot put a rule into the
+    submission that the corpus does not support - the same promise a locally
+    extracted rule carries, and the reason this is not a plain bulk insert.
+
+    Ids are content-addressed, so importing the same pass twice updates the
+    rows in place instead of duplicating them.
+    """
+    doc_ids = {r.source_doc_id for r in records if r.source_doc_id}
+    bodies = dict(
+        (
+            await session.execute(
+                select(Document.doc_id, Document.body).where(Document.doc_id.in_(doc_ids))
+            )
+        ).all()
+    )
+
+    deleted = 0
+    if replace:
+        result = await session.execute(delete(Rule))
+        deleted = result.rowcount or 0
+        await session.flush()
+
+    inserted = updated = 0
+    rejected: list[RuleImportRejection] = []
+
+    for record in records:
+        if not record.source_doc_id:
+            rejected.append(
+                RuleImportRejection(team_rule_id=record.team_rule_id, reason="no source_doc_id")
+            )
+            continue
+        if record.source_doc_id not in bodies:
+            rejected.append(
+                RuleImportRejection(
+                    team_rule_id=record.team_rule_id,
+                    reason=f"unknown document {record.source_doc_id} in this deployment",
+                )
+            )
+            continue
+        if not span_occurs_in(record.quoted_span, bodies[record.source_doc_id] or ""):
+            rejected.append(
+                RuleImportRejection(
+                    team_rule_id=record.team_rule_id,
+                    reason=f"quoted_span does not occur in {record.source_doc_id}",
+                )
+            )
+            continue
+
+        values = {field: getattr(record, field) for field in IMPORTABLE}
+        existing = None if replace else await session.get(Rule, record.team_rule_id)
+        if existing is None:
+            session.add(Rule(team_rule_id=record.team_rule_id, **values))
+            inserted += 1
+        else:
+            for field, value in values.items():
+                setattr(existing, field, value)
+            updated += 1
+
+    # The notes belong to the same pass as the rules: a document that yielded
+    # nothing has no row in `records` to carry its explanation, so it travels
+    # separately or not at all.
+    notes_applied = 0
+    for doc_id, note in (document_notes or {}).items():
+        doc = await session.get(Document, doc_id)
+        if doc is not None:
+            doc.document_note = note
+            notes_applied += 1
+
+    await session.flush()
+    total = (await session.execute(select(func.count()).select_from(Rule))).scalar_one()
+
+    return RuleImportResult(
+        received=len(records),
+        inserted=inserted,
+        updated=updated,
+        deleted=deleted,
+        rejected=rejected,
+        total_after=total,
+        notes_applied=notes_applied,
+    )
 
 
 async def rule_counts_by_doc(session: AsyncSession) -> dict[str, int]:
