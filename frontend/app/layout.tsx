@@ -2,15 +2,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { AccountMenu } from "@/components/account-menu";
+import { Mark, Wordmark } from "@/components/brand";
 import { NavLink } from "@/components/nav-link";
 import { CORPUS_NAV, navFor } from "@/lib/roles";
 import { displayName, viewer } from "@/lib/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Rental Housing Law Navigator",
+  title: "Rental Housing Law Navigator — plua.ai",
   description:
     "Which housing rules apply to an address on a given date, and how do supplied law-change cases affect the answer?",
+  icons: {
+    // The SVG first for anything that can take it, the PNG for everything
+    // else. Both are the brand kit's own files, served from public/brand.
+    icon: [
+      { url: "/brand/plua-app-icon.svg", type: "image/svg+xml" },
+      { url: "/brand/favicon-32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: "/brand/plua-app-icon.svg",
+  },
 };
 
 export default async function RootLayout({
@@ -39,8 +49,15 @@ export default async function RootLayout({
         <AuthKitProvider>
           <div className="app-shell">
             <header className="glass-navigation">
-              <Link href={seen.state === "ready" ? "/home" : "/"} className="brand">
-                Navigator<span className="brand-period">.</span>
+              {/* The logo, not the product name. "Rental Housing Law
+                  Navigator" is what this thing does and it belongs in the
+                  title and the hero; the header is where the brand goes. */}
+              <Link
+                href={seen.state === "ready" ? "/home" : "/"}
+                className="brand"
+                aria-label="plua.ai — home"
+              >
+                <Wordmark height={25} />
               </Link>
 
               <nav>
@@ -63,16 +80,12 @@ export default async function RootLayout({
 
             <main className="app-main">{children}</main>
 
-            <footer
-              style={{
-                maxWidth: 1200,
-                margin: "0 auto",
-                padding: "40px 8px 0",
-                fontSize: 12,
-                color: "#6b818d",
-              }}
-            >
-              Not legal advice. Every answer cites the source text it came from.
+            <footer className="app-footer">
+              <Mark size={18} />
+              <span>
+                Not legal advice. Every answer cites the source text it came
+                from.
+              </span>
             </footer>
           </div>
         </AuthKitProvider>

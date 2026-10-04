@@ -41,12 +41,7 @@ export default async function FrontDoor() {
       <section className="grid gap-12 lg:grid-cols-[1.25fr_0.9fr] lg:items-start">
         <div>
           <p className="eyebrow">Rental Housing Law Navigator</p>
-          <h1
-            className="display"
-            style={{ fontSize: 34, lineHeight: 1.18, fontWeight: 650 }}
-          >
-            Which housing rules apply here, on this date?
-          </h1>
+          <h1 className="hero-title">Which housing rules apply here, on this date?</h1>
           <p
             className="mt-3 max-w-xl leading-relaxed"
             style={{ color: "var(--muted)" }}

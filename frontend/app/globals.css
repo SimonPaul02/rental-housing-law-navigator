@@ -1,49 +1,73 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=Manrope:wght@400;500;600;650;700;750;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;650;700;750;800&display=swap");
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   plua.ai's glass language: transmitted colour over a mint-and-violet gradient
-   mesh, surfaces that are translucent rather than white, a bright rim on every
-   edge, and a soft cast shadow underneath.
+   plua.ai's design system, as the brand book defines it.
 
-   Light only, deliberately — plua has no dark mode, and a dark adaptation of
-   glassmorphism is a different design, not this one.
+   Transmitted colour over a mint-and-violet gradient mesh, surfaces that are
+   translucent rather than white, a bright rim on every edge, and a soft cast
+   shadow underneath. Light only, deliberately — plua has no dark mode, and a
+   dark adaptation of glassmorphism is a different design, not this one.
+
+   The token values below are the brand book's own, to the hex. They had
+   drifted: a shadow a few percent off, a line colour a shade light, a
+   monospace stack that was whatever the operating system had. Drift in a
+   design system is not visible one value at a time, which is exactly why it
+   has to be copied rather than approximated.
 --------------------------------------------------------------------------- */
 :root {
   color-scheme: light;
 
-  --ink: #243238;
-  --ink-strong: #263e40;
-  --muted: #647478;
-  --faint: #7d9197;
-  --line: #506b771c;
+  --deep: #263e40;        /* the logo, and every heading */
+  --ink: #243238;         /* running text */
+  --ink-strong: #263e40;  /* alias of --deep, kept for existing call sites */
+  --evergreen: #35635c;   /* accent, links */
   --accent: #35635c;
   --accent-ink: #2b514b;
-
-  /* A quiet panel inside a card: lighter than `.card`, so a list of rules
-     reads as items within a surface rather than as a stack of cards. Several
-     components already asked for this token by name. */
-  --surface: #ffffff52;
-
-  --glass: linear-gradient(125deg, #ffffff91, #ffffff38 55%, #ffffff68);
-  --glass-strong: linear-gradient(125deg, #ffffff83, #ffffff45 58%, #ffffff70);
-  --glass-edge: #ffffffba;
-  --glass-shadow:
-    0 16px 44px -22px #243e5640,
-    inset 0 1px 0 #ffffffed,
-    inset 0 -1px 0 #ffffff50;
-  --panel-shadow:
-    0 25px 60px -35px #2c52534f,
-    inset 0 1px 0 #ffffffed,
-    inset 0 -1px 0 #ffffff9c;
+  --mint: #5fb39e;        /* the dot in the mark; highlights only, never text */
+  --glass-mint: #a7d3c8;
+  --lavender: #ced0eb;
+  --mist: #e6eeeb;        /* the ground */
+  --slate: #55676b;       /* secondary text */
+  --muted: #55676b;
+  --faint: #7d9197;
+  --ai: #6f8a8c;          /* the ".ai" in the wordmark */
+  --line: #506b7726;
 
   --good: #2f7d57;
   --warn: #b5812a;
   --serious: #a96a4a;
   --critical: #a1584a;
 
+  --glass: linear-gradient(125deg, #ffffff99, #ffffff40 55%, #ffffff70);
+  --glass-strong: linear-gradient(125deg, #ffffff83, #ffffff45 58%, #ffffff70);
+  --glass-edge: #ffffffc4;
+  --glass-shadow:
+    0 18px 46px -24px #243e5648,
+    inset 0 1px 0 #ffffffed,
+    inset 0 -1px 0 #ffffff50;
+  --panel-shadow:
+    0 18px 46px -24px #243e5648,
+    inset 0 1px 0 #ffffffed,
+    inset 0 -1px 0 #ffffff9c;
+
+  /* A quiet panel inside a card: lighter than `.card`, so a list of rules
+     reads as items within a surface rather than as a stack of cards. */
+  --surface: #ffffff52;
+
   --font: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --display: Manrope, var(--font);
+  --display: Manrope, "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* The brand book's scale. Sizes are picked from it rather than typed in
+     per component, which is what kept the old type drifting half a pixel at
+     a time. */
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.1875rem;
+  --step-2: 1.5rem;
+  --step-3: clamp(1.75rem, 3.2vw, 2.5rem);
+  --step-4: clamp(2.25rem, 5.4vw, 3.75rem);
 }
 
 @layer base {
@@ -51,15 +75,24 @@
 
   body {
     margin: 0;
-    background: #dce9e7;
+    background: var(--mist);
     color: var(--ink);
     font-family: var(--font);
-    font-size: 16px;
-    line-height: 1.5;
+    font-size: var(--step-0);
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
   }
 
   h1, h2, h3, h4, p { margin: 0; }
+
+  /* Every heading is Manrope in --deep. The brand book is explicit about it,
+     and it is the single change that makes a page read as plua's rather than
+     as a page that happens to use plua's colours. */
+  h1, h2, h3, h4 {
+    font-family: var(--display);
+    color: var(--deep);
+    text-wrap: balance;
+  }
   a { color: inherit; text-decoration: none; }
   button { border: 0; background: none; color: inherit; cursor: pointer; font: inherit; }
   button:disabled { cursor: not-allowed; opacity: 0.55; }
@@ -71,7 +104,7 @@
   }
 }
 
-.mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+.mono { font-family: var(--mono); }
 
 /* ------------------------------------------------------- the lit backdrop */
 .app-shell {
@@ -137,14 +170,27 @@
 }
 
 .brand {
-  font-size: 26px;
-  font-weight: 650;
-  letter-spacing: -1.4px;
-  color: #263d3e;
-  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
   flex-shrink: 0;
+  padding: 2px 4px;
+  border-radius: 10px;
+  transition: opacity 160ms;
 }
-.brand-period { color: #637c7c; font-weight: 450; }
+.brand:hover { opacity: 0.78; }
+.brand svg { display: block; }
+
+.app-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 44px 10px 0;
+  font-size: var(--step--1);
+  color: var(--slate);
+}
+.app-footer svg { flex: none; opacity: 0.8; }
 
 .glass-navigation nav {
   display: flex;
@@ -160,12 +206,12 @@
   border: 1px solid transparent;
   border-radius: 100px;
   font-size: 12px;
-  color: #4b6467;
+  color: var(--slate);
   transition: background 180ms, box-shadow 180ms;
 }
-.nav-item:hover { background: #ffffff49; }
+.nav-item:hover { background: #ffffff5e; }
 .nav-item.active {
-  color: #213a3e;
+  color: var(--deep);
   background: linear-gradient(125deg, #ffffffc9, #ffffff73);
   border-color: #ffffffc9;
   box-shadow: 0 4px 12px #29474e12, inset 0 1px 1px #fff;
@@ -193,25 +239,28 @@ main.app-main {
   gap: 28px;
   margin-bottom: 26px;
 }
+/* The brand book's own eyebrow: the display face, 11px, and a wide tracking
+   measured in em so it scales with the size rather than drifting from it. */
 .eyebrow {
-  font-size: 10px;
-  letter-spacing: 1.7px;
-  font-weight: 600;
+  font-family: var(--display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #6b8488;
-  margin-bottom: 11px;
+  color: var(--ai);
+  margin-bottom: 12px;
 }
 .page-heading h1 {
   font-family: var(--display);
-  font-size: clamp(32px, 3.6vw, 48px);
-  letter-spacing: -2.2px;
+  font-size: var(--step-3);
+  letter-spacing: -0.03em;
   font-weight: 450;
-  line-height: 1.16;
-  color: var(--ink-strong);
+  line-height: 1.12;
+  color: var(--deep);
 }
 .page-heading p {
-  font-size: 14px;
-  color: var(--muted);
+  font-size: var(--step--1);
+  color: var(--slate);
   margin-top: 12px;
   max-width: 64ch;
 }
@@ -220,8 +269,8 @@ main.app-main {
 /* ---------------------------------------------------------------- surfaces */
 .card {
   background: var(--glass-strong);
-  border: 1px solid #ffffffbd;
-  border-radius: 24px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 26px;
   box-shadow: var(--panel-shadow);
   backdrop-filter: blur(28px) saturate(145%);
   -webkit-backdrop-filter: blur(28px) saturate(145%);
@@ -235,8 +284,8 @@ main.app-main {
   padding: 17px 20px;
   box-shadow: 0 8px 25px #3b556808, inset 0 1px 0 white;
 }
-.notice h3 { font-size: 14px; font-weight: 550; color: #2f4d59; }
-.notice p { font-size: 13px; color: #627a87; margin-top: 5px; line-height: 1.55; }
+.notice h3 { font-size: var(--step--1); font-weight: 600; color: var(--deep); }
+.notice p { font-size: var(--step--1); color: var(--slate); margin-top: 5px; line-height: 1.55; }
 .notice.warning { border-left: 3px solid var(--warn); }
 .notice.accent { border-left: 3px solid var(--accent); }
 
@@ -254,7 +303,7 @@ main.app-main {
   white-space: nowrap;
   border: 1px solid var(--glass-edge);
   background: var(--glass);
-  color: #3d585d;
+  color: var(--slate);
   box-shadow: 0 4px 13px #355c6110, inset 0 1px 0 #ffffffde;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -279,8 +328,8 @@ main.app-main {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0;
   background: var(--glass-strong);
-  border: 1px solid #ffffffbd;
-  border-radius: 24px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 26px;
   box-shadow: var(--panel-shadow);
   backdrop-filter: blur(28px) saturate(145%);
   -webkit-backdrop-filter: blur(28px) saturate(145%);
@@ -290,22 +339,23 @@ main.app-main {
 .stat { padding: 2px 26px; border-right: 1px solid #65808722; }
 .stat:last-child { border-right: 0; }
 .stat-label {
-  font-size: 9px;
-  letter-spacing: 1.1px;
+  font-family: var(--display);
+  font-size: 0.625rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  font-weight: 600;
-  color: #647e83;
+  font-weight: 700;
+  color: var(--ai);
 }
 .stat-value {
   font-family: var(--display);
-  font-size: 30px;
+  font-size: 1.75rem;
   font-weight: 500;
-  letter-spacing: -1.4px;
-  margin-top: 8px;
-  color: #27434a;
+  letter-spacing: -0.03em;
+  margin-top: 9px;
+  color: var(--deep);
   font-variant-numeric: tabular-nums;
 }
-.stat-sub { font-size: 12px; color: #657f81; margin-top: 5px; }
+.stat-sub { font-size: 0.75rem; color: var(--slate); margin-top: 6px; }
 
 /* ------------------------------------------------------------------ table */
 .table-wrap {
@@ -321,12 +371,13 @@ main.app-main {
 table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.data th {
   text-align: left;
-  font-size: 9px;
-  letter-spacing: 0.9px;
+  font-family: var(--display);
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   font-weight: 600;
   background: #dae6ec40;
-  color: #586f7d;
+  color: var(--ai);
   border-bottom: 1px solid #7a98a726;
   padding: 14px 22px;
   white-space: nowrap;
@@ -335,7 +386,7 @@ table.data td {
   border-bottom: 1px solid #7a98a71f;
   padding: 15px 22px;
   vertical-align: top;
-  color: #486270;
+  color: var(--slate);
 }
 table.data tbody tr:last-child td { border-bottom: 0; }
 table.data tbody tr:hover { background: #ffffff57; }
@@ -361,19 +412,24 @@ table.data tbody tr:hover { background: #ffffff57; }
 .section-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 15px; }
 .section-title h2 {
   font-family: var(--display);
-  font-size: 19px;
-  font-weight: 500;
-  letter-spacing: -0.7px;
-  color: #355560;
+  font-size: var(--step-1);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--deep);
 }
-.section-title p { font-size: 13px; color: #627a87; margin-top: 4px; max-width: 70ch; }
+.section-title p {
+  font-size: var(--step--1);
+  color: var(--slate);
+  margin-top: 5px;
+  max-width: 70ch;
+}
 
 .bar-row { display: flex; align-items: center; gap: 12px; }
 .bar-track { height: 7px; flex: 1; border-radius: 999px; background: #65808724; overflow: hidden; }
 .bar-fill { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #4e7a72, #6f9a90); }
 
 code:not(pre code) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--mono);
   font-size: 0.88em;
   background: #ffffff6e;
   border: 1px solid #ffffffc4;
@@ -390,6 +446,16 @@ code:not(pre code) {
    every call site, so the markup keeps working and only the look changes.
 --------------------------------------------------------------------------- */
 .display { font-family: var(--display); letter-spacing: -0.02em; }
+
+/* The one oversized heading in the app, on the front door. */
+.hero-title {
+  font-family: var(--display);
+  font-size: var(--step-3);
+  font-weight: 450;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--deep);
+}
 
 .auth-shell { display: flex; flex-direction: column; gap: 14px; }
 
@@ -469,7 +535,7 @@ select.field::-ms-expand { display: none; }
   white-space: nowrap;
   border: 1px solid var(--glass-edge);
   background: var(--glass);
-  color: #3d585d;
+  color: var(--slate);
   box-shadow: 0 4px 13px #355c6110, inset 0 1px 0 #ffffffde;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -494,7 +560,7 @@ select.field::-ms-expand { display: none; }
   background: transparent;
   border-color: transparent;
   box-shadow: none;
-  color: #4b6467;
+  color: var(--slate);
   min-height: 36px;
   padding: 8px 14px;
 }
@@ -605,6 +671,22 @@ select.field::-ms-expand { display: none; }
 }
 .demo-card:disabled { opacity: 0.55; cursor: default; }
 .demo-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The plate of the view this button leads to. Full bleed inside the card's
+   padding and 4:1, so four of them stack without pushing the credentials out
+   of sight; the drop shadow lifts on hover with the card rather than the art
+   moving on its own. */
+.role-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: 9px;
+  filter: drop-shadow(0 4px 10px #243e5614);
+  transition: filter 0.15s ease;
+}
+.demo-card:hover:not(:disabled) .role-art {
+  filter: drop-shadow(0 7px 16px #243e5626);
+}
+
 .demo-role {
   display: flex;
   align-items: center;
@@ -908,13 +990,14 @@ table.data tbody tr.clickable { cursor: pointer; }
   font-weight: 500;
   transition: background 160ms, border-color 160ms, box-shadow 160ms;
 }
-.account-button:hover { background: #ffffff6b; }
+.account-button:hover { background: #ffffff5e; }
 .account-button.open {
-  background: linear-gradient(125deg, #ffffffcf, #ffffff85);
-  border-color: #ffffffd1;
-  box-shadow: 0 4px 12px #29474e14;
+  color: var(--deep);
+  background: linear-gradient(125deg, #ffffffc9, #ffffff73);
+  border-color: #ffffffc9;
+  box-shadow: 0 4px 12px #29474e12, inset 0 1px 1px #fff;
 }
-.account-button svg { color: #7c969b; flex: none; }
+.account-button svg { color: var(--ai); flex: none; }
 
 .account-mark {
   display: grid;
@@ -923,11 +1006,12 @@ table.data tbody tr.clickable { cursor: pointer; }
   height: 28px;
   flex: none;
   border-radius: 50%;
-  background: linear-gradient(145deg, #4e716b, #2a4a45);
+  background: linear-gradient(145deg, #4e716b, var(--deep));
   color: #f2fbf7;
-  font-size: 10.5px;
+  font-family: var(--display);
+  font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.04em;
 }
 .account-name {
   max-width: 15ch;
@@ -936,71 +1020,97 @@ table.data tbody tr.clickable { cursor: pointer; }
   white-space: nowrap;
 }
 
+/* Glass, like every other floating surface here. It was an opaque white card
+   with a hard shadow — the one panel in the app the mesh did not show
+   through, which is exactly the kind of thing that reads as "pasted on".
+   Slightly more opaque than a page surface, because a menu has to stay
+   legible over whatever it happens to be covering. */
 .account-menu {
   position: absolute;
   right: 0;
-  top: calc(100% + 9px);
+  top: calc(100% + 10px);
   z-index: 60;
-  width: 258px;
-  padding: 6px;
-  border-radius: 18px;
-  border: 1px solid #ffffffd9;
-  background: #fbfdfcf5;
-  box-shadow: 0 22px 50px -24px #243e5666, 0 2px 8px #2c525314;
-  backdrop-filter: blur(22px) saturate(140%);
-  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  width: 266px;
+  padding: 7px;
+  border-radius: 26px;
+  border: 1px solid var(--glass-edge);
+  background: linear-gradient(125deg, #ffffffe3, #ffffffc4 55%, #ffffffd6);
+  box-shadow: var(--glass-shadow), 0 26px 54px -28px #243e5659;
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
 }
 
 .account-head {
-  padding: 11px 12px 12px;
-  border-bottom: 1px solid #65808722;
-  margin-bottom: 5px;
+  padding: 12px 13px 13px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 6px;
 }
-.account-head-name { font-size: 13.5px; font-weight: 600; color: var(--ink-strong); }
+.account-head-name {
+  font-family: var(--display);
+  font-size: var(--step--1);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--deep);
+}
 .account-head-mail {
-  font-size: 11.5px;
-  color: var(--faint);
-  margin-top: 2px;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--slate);
+  margin-top: 3px;
   overflow-wrap: anywhere;
 }
+/* The brand book's badge: a dot, a pill, the display face. */
 .account-role {
-  display: inline-block;
-  margin-top: 8px;
-  padding: 3px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 4px 11px 4px 9px;
   border-radius: 100px;
-  border: 1px solid #5c8a7c54;
-  background: #e2f1e8;
-  font-size: 11px;
+  border: 1px solid #ffffffe0;
+  background: #ffffffb0;
+  font-family: var(--display);
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--accent-ink);
+  color: var(--deep);
+}
+.account-role::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mint);
 }
 
 .account-item {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 9px 12px;
-  border-radius: 12px;
-  font-size: 13px;
+  padding: 10px 13px;
+  border-radius: 18px;
+  font-size: var(--step--1);
   font-weight: 500;
-  color: #3f5d62;
-  transition: background 140ms;
+  color: var(--deep);
+  transition: background 140ms, box-shadow 140ms;
 }
-.account-item:hover { background: #eaf2f0; }
+.account-item:hover {
+  background: #ffffff9e;
+  box-shadow: inset 0 1px 0 #ffffffed;
+}
 .account-hint {
   display: block;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 400;
-  color: var(--faint);
-  margin-top: 1px;
+  color: var(--slate);
+  margin-top: 2px;
 }
 .account-signout {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #8d4a41;
+  color: var(--critical);
 }
-.account-signout:hover { background: #f8ecea; }
+.account-signout:hover { background: #ffffffad; }
 
 @media (max-width: 760px) {
   .account { margin-left: 0; }

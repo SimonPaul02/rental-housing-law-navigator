@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { DEMO_ACCOUNTS, demoLabel, type DemoAccount } from "@/lib/demo";
 import { ROLES } from "@/lib/roles";
+import { RoleArt } from "./role-art";
 import { Spinner } from "./google-mark";
 
 /** One button per role, so all four can be seen without being issued anything.
@@ -15,6 +16,10 @@ import { Spinner } from "./google-mark";
  *
  * Only one of the four can be signed in at a time, since they are four separate
  * people; signing out returns here.
+ *
+ * Each button carries a plate of the view it leads to (see `role-art.tsx`),
+ * because the sentence above the grid claims the four roles get four different
+ * apps and a grid of four identical cards quietly says otherwise.
  */
 export function DemoAccounts() {
   const [busy, setBusy] = useState<string>("");
@@ -52,6 +57,7 @@ export function DemoAccounts() {
             onClick={() => signInAs(account)}
             disabled={busy !== ""}
           >
+            <RoleArt role={account.role} />
             <span className="demo-role">
               {demoLabel(account)}
               {busy === account.role && <Spinner />}

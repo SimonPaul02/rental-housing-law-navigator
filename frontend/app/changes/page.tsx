@@ -232,7 +232,12 @@ export default async function ChangesPage({
                   ) : (
                     <span style={{ color: "var(--faint)" }}>none</span>
                   )}
-                  {c.sources.map((source) => (
+                  {/* Guarded, because the frontend and the backend deploy
+                      independently: Vercel ships on every push, Fly only when
+                      backend/ changes. A frontend that reaches for a field its
+                      API does not serve yet should degrade, not white-screen
+                      the whole page. */}
+                  {(c.sources ?? []).map((source) => (
                     <div key={source.team_rule_id} className="mt-2 font-sans text-xs">
                       <a href={source.source_url} target="_blank" rel="noreferrer">
                         {source.citation}
