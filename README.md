@@ -141,13 +141,22 @@ the agency's denominator, the extent of `lookups.json`, and the set each change
 case scans.
 
 **A housing provider holds that book from the moment the account exists.** They
-do not arrive at an empty page and type in the buildings they already own —
-`register()` hands it over, once, on creation. The other three roles do not get
-it, and that is not a shorter version of the same list: a renter has one home
-and it is wherever they actually live, an advocate's cases are each a different
-person's situation, and an agency holds no addresses at all. `ADOPTS_THE_IMPORT`
-in `accounts/service.py` is that single fact; accounts created before it existed
-are caught up by `backend/scripts/adopt_import.py`.
+do not arrive at an empty page and type in the buildings they already own. Two
+things hand it over and between them there is no step for anybody to remember:
+`register()` gives it to an account as it is created, and `seed.py` gives it to
+any account that holds nothing — which the container runs on every start, so a
+deployment whose database was loaded with addresses but never with anybody's
+list fixes itself on the next deploy.
+
+Only an account holding *nothing* is given the book. Removing a building is a
+decision and re-adding it on the next deploy would quietly undo it; an empty
+portfolio is not a decision, it is an account the import never reached.
+
+The other three roles do not get it, and that is not a shorter version of the
+same list: a renter has one home and it is wherever they actually live, an
+advocate's cases are each a different person's situation, and an agency holds
+no addresses at all. `ADOPTS_THE_IMPORT` in `accounts/service.py` is that
+single fact.
 
 **A renter's home is wherever they actually live**, which may not be in it. So
 a renter can type one — `415 Mission St, San Francisco, CA` — and keep it. It
