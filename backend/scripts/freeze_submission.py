@@ -52,7 +52,14 @@ async def build(*, allow_incomplete: bool) -> tuple[dict[str, dict], ChangesExpo
     async with SessionLocal() as session:
         addresses = require_sample_address_ids(
             settings.addresses_csv,
-            list((await session.execute(select(Address.address_id))).scalars()),
+            # The import only, as every export is: a building somebody typed in
+            # for themselves belongs in no submission file, and counting it here
+            # would fail the 500-ID check and freeze nothing at all.
+            list(
+                (
+                    await session.execute(select(Address.address_id).where(Address.imported))
+                ).scalars()
+            ),
         )
         rules = list((await session.execute(select(Rule).order_by(Rule.team_rule_id))).scalars())
         documents = {d.doc_id: d for d in (await session.execute(select(Document))).scalars()}
