@@ -64,6 +64,7 @@ class Reason(StrEnum):
     inside_effective_interval = "inside_effective_interval"
     conflicting_effective_dates = "conflicting_effective_dates"
     effective_date_missing = "effective_date_missing"
+    effective_date_unverified = "effective_date_unverified"
     status_pending = "status_pending"
     status_failed = "status_failed"
     # facts

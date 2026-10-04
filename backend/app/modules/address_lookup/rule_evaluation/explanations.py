@@ -26,6 +26,7 @@ _DECISIVE_UNKNOWN = (
     Reason.conflicting_effective_dates,
     Reason.inside_effective_interval,
     Reason.effective_date_missing,
+    Reason.effective_date_unverified,
     Reason.legal_city_unresolved,
     Reason.rule_clause_unmapped,
     Reason.governing_rule_unknown,

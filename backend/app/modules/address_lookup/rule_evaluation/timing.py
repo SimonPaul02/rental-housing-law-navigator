@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from app.modules.address_lookup.rule_adapter.models import CompiledRule, EffectiveDate
+from app.modules.address_lookup.rule_adapter.models import Basis, CompiledRule, EffectiveDate
 from app.modules.address_lookup.rule_evaluation.decisions import (
     BaseResult,
     CheckTrace,
@@ -60,7 +60,7 @@ def evaluate_time(
             ),
         )
 
-    if rule.effective_date_unresolved:
+    if rule.effective_date_unresolved and not (rule.effective_dates or rule.unverified_dates):
         return (
             Ternary.unknown,
             BaseResult.unknown,
@@ -75,7 +75,9 @@ def evaluate_time(
             ),
         )
 
-    dates = list(rule.effective_dates)
+    # A record date the source does not state is still the best date there is.
+    # It is read like any other, and the answer that turns on it says so.
+    dates = [*rule.effective_dates, *rule.unverified_dates]
 
     if not dates:
         if rule.status == "not_yet_effective":
@@ -105,10 +107,28 @@ def evaluate_time(
             ),
         )
 
-    if len(dates) > 1:
-        return _conflicting(dates, as_of)
+    timed = _conflicting(dates, as_of) if len(dates) > 1 else _single(dates[0], as_of)
+    return _unverified(rule, timed) if rule.unverified_dates else timed
 
-    return _single(dates[0], as_of)
+
+def _unverified(
+    rule: CompiledRule, timed: tuple[Ternary, BaseResult | None, CheckTrace]
+) -> tuple[Ternary, BaseResult | None, CheckTrace]:
+    """Mark a date-driven answer that rests on a date the source does not state.
+
+    Before such a date, only a rule recorded as not yet effective is reported
+    that way: for a rule recorded in force, an unstated date may as well be an
+    amendment as a start, so the answer stays unknown.
+    """
+    in_force, result, trace = timed
+    unstated = ", ".join(d.raw for d in rule.unverified_dates)
+    trace.basis = str(Basis.unverified_date)
+    trace.detail += f" The date {unstated} is the rule record's; the source does not state it."
+    if result is BaseResult.not_yet_effective and rule.status != "not_yet_effective":
+        trace.value = Ternary.unknown
+        trace.reason = Reason.effective_date_unverified
+        return Ternary.unknown, BaseResult.unknown, trace
+    return in_force, result, trace
 
 
 def _single(date: EffectiveDate, as_of: dt.date) -> tuple[Ternary, BaseResult | None, CheckTrace]:

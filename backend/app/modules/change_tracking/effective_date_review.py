@@ -69,5 +69,40 @@ async def apply_ab325_date(session: AsyncSession) -> list[str]:
             },
         )
     await session.flush()
+    _record_date_reviews(rules, await session.get(Document, "D022"), evidence_doc.body, span)
     clear_compiled_cache()
     return updated
+
+
+def _record_date_reviews(
+    rules: list[Rule], bill: Document | None, evidence: str, span: str
+) -> None:
+    """Bind the date to each rule's compilation, so it is source-backed there too.
+
+    Setting `Rule.effective_date` alone is not enough: the compiler checks a
+    date against the rule's own source, and D022 - the bill text - never
+    states it. The review quotes D092 instead, names the act in both, and is
+    bound to the rule's current version and D022's current body.
+    """
+    from app.modules.address_lookup.rule_adapter import adapters
+    from app.modules.address_lookup.rule_adapter.compiler import compile_rule
+
+    if bill is None or not bill.body:
+        raise ValueError("D022 has no stored body to bind the date review to")
+    store = adapters.store()
+    for rule in rules:
+        compiled, _ = compile_rule(rule, source_text=bill.body)
+        store.review_dates(
+            compiled,
+            source_text=bill.body,
+            reviewer="source-check:ab325_date_evidence",
+            rationale=(
+                "The California courts' 2025 legislative summary (D092) states the effective "
+                "date of AB 325, Chapter 338; the bill text (D022) names the same act."
+            ),
+            effective_dates=[{"raw": "2026-01-01", "source_span": span}],
+            evidence_doc_id="D092",
+            evidence_text=evidence,
+            act_markers=("AB 325", "338"),
+        )
+    store.save()

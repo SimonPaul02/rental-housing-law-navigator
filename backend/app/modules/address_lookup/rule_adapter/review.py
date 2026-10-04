@@ -317,8 +317,20 @@ class ReviewStore:
         effective_dates: list[dict],
         key_value_period: dict | None = None,
         role_evidence_span: str | None = None,
+        evidence_doc_id: str | None = None,
+        evidence_text: str | None = None,
+        act_markers: tuple[str, ...] = (),
     ) -> None:
-        """Resolve date roles using passages in the current source document."""
+        """Resolve date roles using passages in the current source document.
+
+        A rule's own source does not always state its effective date - AB 325's
+        bill text gives only its approval - so a date may instead be quoted
+        from another captured document (`evidence_doc_id`). That is accepted
+        only when the same act is named in both: every `act_markers` entry
+        (bill number, chapter) must occur in the quoted passage *and* in the
+        rule's own source, so one bill's date cannot be pinned on another.
+        The review stays bound to the rule's own version and source.
+        """
         from app.modules.address_lookup.rule_adapter.compiler import (
             _SOURCE_DATE,
             _source_contains,
@@ -326,6 +338,16 @@ class ReviewStore:
             content_hash,
             parse_effective_date,
         )
+
+        def names(text: str, marker: str) -> bool:
+            return " ".join(marker.split()).casefold() in " ".join(text.split()).casefold()
+
+        if evidence_doc_id:
+            if not evidence_text or not act_markers:
+                raise InvalidCompilation("evidence from another document needs its text and act")
+            if not all(names(source_text, marker) for marker in act_markers):
+                raise InvalidCompilation("the rule's own source does not name the same act")
+        date_text = evidence_text if evidence_doc_id else source_text
 
         if (
             not reviewer.strip()
@@ -353,8 +375,17 @@ class ReviewStore:
                     )
                 )
             )
-            if not supported or not _source_contains(source_text, span):
+            # A quote from another document may cross a PDF line break, so its
+            # whitespace is normalised; the rule's own source is matched exactly.
+            contained = (
+                " ".join(span.split()) in " ".join((evidence_text or "").split())
+                if evidence_doc_id
+                else _source_contains(date_text, span)
+            )
+            if not supported or not span.strip() or not contained:
                 raise InvalidCompilation("effective date needs a current source passage")
+            if evidence_doc_id and not all(names(span, marker) for marker in act_markers):
+                raise InvalidCompilation("the quoted passage does not name the act")
             parsed.append(date)
         if key_value_period:
             try:
@@ -383,6 +414,9 @@ class ReviewStore:
             "effective_date_evidence": effective_dates,
             "role_evidence_span": role_evidence_span,
             "key_value_period": key_value_period,
+            "evidence_doc_id": evidence_doc_id,
+            "evidence_source_hash": content_hash(evidence_text) if evidence_doc_id else None,
+            "act_markers": list(act_markers),
         }
 
     def date_review_for(

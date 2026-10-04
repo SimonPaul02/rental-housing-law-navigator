@@ -18,6 +18,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import re
+from dataclasses import dataclass
 from typing import Any
 
 from app.modules.address_lookup.rule_adapter.models import (
@@ -334,11 +335,105 @@ _RATE_PERIOD = re.compile(
     re.I | re.S,
 )
 _RATE_PERIOD_VALUE_FIRST = re.compile(
-    rf"Allowable\s+Rent\s+Increase:\s*(\d+(?:\.\d+)?%)\s+for\s+({_MONTH_DATE}|\d{{4}}-\d{{2}}-\d{{2}})"
+    r"(?:Allowable\s+Rent\s+Increase|Security\s+Deposit\s+Interest):\s*"
+    rf"(\d+(?:\.\d+)?%)\s+for\s+({_MONTH_DATE}|\d{{4}}-\d{{2}}-\d{{2}})"
     rf"\s*[-–—]\s*({_MONTH_DATE}|\d{{4}}-\d{{2}}-\d{{2}})",
     re.I,
 )
-_EFFECTIVE_CUE = re.compile(r"(?:effective|takes? effect|operative)(?:\s+on|\s+from)?\s*$", re.I)
+#: Words that, right before a date, make it the day a law starts to bind.
+#: "effective until" is deliberately absent: it ends a version of the text.
+_EFFECTIVE_CUE = re.compile(
+    r"(?:\beffective|\btakes?\s+effect|\btook\s+effect|\bin\s+effect"
+    r"|\b(?:go|goes|went|come|comes|came)\s+into\s+effect"
+    r"|\bbec(?:ame|omes?)\s+(?:effective|operative)|\boperative"
+    r"|\bnot\s+effective\s+until|\bbeginning|\bstarting)"
+    r"(?:\s+(?:on|from|as\s+of))?\s*,?\s*$",
+    re.I,
+)
+
+# An act that takes effect a stated interval after its enactment: the date is
+# computed from two passages of the same source, never typed in by anyone.
+_ORDINALS = {
+    word: n
+    for n, word in enumerate(
+        "first second third fourth fifth sixth seventh eighth ninth tenth eleventh twelfth".split(),
+        start=1,
+    )
+}
+_ENACTED = re.compile(
+    rf"\b(?:approved|enacted|signed)\s+(?:by\s+(?:the\s+)?governor\s+)?({_MONTH_DATE})",
+    re.I,
+)
+_TAKES_EFFECT = r"this\s+act\s+shall\s+take\s+effect\s+"
+_AFTER_ENACTMENT = r"\s+(?:next\s+)?following\s+(?:the\s+date\s+of\s+)?enactment"
+_EFFECT_MONTH = re.compile(
+    _TAKES_EFFECT + r"on\s+the\s+first\s+day\s+of\s+the\s+(\w+)\s+month" + _AFTER_ENACTMENT,
+    re.I,
+)
+_EFFECT_DAY = re.compile(
+    _TAKES_EFFECT + r"on\s+the\s+(\w+)\s+day" + _AFTER_ENACTMENT,
+    re.I,
+)
+_EFFECT_NOW = re.compile(_TAKES_EFFECT + r"immediately", re.I)
+
+
+@dataclass(frozen=True, slots=True)
+class DerivedDate:
+    """A law date computed from the act's own enactment clause."""
+
+    date: dt.date
+    enactment_span: str
+    rule_span: str
+
+    @property
+    def note(self) -> str:
+        return (
+            f"effective {self.date.isoformat()}, computed from "
+            f'"{" ".join(self.rule_span.split())}" and "{self.enactment_span}"'
+        )
+
+
+def _ordinal(word: str) -> int | None:
+    word = word.casefold()
+    if word in _ORDINALS:
+        return _ORDINALS[word]
+    m = re.fullmatch(r"(\d+)(?:st|nd|rd|th)", word)
+    return int(m.group(1)) if m else None
+
+
+def enactment_offset(source_text: str | None) -> DerivedDate | None:
+    """The effective date an act states relative to its own enactment.
+
+    Needs exactly one enactment date and exactly one effect clause in the
+    same source; anything less definite returns None rather than a guess.
+    "The first day of the twelfth month next following enactment", enacted
+    July 20, 2026, is July 2026 plus twelve months, day one: 2027-07-01.
+    """
+    if not source_text:
+        return None
+    enacted = {
+        (day, m.group(0))
+        for m in _ENACTED.finditer(source_text)
+        if (day := _source_date(" ".join(m.group(1).split())))
+    }
+    if len({day for day, _ in enacted}) != 1:
+        return None
+    day, enactment_span = sorted(enacted)[0]
+
+    found: set[tuple[dt.date, str]] = set()
+    for m in _EFFECT_MONTH.finditer(source_text):
+        if (n := _ordinal(m.group(1))) is not None:
+            months = day.month - 1 + n
+            found.add((dt.date(day.year + months // 12, months % 12 + 1, 1), m.group(0)))
+    for m in _EFFECT_DAY.finditer(source_text):
+        if (n := _ordinal(m.group(1))) is not None:
+            found.add((day + dt.timedelta(days=n), m.group(0)))
+    for m in _EFFECT_NOW.finditer(source_text):
+        found.add((day, m.group(0)))
+    if len({d for d, _ in found}) != 1:
+        return None
+    date, rule_span = sorted(found)[0]
+    return DerivedDate(date, enactment_span, rule_span)
 
 
 def _source_date(raw: str) -> dt.date | None:
@@ -407,12 +502,22 @@ def parse_effective_date(raw: str | None) -> EffectiveDate | None:
 
 def candidate_dates(
     record: Any, source_text: str | None = None
-) -> tuple[list[EffectiveDate], list[str], bool, ValuePeriod | None]:
-    """Accept only source-backed law dates; keep annual rate periods separate."""
+) -> tuple[list[EffectiveDate], list[str], bool, ValuePeriod | None, list[EffectiveDate]]:
+    """Source-backed law dates, the record dates the source does not back,
+    and any annual value period - kept apart.
+
+    Returns (found, notes, unresolved, period, unverified). `found` holds dates
+    the source states with an effective cue, or computes from the act's own
+    enactment clause. A record date the source does not back is not thrown
+    away: it is returned in `unverified`, read later as an interval at low
+    confidence, and flagged `unresolved` so the review queue still lists it.
+    """
     found: list[EffectiveDate] = []
+    unverified: list[EffectiveDate] = []
     notes: list[str] = []
     unresolved = False
     period = _value_period(record, source_text)
+    derived = enactment_offset(source_text)
     rate_ranges = [
         m.span()
         for pattern in (_RATE_PERIOD, _RATE_PERIOD_VALUE_FIRST)
@@ -420,12 +525,14 @@ def candidate_dates(
     ]
     source_mentions: dict[dt.date, list[tuple[int, int, bool]]] = {}
     for match in _SOURCE_DATE.finditer(source_text or ""):
-        day = _source_date(match.group(0))
+        day = _source_date(" ".join(match.group(0).split()))
         if day:
             in_rate = any(start <= match.start() < end for start, end in rate_ranges)
             source_mentions.setdefault(day, []).append((match.start(), match.end(), in_rate))
 
     def role(day: dt.date) -> str:
+        if derived and day == derived.date:
+            return "effective"
         mentions = source_mentions.get(day, [])
         for start, _, in_rate in mentions:
             if not in_rate and _EFFECTIVE_CUE.search(
@@ -438,6 +545,9 @@ def candidate_dates(
             return "rate_period"
         return "ambiguous"
 
+    def as_day(day: dt.date) -> EffectiveDate:
+        return EffectiveDate(day.isoformat(), day, day, "day")
+
     primary = parse_effective_date(getattr(record, "effective_date", None))
     if primary:
         if not primary.is_exact:
@@ -446,8 +556,11 @@ def candidate_dates(
                 (source_text or "")[max(0, position - 55) : position]
             ):
                 found.append(primary)
+            elif derived and primary.earliest <= derived.date <= primary.latest:
+                found.append(as_day(derived.date))  # the source pins the day
             else:
                 unresolved = True
+                unverified.append(primary)
                 notes.append(f"partial effective date {primary.raw} needs source review")
         else:
             meaning = role(primary.earliest)
@@ -457,7 +570,15 @@ def candidate_dates(
                 notes.append(f"{primary.raw} starts a value period, not the rule")
             else:
                 unresolved = True
+                unverified.append(primary)
                 notes.append(f"effective-date meaning of {primary.raw} needs source review")
+
+    if derived:
+        notes.append(derived.note)
+        if all(f.earliest != derived.date for f in found):
+            # The act's own clause gives a date the record does not: both stand
+            # as candidates, and between them the answer is unknown.
+            found.append(as_day(derived.date))
 
     # An additional candidate needs an explicit law-effective cue in the source.
     for attr in ("interaction", "requirement", "key_value"):
@@ -474,7 +595,7 @@ def candidate_dates(
                 found.append(parsed)
                 notes.append(f"another source-backed effective date {m.group(0)} appears in {attr}")
 
-    return found, notes, unresolved, period
+    return found, notes, unresolved, period, unverified
 
 
 # --------------------------------------------------------------- relations ---
@@ -667,7 +788,9 @@ def compile_rule(
         getattr(record, "exemptions", None), Origin.exemption, record, "x", source_text
     )
     relations, relation_unmapped = compile_relations(record, known, peers)
-    dates, date_notes, date_unresolved, value_period = candidate_dates(record, source_text)
+    dates, date_notes, date_unresolved, value_period, unverified = candidate_dates(
+        record, source_text
+    )
 
     unmapped = (*cover_unmapped, *exempt_unmapped, *relation_unmapped)
 
@@ -712,6 +835,7 @@ def compile_rule(
         status=getattr(record, "status", "in_force") or "in_force",
         effective_dates=tuple(dates),
         effective_date_unresolved=date_unresolved,
+        unverified_dates=tuple(unverified),
         key_value_period=value_period,
         coverage=coverage,
         exemptions=exemptions,

@@ -278,7 +278,13 @@ def _in_scope(rule: Rule, address: Address, as_of: dt.date) -> bool:
 
     # Evaluate as if the measure were in force, so only geography and coverage
     # decide. Everything else about the rule is unchanged.
-    as_if = replace(compiled, status="in_force", effective_dates=())
+    as_if = replace(
+        compiled,
+        status="in_force",
+        effective_dates=(),
+        unverified_dates=(),
+        effective_date_unresolved=False,
+    )
     decision = evaluate_base(as_if, evidence, as_of)
     return decision.result in (BaseResult.applies, BaseResult.unknown)
 
@@ -318,14 +324,15 @@ def _undated(rules: list[Rule]) -> dict[str, str]:
             reasons[rule.team_rule_id] = (
                 f"is recorded as {compiled.status}, so no date makes it law"
             )
-        elif compiled.effective_date_unresolved:
-            recorded = f" {rule.effective_date}" if rule.effective_date else ""
+        elif not compiled.effective_dates and not compiled.unverified_dates:
+            # A date the source does not state is still read (at low confidence),
+            # so only a rule with no date at all cannot move between two dates.
             reasons[rule.team_rule_id] = (
-                f"has an effective date{recorded} the source does not yet support, "
+                "has an effective date the source does not yet support, "
                 "so it needs a reviewed effective date"
+                if compiled.effective_date_unresolved
+                else "has no effective date, so it reads the same on both dates"
             )
-        elif not compiled.effective_dates:
-            reasons[rule.team_rule_id] = "has no effective date, so it reads the same on both dates"
     return reasons
 
 

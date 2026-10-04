@@ -7,9 +7,19 @@ test_rule_evaluation.py, so the path under test is the one the API takes.
 from __future__ import annotations
 
 import datetime as dt
+from dataclasses import replace
+from types import SimpleNamespace
 
+import pytest
+
+from app.core.config import settings
 from app.db.models import Address, AddressJurisdiction, Document, Rule
-from app.modules.address_lookup.rule_adapter.compiler import parse_effective_date
+from app.modules.address_lookup.rule_adapter.compiler import (
+    candidate_dates,
+    compile_rule,
+    enactment_offset,
+    parse_effective_date,
+)
 from app.modules.address_lookup.rule_adapter.models import (
     Atom,
     Basis,
@@ -18,6 +28,7 @@ from app.modules.address_lookup.rule_adapter.models import (
     CoverageBasis,
     Expr,
     Field,
+    InvalidCompilation,
     Op,
     Origin,
     ReviewState,
@@ -26,10 +37,17 @@ from app.modules.address_lookup.rule_adapter.models import (
 from app.modules.address_lookup.rule_adapter.review import ReviewStore, compiled_from_json
 from app.modules.address_lookup.rule_evaluation.base import evaluate_base
 from app.modules.address_lookup.rule_evaluation.confidence import assess
-from app.modules.address_lookup.rule_evaluation.decisions import BaseResult, Confidence, Decision
+from app.modules.address_lookup.rule_evaluation.decisions import (
+    BaseResult,
+    Confidence,
+    Decision,
+    Reason,
+    Ternary,
+)
 from app.modules.address_lookup.rule_evaluation.explanations import explain
 from app.modules.address_lookup.rule_evaluation.export import to_submission, validate_submission
 from app.modules.address_lookup.rule_evaluation.predicates import _OPS
+from app.modules.address_lookup.rule_evaluation.timing import evaluate_time
 from app.modules.address_lookup.service import (
     _outcome_from,
     _reported_outcomes,
@@ -198,3 +216,129 @@ def test_a_source_backed_answer_stays_high_confidence():
     outcome = _outcome_from(decisions["r-0001"], rule, compiled["r-0001"])
     assert outcome.result == "applies" and outcome.confidence == "high"
     assert "Confidence" not in outcome.explanation
+
+
+# -- dates -------------------------------------------------------------------
+def corpus(doc_id: str) -> str:
+    return (settings.corpus_dir / "text" / f"{doc_id}.txt").read_text(encoding="utf-8")
+
+
+def dated(effective_date: str | None, **kw) -> SimpleNamespace:
+    return SimpleNamespace(
+        effective_date=effective_date,
+        interaction=None,
+        requirement="",
+        key_value=kw.get("key_value"),
+    )
+
+
+def test_fair_act_date_is_computed_from_its_own_enactment_clause():
+    found, notes, unresolved, _, unverified = candidate_dates(dated("2027-07-01"), corpus("D069"))
+    assert [d.raw for d in found] == ["2027-07-01"] and not unresolved and not unverified
+    assert any("twelfth month" in n and "July 20, 2026" in n for n in notes)
+
+    rule = CompiledRule(
+        team_rule_id="nj-fair",
+        rule_version_hash="h",
+        status="not_yet_effective",
+        effective_dates=tuple(found),
+    )
+    assert evaluate_time(rule, dt.date(2026, 10, 1))[1] is BaseResult.not_yet_effective
+    assert evaluate_time(rule, dt.date(2027, 7, 2))[0] is Ternary.true
+
+
+def test_other_new_jersey_acts_compute_their_dates_too():
+    assert enactment_offset(corpus("D065")).date == dt.date(2022, 1, 1)
+    assert enactment_offset(corpus("D066")).date == dt.date(2026, 5, 1)
+    assert enactment_offset("This act shall take effect immediately.") is None  # no enactment
+
+
+def test_a_record_date_the_computation_contradicts_is_a_conflict():
+    found, _, unresolved, _, unverified = candidate_dates(dated("2027-07-20"), corpus("D069"))
+    assert [d.raw for d in found] == ["2027-07-01"] and [d.raw for d in unverified] == [
+        "2027-07-20"
+    ]
+    rule = CompiledRule(
+        team_rule_id="x",
+        rule_version_hash="h",
+        status="not_yet_effective",
+        effective_dates=tuple(found),
+        effective_date_unresolved=unresolved,
+        unverified_dates=tuple(unverified),
+    )
+    _, result, trace = evaluate_time(rule, dt.date(2027, 7, 10))
+    assert result is BaseResult.unknown and trace.reason is Reason.conflicting_effective_dates
+
+
+def test_went_into_effect_and_not_effective_until_start_a_law_but_effective_until_ends_one():
+    assert candidate_dates(dated("2024-10-14"), corpus("D081"))[0][0].raw == "2024-10-14"
+    body = "The new ordinances are not effective until November 19, 2021."
+    assert candidate_dates(dated("2021-11-19"), body)[0][0].raw == "2021-11-19"
+    # D052 marks the old wording "effective until August 1, 2025" - an end, not a start.
+    ended = "[Introductory paragraph of clause (b) effective until August 1, 2025.]"
+    found, _, unresolved, _, unverified = candidate_dates(dated("2025-08-01"), ended)
+    assert not found and unresolved and [d.raw for d in unverified] == ["2025-08-01"]
+
+
+def test_a_deposit_interest_rate_period_is_not_a_law_date():
+    _, notes, unresolved, period, unverified = candidate_dates(
+        dated("2026-03-01", key_value="4.2%"), corpus("D083")
+    )
+    assert period and period.start == dt.date(2026, 3, 1) and not unresolved and not unverified
+
+
+def test_an_unverified_date_is_read_as_a_date_at_low_confidence():
+    future = CompiledRule(
+        team_rule_id="x",
+        rule_version_hash="h",
+        status="not_yet_effective",
+        effective_date_unresolved=True,
+        unverified_dates=(parse_effective_date("2027-07-01"),),
+    )
+    in_force, result, trace = evaluate_time(future, dt.date(2026, 10, 1))
+    assert result is BaseResult.not_yet_effective and trace.basis == "unverified_date"
+    assert evaluate_time(future, dt.date(2027, 7, 2))[0] is Ternary.true
+
+    # Recorded in force, but the date is later than the query: maybe an
+    # amendment, maybe the start - unknown, not "not yet effective".
+    recorded = replace(future, status="in_force")
+    in_force, result, trace = evaluate_time(recorded, dt.date(2026, 10, 1))
+    assert result is BaseResult.unknown and trace.reason is Reason.effective_date_unverified
+
+
+AB325_SUMMARY = (
+    "2025 legislative summary ... AB 325 (Aguiar-Curry), Ch. 338 Cartwright Act: "
+    "common pricing algorithms. Effective date: January 1, 2026. ..."
+)
+
+
+def test_a_date_may_be_quoted_from_another_document_naming_the_same_act(tmp_path):
+    bill = "Bill Text - AB-325 Cartwright Act. CHAPTER 338. AB 325, Aguiar-Curry. Approved."
+    record = make_rule("r-ab325", body=bill, effective_date="2026-01-01")
+    compiled = compile_rule(record, source_text=bill)[0]
+    assert compiled.effective_date_unresolved  # D022 alone never states it
+
+    store = ReviewStore(tmp_path / "compiled.json")
+    span = (
+        "AB 325 (Aguiar-Curry), Ch. 338 Cartwright Act: common pricing algorithms. "
+        "Effective date: January 1, 2026"
+    )
+    review = dict(
+        source_text=bill,
+        reviewer="source-check",
+        rationale="The courts' 2025 summary states the chaptered act's effective date.",
+        effective_dates=[{"raw": "2026-01-01", "source_span": span}],
+        evidence_doc_id="D092",
+        evidence_text=AB325_SUMMARY,
+    )
+    with pytest.raises(InvalidCompilation, match="does not name"):
+        store.review_dates(compiled, **review, act_markers=("AB 325", "Ch. 339"))
+    with pytest.raises(InvalidCompilation, match="same act"):
+        store.review_dates(compiled, **review, act_markers=("AB 325", "SB 763"))
+    store.review_dates(compiled, **review, act_markers=("AB 325", "338"))
+
+    reviewed = store.apply_date_review(compiled)
+    assert [d.raw for d in reviewed.effective_dates] == ["2026-01-01"]
+    assert not reviewed.unverified_dates
+    assert evaluate_time(reviewed, dt.date(2025, 12, 31))[1] is BaseResult.not_yet_effective
+    assert store.date_reviews["r-ab325"]["evidence_doc_id"] == "D092"
