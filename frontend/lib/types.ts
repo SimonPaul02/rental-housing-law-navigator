@@ -264,6 +264,21 @@ export interface Health {
   auth_required: boolean;
 }
 
+/** `/api/meta`: the vocabularies the API is built on, so the frontend renders
+ *  filters and scope from the server's own lists rather than a second copy of
+ *  them that can drift. Public, like `/health` — it names no row. */
+export interface Meta {
+  app: string;
+  default_as_of: string;
+  extraction_model: string;
+  categories: string[];
+  levels: string[];
+  statuses: string[];
+  results: string[];
+  roles: { role: Role; label: string }[];
+  disclaimer: string;
+}
+
 /* ----------------------------------------------------------------- accounts */
 
 export interface Account {

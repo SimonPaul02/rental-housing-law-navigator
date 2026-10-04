@@ -447,16 +447,6 @@ code:not(pre code) {
 --------------------------------------------------------------------------- */
 .display { font-family: var(--display); letter-spacing: -0.02em; }
 
-/* The one oversized heading in the app, on the front door. */
-.hero-title {
-  font-family: var(--display);
-  font-size: var(--step-3);
-  font-weight: 450;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-  color: var(--deep);
-}
-
 .auth-shell { display: flex; flex-direction: column; gap: 14px; }
 
 /* "or" rule with a line either side. */
@@ -643,68 +633,246 @@ select.field::-ms-expand { display: none; }
   .fieldlist > div { grid-template-columns: minmax(0, 1fr); gap: 3px; }
 }
 
-/* ------------------------------------------------- published demo accounts */
-.demo-grid {
+/* ---------------------------------------------------------------------------
+   The front door.
+
+   The one page with nothing signed in behind it, so the only one that has to
+   introduce the thing. Three movements and no more: what the navigator
+   answers, the way in, and the four apps it can let you into.
+
+   It is also the only page that uses --step-4. Every other heading in the app
+   sits at --step-3 or below, which is what makes one oversized line read as
+   the front of the product rather than as a page that shouts.
+--------------------------------------------------------------------------- */
+.front { display: grid; gap: 74px; padding-top: 14px; }
+
+.front-hero {
   display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.18fr) minmax(320px, 392px);
+  gap: 68px;
+  align-items: start;
+}
+
+.front-title {
+  font-family: var(--display);
+  font-size: var(--step-4);
+  font-weight: 450;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  color: var(--deep);
+}
+/* The two clauses that are the whole question - which building, and when.
+   Not italic: Manrope ships no italic here, and a colour shift says the same
+   thing without the browser synthesising a slant. */
+.front-title em { font-style: normal; color: var(--evergreen); }
+
+.front-lede {
+  margin-top: 22px;
+  max-width: 46ch;
+  font-size: var(--step-1);
+  line-height: 1.5;
+  color: var(--slate);
+}
+
+.front-scope { margin-top: 38px; }
+.front-scope-label {
+  font-family: var(--display);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ai);
+  margin-bottom: 12px;
+}
+
+/* The obligation categories, as the API lists them. Not controls - nothing
+   here filters anything - so they are deliberately not `.chip`, which carries
+   a pressed state and an affordance these must not borrow. */
+.front-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.front-chips li {
+  padding: 6px 13px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 100px;
+  background: #ffffff5c;
+  font-size: 12.5px;
+  color: var(--accent-ink);
+  box-shadow: 0 7px 18px -14px #243e5673;
+}
+
+.front-note {
+  margin-top: 20px;
+  max-width: 54ch;
+  font-size: var(--step--1);
+  line-height: 1.6;
+  color: var(--faint);
+}
+
+.front-auth { padding: 26px 28px 28px; }
+.front-auth h2 { font-size: var(--step-1); font-weight: 600; letter-spacing: -0.02em; }
+.front-auth-lede {
+  margin-top: 5px;
+  margin-bottom: 20px;
+  font-size: var(--step--1);
+  color: var(--slate);
+}
+
+.front-section-head { margin-bottom: 22px; }
+.front-section-head h2 {
+  font-family: var(--display);
+  font-size: var(--step-2);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  color: var(--deep);
+}
+.front-section-head p {
+  margin-top: 11px;
+  max-width: 76ch;
+  font-size: var(--step--1);
+  line-height: 1.65;
+  color: var(--slate);
+}
+
+.front-fine {
+  margin-top: 24px;
+  max-width: 82ch;
+  font-size: var(--step--1);
+  line-height: 1.65;
+  color: var(--faint);
+}
+
+.front-notices { display: grid; gap: 12px; }
+
+@media (max-width: 1000px) {
+  .front { gap: 58px; }
+  .front-hero { grid-template-columns: minmax(0, 1fr); gap: 34px; }
+}
+
+/* ------------------------------------------- the four apps, and the way in */
+/* One tile per role: it names the app, says how many addresses that app is
+   about, and is the button that signs in as it. Four surfaces on the mesh
+   rather than four panels inside one card, because the four are the subject
+   of this section and not a list within something else. */
+.role-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 1080px) {
+  .role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
-  .demo-grid { grid-template-columns: minmax(0, 1fr); }
+  .role-grid { grid-template-columns: minmax(0, 1fr); }
 }
-.demo-card {
+
+.role-tile {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 13px 15px;
+  align-items: stretch;
   text-align: left;
-  border: 1px solid #7a98a733;
-  border-radius: 12px;
-  background: #ffffff5c;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  padding: 15px 17px 17px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 20px;
+  background: var(--glass);
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(24px) saturate(142%);
+  -webkit-backdrop-filter: blur(24px) saturate(142%);
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
-.demo-card:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: #ffffff9e;
-  transform: translateY(-1px);
+button.role-tile { cursor: pointer; }
+button.role-tile:hover:not(:disabled) {
+  transform: translateY(-3px);
+  background: var(--glass-strong);
+  box-shadow:
+    0 30px 56px -28px #243e5661,
+    inset 0 1px 0 #ffffffed,
+    inset 0 -1px 0 #ffffff9c;
 }
-.demo-card:disabled { opacity: 0.55; cursor: default; }
-.demo-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-/* The plate of the view this button leads to. Full bleed inside the card's
-   padding and 4:1, so four of them stack without pushing the credentials out
-   of sight; the drop shadow lifts on hover with the card rather than the art
-   moving on its own. */
+button.role-tile:not(:disabled):active { transform: translateY(-1px); }
+/* While one is signing in the other three step back, and the one being signed
+   in as does not - it is the only tile still saying anything. */
+button.role-tile:disabled { cursor: default; opacity: 0.45; }
+button.role-tile.busy:disabled { opacity: 1; }
+.role-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* The plate of the view this tile leads to. Full bleed inside the padding and
+   4:1, so four of them stack without pushing the credentials out of sight;
+   the drop shadow lifts with the tile rather than the art moving on its own. */
 .role-art {
   display: block;
   width: 100%;
   height: auto;
-  margin-bottom: 9px;
+  margin-bottom: 13px;
   filter: drop-shadow(0 4px 10px #243e5614);
-  transition: filter 0.15s ease;
+  transition: filter 180ms ease;
 }
-.demo-card:hover:not(:disabled) .role-art {
-  filter: drop-shadow(0 7px 16px #243e5626);
+button.role-tile:hover:not(:disabled) .role-art {
+  filter: drop-shadow(0 8px 18px #243e5629);
 }
 
-.demo-role {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 13.5px;
+.role-kind {
+  font-family: var(--display);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ai);
+}
+.role-name {
+  margin-top: 6px;
+  font-family: var(--display);
+  font-size: 1.0625rem;
   font-weight: 600;
-  color: var(--ink-strong);
+  letter-spacing: -0.02em;
+  color: var(--deep);
 }
-.demo-tagline {
-  font-size: 11.5px;
-  line-height: 1.45;
-  color: var(--muted);
-  margin-bottom: 4px;
+.role-line {
+  margin-top: 7px;
+  margin-bottom: 16px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--slate);
 }
-.demo-cred {
+
+.role-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 13px;
+  border-top: 1px solid #65808722;
+}
+.role-creds { display: grid; gap: 2px; min-width: 0; }
+.role-creds span {
   font-size: 10.5px;
+  line-height: 1.4;
   color: var(--faint);
   overflow-wrap: anywhere;
+}
+.role-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 29px;
+  height: 29px;
+  border-radius: 50%;
+  border: 1px solid #6580873d;
+  background: #ffffff5e;
+  color: var(--accent);
+  transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+button.role-tile:hover:not(:disabled) .role-go {
+  background: linear-gradient(150deg, #44706a, #294c45);
+  border-color: transparent;
+  color: #fff;
 }
 
 /* ---------------------------------------------------------------------------
