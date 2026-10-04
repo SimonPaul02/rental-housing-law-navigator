@@ -7,18 +7,22 @@ test_rule_evaluation.py, so the path under test is the one the API takes.
 from __future__ import annotations
 
 import datetime as dt
+import json
 from dataclasses import replace
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from app.core.config import settings
 from app.db.models import Address, AddressJurisdiction, Document, Rule
+from app.modules.address_lookup.rule_adapter.classify import STRUCTURED_COVERAGE, classify
 from app.modules.address_lookup.rule_adapter.compiler import (
     candidate_dates,
     compile_rule,
     enactment_offset,
     parse_effective_date,
+    split_clauses,
 )
 from app.modules.address_lookup.rule_adapter.models import (
     Atom,
@@ -423,3 +427,162 @@ def test_the_rolling_fifteen_year_test_is_unknown_only_when_the_line_falls_in_th
     assert built(2015) is Ternary.true  # the line is 2011-10-01
     assert built(2011) is Ternary.unknown
     assert built(2000) is Ternary.false
+
+
+# -- splitting and classifying clauses -----------------------------------------
+FIXTURE = Path(__file__).parent / "fixtures" / "clause_readings.json"
+
+
+def _reading_json(reading) -> dict:
+    if reading is None:
+        return {"kind": None}
+    out = {"kind": "unresolved" if reading.unresolved else reading.kind}
+    if reading.atoms:
+        out["atoms"] = [
+            [str(f), str(o), v.isoformat() if isinstance(v, dt.date) else v]
+            for f, o, v in reading.atoms
+        ]
+        if reading.alternatives:
+            out["alternatives"] = True
+        if reading.as_exemption:
+            out["as_exemption"] = True
+    return out
+
+
+def test_every_real_clause_reads_as_reviewed():
+    """The 115-rule snapshot, clause by clause. A failure here is a change in
+    what the system says about real law - review it, then regenerate."""
+    rules = json.loads(FIXTURE.read_text(encoding="utf-8"))["rules"]
+    for rule in rules:
+        record = SimpleNamespace(**rule)
+        got = []
+        for origin, text in (
+            (Origin.coverage, rule["coverage_conditions"]),
+            (Origin.exemption, rule["exemptions"]),
+        ):
+            if not isinstance(text, str) or not text.strip():
+                continue
+            if origin is Origin.coverage and STRUCTURED_COVERAGE.search(text):
+                got.append({"origin": "coverage", "clause": None, "kind": "structured"})
+                continue
+            for clause in split_clauses(text, alternatives=origin is Origin.exemption):
+                reading = _reading_json(classify(clause, origin, record))
+                got.append({"origin": origin.value, "clause": clause, **reading})
+        assert got == rule["readings"], rule["team_rule_id"]
+
+
+@pytest.mark.parametrize(
+    "text,alternatives,parts",
+    [
+        ("Applies to any 'person' (as defined in Bus. & Prof. Code Section 16700)", True, 1),
+        ("Advance payment when the lease term is six months or longer", True, 1),
+        ("units where the tenant shares a bathroom or kitchen with an owner-occupant", True, 1),
+        ("tenancies of 100 days or less (subsec. 9); Hotels", True, 2),
+        ("exempt if not owned by a trust, corporation, or LLC with a corporate member", True, 1),
+        ("Transient hotels; dormitories. Owner-occupied duplexes or K-12 schools", True, 4),
+        (
+            "Residential rental property; buildings with 5 or more units, and built before 1980",
+            False,
+            3,
+        ),
+    ],
+)
+def test_clauses_split_where_the_list_does_and_nowhere_else(text, alternatives, parts):
+    assert len(split_clauses(text, alternatives=alternatives)) == parts
+
+
+CA = SimpleNamespace(level="state", jurisdiction="CA")
+NJ = SimpleNamespace(level="state", jurisdiction="NJ")
+LA = SimpleNamespace(level="city", jurisdiction="Los Angeles, CA")
+BERKELEY = SimpleNamespace(level="city", jurisdiction="Berkeley, CA")
+
+
+@pytest.mark.parametrize(
+    "clause,origin,record,kind",
+    [
+        # Contingencies and borrowed coverage are never cleared.
+        (
+            "Applies only if and when the executive office promulgates implementing regulations",
+            Origin.coverage,
+            CA,
+            "unresolved",
+        ),
+        ("Residential rental property subject to the Division", Origin.coverage, CA, "unresolved"),
+        ("Properties exempt under § 98.0703", Origin.exemption, CA, "unresolved"),
+        # A building condition the source does not state verbatim stays open.
+        ("5 or more units", Origin.coverage, CA, "unresolved"),
+        # Its subject is the building's history, not an example of scope.
+        (
+            "All tenants in a building converted to condominium, cooperative or fee simple",
+            Origin.coverage,
+            NJ,
+            "unresolved",
+        ),
+        # A transaction that mentions a covenant is not a subsidy exemption.
+        (
+            "Resident manager occupancy evictions are allowed only if required by law or an "
+            "affordable housing covenant",
+            Origin.coverage,
+            LA,
+            "transaction",
+        ),
+        # Qualifiers in an exemption list exempt nothing themselves.
+        (
+            "Newly constructed multiple dwellings are exempt from local rent control for 30 years",
+            Origin.exemption,
+            NJ,
+            "qualifier",
+        ),
+        (
+            "That exemption does not apply where there is more than one unit",
+            Origin.exemption,
+            CA,
+            "qualifier",
+        ),
+        # "the Rent Ordinance" is a different law in each city.
+        ("Exempt units under the Rent Ordinance", Origin.exemption, BERKELEY, "unresolved"),
+        # A state rule standing aside for local rent control is precedence.
+        (
+            "Units subject to the City's RSO are also not covered",
+            Origin.exemption,
+            CA,
+            "local_deference",
+        ),
+        ("Rental dwelling units offered by a housing provider", Origin.coverage, NJ, "scope"),
+    ],
+)
+def test_known_traps_read_safely(clause, origin, record, kind):
+    reading = classify(clause, origin, record)
+    assert (reading.kind if not reading.unresolved else "unresolved") == kind
+
+
+def test_an_owner_exemption_is_bounded_by_the_size_the_text_gives():
+    reading = classify(
+        "Dwelling units in owner-occupied premises of not more than four dwelling units",
+        Origin.exemption,
+        NJ,
+    )
+    assert reading.atoms == ((Field.owner_occupied, Op.is_true, None), (Field.units, Op.lte, 4))
+
+
+def test_a_review_whose_clause_text_has_moved_no_longer_applies(tmp_path):
+    source = "Rental dwelling units offered by a housing provider"
+    record = make_rule(body=source, coverage_conditions=source, jurisdiction="NJ")
+    compiled = compile_rule(record, source_text=source)[0]
+    store = ReviewStore(tmp_path / "compiled.json")
+    store.review_coverage(
+        compiled,
+        source_text=source,
+        reviewer="Alex",
+        rationale="Program scope only",
+        resolved_clause_ids=["c1"],
+        coverage_basis="explicit_unconditional",
+        scope_evidence_span=source,
+    )
+    assert store.apply_reviews(compiled).review_state is ReviewState.human_approved
+
+    review = store.reviews["r-0001"]
+    review["resolved_clauses"] = [{"clause_id": "c1", "text": "Something else entirely"}]
+    drifted = store.apply_reviews(compile_rule(record, source_text=source)[0])
+    assert drifted.review_state is ReviewState.needs_review
+    assert any("no longer matches" in n for n in drifted.notes)

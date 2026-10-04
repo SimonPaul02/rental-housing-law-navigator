@@ -1,16 +1,26 @@
 """Translate cited prose into the compiled form, once per rule version.
 
-The compiler is deterministic first and asks a model only for what is left.
-That ordering is not only about cost: a regex that matches "2 or fewer units"
-is replayable and reviewable, and most of this corpus' coverage text is that
-shape. What remains - nested exceptions, undefined terms, conditions that
-depend on a fact nobody supplied - is where a proposal earns its keep, and
-exactly where a reviewer should be looking.
+Each coverage and exemption clause gets at most two readings.
 
-The rule that makes the whole thing safe: text the compiler cannot represent
-goes into `unmapped_text`, and a rule with unmapped text is `needs_review`.
-The evaluator answers `unknown` for any address whose result depends on it. No
-path exists from "I did not understand this clause" to "the rule applies".
+The strict reading accepts a simple condition ("5 or more units") only when
+the source states that whole sentence word for word. What it accepts is
+source-verified: an answer resting only on such readings is high confidence.
+
+Module A writes paraphrases, so the strict reading rarely fires. The second
+reading (classify.py) is a fixed table of the shapes this corpus uses: a
+condition on a fact the evaluator can test, a clause that names who or what
+is regulated rather than which buildings, or nothing. Everything it settles
+is marked as the machine's own reading - atoms carry `Basis.machine_read`,
+set-aside clauses are kept in `classified` with their rationale, the rule is
+`machine_classified` - so the answers it supports are low confidence and the
+rule stays in the review queue.
+
+What neither reading represents goes into `unmapped_text`, the rule is
+`needs_review`, and the evaluator answers `unknown` for any address whose
+result depends on it. Cross-references to another provision, contingencies,
+and building conditions the source does not state verbatim always land
+there: no path leads from "the source does not say this" to "applies" without
+the answer saying so.
 """
 
 from __future__ import annotations
@@ -21,9 +31,12 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from app.modules.address_lookup.rule_adapter.classify import SCOPE, STRUCTURED_COVERAGE, classify
 from app.modules.address_lookup.rule_adapter.models import (
     COMPILER_VERSION,
     Atom,
+    Basis,
+    ClassifiedClause,
     CompiledRule,
     CoverageBasis,
     EffectiveDate,
@@ -54,18 +67,60 @@ from app.modules.address_lookup.rule_adapter.models import (
 # "low- or moderate-income households" - splitting there produces fragments
 # ("Units deed-", "regulatory-restricted for low-") that mean nothing and
 # cannot be reviewed.
-_PROTECTED_OR = r"(?<!on )(?<!- )\bor\b(?!\s+(?:fewer|less|more|greater|above|before|after|on))"
-_ALTERNATIVE_SPLIT = re.compile(rf"\s*(?:;|{_PROTECTED_OR}|\.\s+)\s*", re.I)
+# Comparatives are protected the same way ("six months or longer", "15 years
+# or older"), as is "and/or". Separators inside parentheses never split:
+# "(subsec. 9)" and "(as defined in Bus. & Prof. Code Section 16700)" are
+# one clause's qualifier, not new clauses. Nor does a full stop after a legal
+# abbreviation end a sentence.
+_COMPARATIVE = (
+    r"fewer|less|more|greater|above|before|after|on|longer|shorter|older|newer|"
+    r"later|earlier|over|under|higher|lower"
+)
+_PROTECTED_OR = rf"(?<!\bon )(?<!- )(?<!/)\bor\b(?!\s+(?:{_COMPARATIVE})\b)"
+_BARE_OR = re.compile(_PROTECTED_OR, re.I)
+#: In an exemption list an "or" separates alternatives only before a capital
+#: or a digit. Before a lower-case word it joins two halves of one phrase -
+#: "shares a kitchen or bath", "a product or service", "a government agency or
+#: court" - and splitting there leaves fragments that mean nothing alone.
+_ALTERNATIVE_SEPARATOR = re.compile(rf";|\.\s+(?=[A-Z(])|{_PROTECTED_OR}(?=\s+[A-Z0-9])")
 #: Coverage is a conjunction, so it is split only on separators that really do
 #: join requirements. A leftover "or" inside a coverage clause is an ambiguity,
 #: not a separator, and is sent to review rather than silently ANDed.
-_REQUIREMENT_SPLIT = re.compile(r"\s*(?:;|,\s*and\b|\.\s+)\s*", re.I)
-_BARE_OR = re.compile(_PROTECTED_OR, re.I)
+_REQUIREMENT_SEPARATOR = re.compile(r";|,\s*and\b|\.\s+(?=[A-Z(])", re.I)
+_ABBREVIATION = re.compile(
+    r"(?:\b(?:Bus|Prof|Civ|Gov|Govt|Code|Cal|Ann|Rev|Stat|Stats|subd|subdiv|subsec|sec|secs|"
+    r"para|par|art|ch|cl|no|nos|pt|vol|approx|etc|inc|co|st|ave|vs|v|e\.g|i\.e)"
+    r"|\b[A-Z](?:\.[A-Z])*)\.$",
+    re.I,
+)
+#: In an exemption list, an "or" after one of these joins a negated list ("if
+#: not owned by a trust, corporation, or LLC") and must not become a branch.
+_NEGATION = re.compile(r"\b(?:not|unless|except|other than)\b", re.I)
 
 
 def split_clauses(text: str, *, alternatives: bool = True) -> list[str]:
-    pattern = _ALTERNATIVE_SPLIT if alternatives else _REQUIREMENT_SPLIT
-    return [part.strip(" .,;") for part in pattern.split(text) if part.strip(" .,;")]
+    separators = _ALTERNATIVE_SEPARATOR if alternatives else _REQUIREMENT_SEPARATOR
+    depth, depths = 0, []
+    for ch in text:
+        depth += ch in "(["
+        depth -= ch in ")]" and depth > 0
+        depths.append(depth)
+
+    parts: list[str] = []
+    start = 0
+    for m in separators.finditer(text):
+        if depths[m.start()] or m.start() < start:
+            continue
+        piece = text[start : m.start()]
+        token = m.group(0)
+        if token.startswith(".") and _ABBREVIATION.search(text[: m.start() + 1]):
+            continue
+        if token.casefold() == "or" and _NEGATION.search(piece):
+            continue
+        parts.append(piece)
+        start = m.end()
+    parts.append(text[start:])
+    return [part.strip(" .,;") for part in parts if part.strip(" .,;")]
 
 
 def _anchor(
@@ -228,98 +283,159 @@ def compile_expression(
     record: Any,
     prefix: str,
     source_text: str | None = None,
-) -> tuple[Expr, list[UnmappedClause]]:
+) -> tuple[Expr, list[UnmappedClause], list[ClassifiedClause], list[Atom | Expr]]:
     """Compile coverage or exemption prose.
 
     Coverage is a conjunction of its clauses. Exemptions are a disjunction of
     clauses, each a conjunction of its own conditions.
+
+    Each clause is read twice at most. First strictly: a simple condition the
+    source states word for word becomes a source-verified atom. Failing that,
+    the classifier's reading (classify.py) - an atom marked `machine_read`, a
+    clause set aside as stating no building condition, or nothing, in which
+    case the clause stays unmapped and its answer unknown.
+
+    Returns (expression, unmapped, classified, moved): `moved` holds exemption
+    alternatives that coverage prose stated as exclusions ("is exempt").
     """
     kind = "all" if origin is Origin.coverage else "any"
     if text is None or (isinstance(text, str) and not text.strip()):
-        return Expr(kind, ()), []
+        return Expr(kind, ()), [], [], []
     if isinstance(text, dict):
         text = "; ".join(f"{k}: {v}" for k, v in text.items())
-    if _is_unconditional(text):
-        if origin is Origin.coverage and _source_standalone(source_text, text):
-            return Expr(kind, ()), []
-        return Expr(kind, ()), [
-            UnmappedClause(
-                text,
-                origin,
-                "unconditional scope requires source verification or human review",
-                f"{prefix}1",
-                source_span=_source_context(source_text, text),
-                source_doc_id=getattr(record, "source_doc_id", None),
-                source_hash=content_hash(source_text),
-            )
-        ]
+    doc_id, source_hash = getattr(record, "source_doc_id", None), content_hash(source_text)
 
-    children: list[Atom | Expr] = []
-    unmapped: list[UnmappedClause] = []
+    def unmapped_clause(clause: str, reason: str, clause_id: str) -> UnmappedClause:
+        return UnmappedClause(
+            clause[:400],
+            origin,
+            reason,
+            clause_id,
+            source_span=_source_context(source_text, clause),
+            source_doc_id=doc_id,
+            source_hash=source_hash,
+        )
+
+    def classified_clause(clause: str, kind_: str, rationale: str, clause_id: str):
+        return ClassifiedClause(
+            clause[:400], origin, clause_id, kind_, rationale, _source_context(source_text, clause)
+        )
 
     is_coverage = origin is Origin.coverage
+    if _is_unconditional(text):
+        if is_coverage and _source_standalone(source_text, text):
+            return Expr(kind, ()), [], [], []
+        return (
+            Expr(kind, ()),
+            [],
+            [classified_clause(text, SCOPE, "states no condition on the building", f"{prefix}1")],
+            [],
+        )
+    if is_coverage and STRUCTURED_COVERAGE.search(text):
+        return (
+            Expr(kind, ()),
+            [
+                unmapped_clause(
+                    text,
+                    "coverage lists covered and uncovered categories; its structure needs review",
+                    f"{prefix}1",
+                )
+            ],
+            [],
+            [],
+        )
+
+    children: list[Atom | Expr] = []
+    moved: list[Atom | Expr] = []
+    unmapped: list[UnmappedClause] = []
+    classified: list[ClassifiedClause] = []
     for n, clause in enumerate(split_clauses(text, alternatives=not is_coverage), start=1):
         clause_id = f"{prefix}{n}"
         if _is_unconditional(clause):
-            unmapped.append(
-                UnmappedClause(
-                    clause,
-                    origin,
-                    "scope clause requires review",
-                    clause_id,
-                    source_span=_source_context(source_text, clause),
-                    source_doc_id=getattr(record, "source_doc_id", None),
-                    source_hash=content_hash(source_text),
-                )
+            classified.append(
+                classified_clause(clause, SCOPE, "states no condition on the building", clause_id)
             )
             continue
-        # A coverage clause that still contains a disjunction cannot be made a
-        # conjunct without changing its meaning, so it goes to review.
-        if is_coverage and _BARE_OR.search(clause):
-            unmapped.append(
-                UnmappedClause(
-                    text=clause[:400],
-                    origin=origin,
-                    reason="coverage clause contains a disjunction; AND/OR structure needs review",
-                    clause_id=clause_id,
-                    source_span=_source_context(source_text, clause),
-                    source_doc_id=getattr(record, "source_doc_id", None),
-                    source_hash=content_hash(source_text),
-                )
-            )
-            continue
-        verified = verify_simple(clause) if _source_standalone(source_text, clause) else None
-        if verified is None:
-            unmapped.append(
-                UnmappedClause(
-                    text=clause[:400],
-                    origin=origin,
-                    reason="no complete, independently verified condition in the source document",
-                    clause_id=clause_id,
-                    source_span=_source_context(source_text, clause),
-                    source_doc_id=getattr(record, "source_doc_id", None),
-                    source_hash=content_hash(source_text),
-                )
-            )
-            continue
-        field, op, value = verified
-        atoms = [
-            Atom(
+        disjunctive = is_coverage and bool(_BARE_OR.search(clause))
+
+        # The strict reading: a simple condition the source states verbatim.
+        verified = (
+            verify_simple(clause)
+            if not disjunctive and _source_standalone(source_text, clause)
+            else None
+        )
+        if verified is not None:
+            field, op, value = verified
+            atom = Atom(
                 f"{clause_id}.1",
                 field,
                 op,
                 value,
-                _anchor(clause, record, clause_id, origin, content_hash(source_text)),
+                _anchor(clause, record, clause_id, origin, source_hash),
             )
-        ]
-        if origin is Origin.coverage:
+            children.append(atom)
+            continue
+
+        # The machine's own reading, low confidence by construction.
+        reading = classify(clause, origin, record)
+        if reading is None or reading.unresolved:
+            unmapped.append(
+                unmapped_clause(
+                    clause,
+                    reading.unresolved
+                    if reading
+                    else "coverage clause contains a disjunction; AND/OR structure needs review"
+                    if disjunctive
+                    else "no complete, independently verified condition in the source document",
+                    clause_id,
+                )
+            )
+            continue
+        if not reading.atoms:
+            classified.append(classified_clause(clause, reading.kind, reading.rationale, clause_id))
+            continue
+        # An "or" among owner facts ("a natural person or an LLC of natural
+        # persons") cannot change an answer the data can reach: those facts are
+        # never supplied, and only the unit bound beside them is ever definite.
+        owner_only = all(field in _OWNER_FIELDS for field, _, _ in reading.atoms)
+        if disjunctive and not reading.alternatives and not reading.as_exemption and not owner_only:
+            unmapped.append(
+                unmapped_clause(
+                    clause,
+                    "coverage clause contains a disjunction; AND/OR structure needs review",
+                    clause_id,
+                )
+            )
+            continue
+        target = Origin.exemption if reading.as_exemption else origin
+        atoms = tuple(
+            Atom(
+                f"{clause_id}.{i}",
+                field,
+                op,
+                value,
+                _anchor(clause, record, clause_id, target, source_hash),
+                note=reading.rationale,
+                basis=Basis.machine_read,
+            )
+            for i, (field, op, value) in enumerate(reading.atoms, start=1)
+        )
+        for atom in atoms:
+            validate_atom(atom)
+        piece: Atom | Expr = (
+            atoms[0] if len(atoms) == 1 else Expr("any" if reading.alternatives else "all", atoms)
+        )
+        if reading.as_exemption:
+            moved.append(piece)
+        elif is_coverage and not reading.alternatives:
             children.extend(atoms)
         else:
-            # One exemption clause is an AND of its own conditions, and the
-            # clauses are alternatives.
-            children.append(Expr("all", tuple(atoms)) if len(atoms) > 1 else atoms[0])
+            children.append(piece)
 
-    return Expr(kind, tuple(children)), unmapped
+    return Expr(kind, tuple(children)), unmapped, classified, moved
+
+
+_OWNER_FIELDS = {Field.owner_unit_count, Field.owner_is_natural_person, Field.owner_occupied}
 
 
 # ------------------------------------------------------------------- dates ---
@@ -781,13 +897,34 @@ def compile_rule(
 ):
     """Compile one Module A record. Returns (CompiledRule, relations)."""
     known = known_rule_ids or set()
-    coverage, cover_unmapped = compile_expression(
+    coverage, cover_unmapped, cover_classified, moved = compile_expression(
         getattr(record, "coverage_conditions", None), Origin.coverage, record, "c", source_text
     )
-    exemptions, exempt_unmapped = compile_expression(
+    exemptions, exempt_unmapped, exempt_classified, _ = compile_expression(
         getattr(record, "exemptions", None), Origin.exemption, record, "x", source_text
     )
+    exemptions = Expr("any", (*exemptions.children, *moved))
     relations, relation_unmapped = compile_relations(record, known, peers)
+    # An interaction naming no rule that exists in this run has nothing to
+    # displace or be displaced by, so it cannot change an answer: noted, not
+    # left blocking the rule.
+    classified = [*cover_classified, *exempt_classified]
+    for clause in relation_unmapped:
+        if clause.reason.startswith("states an interaction but no rule in this run"):
+            classified.append(
+                ClassifiedClause(
+                    clause.text,
+                    Origin.interaction,
+                    "i1",
+                    "interaction",
+                    "names an interaction with no counterpart rule in this corpus",
+                )
+            )
+    relation_unmapped = [
+        c
+        for c in relation_unmapped
+        if not c.reason.startswith("states an interaction but no rule in this run")
+    ]
     dates, date_notes, date_unresolved, value_period, unverified = candidate_dates(
         record, source_text
     )
@@ -813,12 +950,20 @@ def compile_rule(
         and _is_unconditional(raw_coverage)
         and _source_standalone(source_text, raw_coverage)
     )
+    covered_by_reading = any(c.origin is Origin.coverage for c in classified) and not any(
+        u.origin is Origin.coverage for u in unmapped
+    )
     basis = (
         CoverageBasis.explicit_unconditional
         if unconditional
         else CoverageBasis.conditions
         if not coverage.is_empty
+        else CoverageBasis.classified
+        if covered_by_reading
         else CoverageBasis.unresolved
+    )
+    machine_read = bool(classified) or any(
+        a.basis is Basis.machine_read for a in (*coverage.atoms(), *exemptions.atoms())
     )
     compiled = CompiledRule(
         team_rule_id=getattr(record, "team_rule_id", ""),
@@ -826,6 +971,8 @@ def compile_rule(
         compiler_version=COMPILER_VERSION,
         review_state=ReviewState.needs_review
         if unmapped or basis is CoverageBasis.unresolved
+        else ReviewState.machine_classified
+        if machine_read
         else ReviewState.machine_verified,
         coverage_basis=basis,
         source_hash=content_hash(source_text),
@@ -840,6 +987,7 @@ def compile_rule(
         coverage=coverage,
         exemptions=exemptions,
         unmapped_text=unmapped,
+        classified=tuple(classified),
         issue_key=issue_key_for(record),
         notes=tuple(notes),
     )

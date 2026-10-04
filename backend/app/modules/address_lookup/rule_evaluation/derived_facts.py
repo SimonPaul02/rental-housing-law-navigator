@@ -56,8 +56,12 @@ def property_type(description: str, use_code: str, state: str) -> FactValue:
         return FactValue()
     if _COOPERATIVE.search(description):
         return _fact("cooperative", quoted, PRESUMED)
-    if _APARTMENT.search(description) or (
-        state == "NJ" and use_code.upper() == _NJ_APARTMENT_CLASS
+    # Boston's "A/" codes are its apartment rows, as the challenge's own data
+    # notes say - "SUBSD HOUSING S- 8" and "LUXURY APARTMENT" alike.
+    if (
+        _APARTMENT.search(description)
+        or (state == "NJ" and use_code.upper() == _NJ_APARTMENT_CLASS)
+        or (state == "MA" and use_code.upper().startswith("A/"))
     ):
         return _fact("apartment_building", quoted, PRESUMED)
     return FactValue()
@@ -86,7 +90,7 @@ def derive(evidence: AddressEvidence, state: str) -> AddressEvidence:
     description = str(evidence.use_description.value or "") if evidence.use_description else ""
     use_code = str(evidence.use_code.value or "") if evidence.use_code.usable else ""
     kind = property_type(description, use_code, state)
-    is_building = kind.usable and kind.value == "apartment_building"
+    is_building = kind.usable and kind.value in ("apartment_building", "cooperative")
     quoted = f'parcel use description "{description}"'
 
     if _SUBSIDISED.search(description):

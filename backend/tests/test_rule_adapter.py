@@ -16,6 +16,8 @@ import pytest
 from app.modules.address_lookup.rule_adapter import compiler
 from app.modules.address_lookup.rule_adapter.models import (
     Atom,
+    Basis,
+    CoverageBasis,
     Field,
     InvalidCompilation,
     Op,
@@ -87,9 +89,15 @@ def test_an_exemption_list_stays_a_disjunction():
         exemptions="Owner-occupied premises with 2 or fewer units; seasonal rentals"
     )
     assert rule.exemptions.kind == "any"
-    assert rule.exemptions.is_empty
-    assert len(rule.unmapped_text) == 2
-    assert {u.origin for u in rule.unmapped_text} == {Origin.exemption}
+    owner, seasonal = rule.exemptions.children
+    assert owner.kind == "all"
+    assert [(a.field, a.op, a.value) for a in owner.children] == [
+        (Field.owner_occupied, Op.is_true, None),
+        (Field.units, Op.lte, 2),
+    ]
+    assert (seasonal.field, seasonal.op) == (Field.seasonal_rental, Op.is_true)
+    # Read by the machine, not verified against the source: low confidence.
+    assert all(a.basis is Basis.machine_read for a in rule.exemptions.atoms())
 
 
 def test_unconditional_prose_is_not_an_unmapped_clause():
@@ -311,7 +319,14 @@ def test_issue_key_is_narrower_than_category():
 def test_a_scope_only_clause_can_be_cleared_but_only_with_a_real_span():
     """The one verdict that can turn an unknown into an applies, so it is the
     one that most needs its span checked."""
-    record = FakeRule(coverage_conditions="Rental dwelling units offered by a housing provider")
+    # A clause the deterministic reader knows is set aside on its own reading.
+    known = FakeRule(coverage_conditions="Rental dwelling units offered by a housing provider")
+    rule, _ = compiler.compile_rule(known)
+    assert not rule.has_unmapped and rule.review_state is ReviewState.machine_classified
+    assert rule.classified[0].kind == "scope"
+
+    # One it does not know stays unmapped, and only a real span earns an AI note.
+    record = FakeRule(coverage_conditions="Premises in designated districts")
     rule, _ = compiler.compile_rule(record)
     assert rule.has_unmapped
 
@@ -320,7 +335,7 @@ def test_a_scope_only_clause_can_be_cleared_but_only_with_a_real_span():
             {
                 "text": rule.unmapped_text[0].text,
                 "verdict": "no_building_condition",
-                "source_span": "Rental dwelling units offered by a housing provider",
+                "source_span": "Premises in designated districts",
                 "atoms": [],
             }
         ]
@@ -335,7 +350,7 @@ def test_a_scope_only_clause_can_be_cleared_but_only_with_a_real_span():
     )
     assert len(unmapped) == 1
     assert coverage.is_empty
-    assert scope and "housing provider" in scope[0]
+    assert scope and "designated districts" in scope[0]
 
     invented = {
         "clauses": [
@@ -353,20 +368,11 @@ def test_a_scope_only_clause_can_be_cleared_but_only_with_a_real_span():
     assert len(still) == 1, "a span that does not occur leaves the clause unmapped"
 
 
-def test_a_cleared_clause_is_recorded_in_the_rules_notes():
+def test_a_set_aside_clause_is_kept_with_its_reason_and_stays_low_confidence():
     record = FakeRule(coverage_conditions="Tenancies under California law")
-    rule, _ = compiler.compile_rule(
-        record,
-        proposal={
-            "clauses": [
-                {
-                    "text": "Tenancies under California law",
-                    "verdict": "no_building_condition",
-                    "source_span": "Tenancies under California law",
-                    "atoms": [],
-                }
-            ]
-        },
-    )
-    assert rule.has_unmapped
-    assert rule.review_state is ReviewState.needs_review
+    rule, _ = compiler.compile_rule(record)
+    assert not rule.has_unmapped
+    assert rule.coverage_basis is CoverageBasis.classified
+    assert rule.review_state is ReviewState.machine_classified  # never machine_verified
+    [clause] = rule.classified
+    assert clause.text == "Tenancies under California law" and clause.rationale

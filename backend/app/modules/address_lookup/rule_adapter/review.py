@@ -197,6 +197,38 @@ def relation_from_json(payload: dict) -> Relation:
     )
 
 
+def _normal(text: str) -> str:
+    return " ".join(text.split()).casefold()
+
+
+def reviewable_clauses(compiled: CompiledRule) -> dict[str, tuple[str, Origin]]:
+    """Every clause a reviewer may resolve: unmapped, classified, or read by
+    the machine into an atom - by clause id, with its text and origin."""
+    found: dict[str, tuple[str, Origin]] = {
+        c.clause_id: (c.text, c.origin)
+        for c in (*compiled.unmapped_text, *compiled.classified)
+        if c.origin in (Origin.coverage, Origin.exemption)
+    }
+    for atom in (*compiled.coverage.atoms(), *compiled.exemptions.atoms()):
+        if atom.basis is Basis.machine_read and atom.anchor and atom.anchor.clause_id:
+            origin = Origin.coverage if atom.anchor.clause_id.startswith("c") else Origin.exemption
+            found.setdefault(atom.anchor.clause_id, (atom.anchor.source_span, origin))
+    return found
+
+
+def _drifted_clauses(compiled: CompiledRule, decision: dict) -> list[str]:
+    """Clause ids whose current text is not the text the review resolved."""
+    current = {clause_id: text for clause_id, (text, _) in reviewable_clauses(compiled).items()}
+    for atom in (*compiled.coverage.atoms(), *compiled.exemptions.atoms()):
+        if atom.anchor and atom.anchor.clause_id:
+            current.setdefault(atom.anchor.clause_id, atom.anchor.source_span)
+    return [
+        item["clause_id"]
+        for item in decision.get("resolved_clauses") or []
+        if _normal(current.get(item["clause_id"], "")) != _normal(item["text"])
+    ]
+
+
 # -------------------------------------------------------------------- store ---
 @dataclass
 class ReviewStore:
@@ -511,11 +543,8 @@ class ReviewStore:
                 "rationale": rationale,
             }
             return
-        available = {
-            u.clause_id
-            for u in compiled.unmapped_text
-            if u.origin in (Origin.coverage, Origin.exemption)
-        }
+        reviewable = reviewable_clauses(compiled)
+        available = set(reviewable)
         if (
             len(set(resolved_clause_ids)) != len(resolved_clause_ids)
             or not set(resolved_clause_ids) <= available
@@ -523,7 +552,20 @@ class ReviewStore:
             raise InvalidCompilation(
                 "resolved clause IDs must name current pending coverage or exemptions"
             )
-        parsed_coverage = expr_from_json(coverage) if coverage is not None else compiled.coverage
+        requested = CoverageBasis(coverage_basis) if coverage_basis else None
+        if requested is CoverageBasis.explicit_unconditional and any(
+            "rso" in text.casefold() for text, _ in reviewable.values()
+        ):
+            raise InvalidCompilation("RSO scope cannot be approved as unconditional coverage")
+        # An unconditional finding means no coverage condition at all - not the
+        # machine's reading carried over beneath a reviewer's name.
+        parsed_coverage = (
+            expr_from_json(coverage)
+            if coverage is not None
+            else Expr("all", ())
+            if requested is CoverageBasis.explicit_unconditional
+            else compiled.coverage
+        )
         parsed_exemptions = (
             expr_from_json(exemptions) if exemptions is not None else compiled.exemptions
         )
@@ -548,12 +590,14 @@ class ReviewStore:
         if not parsed_coverage.is_empty and basis is CoverageBasis.explicit_unconditional:
             raise InvalidCompilation("unconditional basis requires empty coverage")
         if parsed_coverage.is_empty and basis is CoverageBasis.explicit_unconditional:
-            if any("rso" in u.text.casefold() for u in compiled.unmapped_text):
+            if any("rso" in text.casefold() for text, _ in reviewable.values()):
                 raise InvalidCompilation("RSO scope cannot be approved as unconditional coverage")
             if not scope_evidence_span or not _source_contains(source_text, scope_evidence_span):
                 raise InvalidCompilation("unconditional scope needs a current source passage")
             coverage_ids = {
-                u.clause_id for u in compiled.unmapped_text if u.origin is Origin.coverage
+                clause_id
+                for clause_id, (_, origin) in reviewable.items()
+                if origin is Origin.coverage
             }
             if not coverage_ids <= set(resolved_clause_ids):
                 raise InvalidCompilation("all pending coverage clauses must be explicitly resolved")
@@ -567,6 +611,12 @@ class ReviewStore:
             "reviewed_at": dt.datetime.now(dt.UTC).isoformat(),
             "rationale": rationale,
             "resolved_clause_ids": resolved_clause_ids,
+            # The text each id named when reviewed, so a later change in how
+            # prose is split cannot quietly point this decision at another clause.
+            "resolved_clauses": [
+                {"clause_id": clause_id, "text": reviewable[clause_id][0]}
+                for clause_id in resolved_clause_ids
+            ],
             "coverage": parsed_coverage.to_json(),
             "exemptions": parsed_exemptions.to_json(),
             "coverage_basis": str(basis),
@@ -589,6 +639,11 @@ class ReviewStore:
         ):
             compiled.review_state = ReviewState.rejected
             compiled.notes = (*compiled.notes, f"rejected in review: {decision['rationale']}")
+        elif decision and decision.get("decision") == "hold" and decision.get("rationale"):
+            # A reviewer who held the rule for want of evidence outranks the
+            # machine's own reading of it.
+            compiled.review_state = ReviewState.needs_review
+            compiled.notes = (*compiled.notes, f"held in review: {decision['rationale']}")
         elif self._complete_approval(decision):
             try:
                 coverage = expr_from_json(decision["coverage"])
@@ -605,7 +660,10 @@ class ReviewStore:
                 if (
                     coverage.is_empty
                     and basis is CoverageBasis.explicit_unconditional
-                    and any("rso" in u.text.casefold() for u in compiled.unmapped_text)
+                    and any(
+                        "rso" in text.casefold()
+                        for text, _ in reviewable_clauses(compiled).values()
+                    )
                 ):
                     raise InvalidCompilation("RSO scope cannot be unconditional")
                 for atom in (*coverage.atoms(), *exemptions.atoms()):
@@ -619,6 +677,14 @@ class ReviewStore:
             except (InvalidCompilation, ValueError, KeyError, TypeError):
                 compiled.review_state = ReviewState.needs_review
                 return compiled
+            if drifted := _drifted_clauses(compiled, decision):
+                compiled.review_state = ReviewState.needs_review
+                compiled.notes = (
+                    *compiled.notes,
+                    "coverage review no longer matches the clause text it resolved: "
+                    + ", ".join(drifted),
+                )
+                return compiled
             compiled.coverage = coverage
             compiled.exemptions = exemptions
             compiled.coverage_basis = basis
@@ -626,11 +692,19 @@ class ReviewStore:
             compiled.unmapped_text = tuple(
                 u for u in compiled.unmapped_text if u.clause_id not in resolved
             )
-            compiled.review_state = (
-                ReviewState.human_approved
-                if not compiled.unmapped_text
+            compiled.classified = tuple(
+                c for c in compiled.classified if c.clause_id not in resolved
+            )
+            settled = (
+                not compiled.unmapped_text
                 and compiled.coverage_basis is not CoverageBasis.unresolved
-                else ReviewState.needs_review
+            )
+            compiled.review_state = (
+                ReviewState.needs_review
+                if not settled
+                else ReviewState.machine_classified
+                if compiled.classified
+                else ReviewState.human_approved
             )
             compiled.notes = (
                 *compiled.notes,

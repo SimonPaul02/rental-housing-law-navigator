@@ -898,6 +898,12 @@
       "resolved_clause_ids": [
         "c1"
       ],
+      "resolved_clauses": [
+        {
+          "clause_id": "c1",
+          "text": "Rental units subject to the City of Los Angeles Rent Stabilization Ordinance (RSO)"
+        }
+      ],
       "review_state": "human_approved",
       "reviewed_at": "2026-10-04T08:43:49.499049+00:00",
       "reviewer": "Paul",
@@ -931,6 +937,12 @@
       "resolved_clause_ids": [
         "c1"
       ],
+      "resolved_clauses": [
+        {
+          "clause_id": "c1",
+          "text": "Rental units covered by the San Francisco Rent Ordinance"
+        }
+      ],
       "review_state": "human_approved",
       "reviewed_at": "2026-10-04T08:45:13.378382+00:00",
       "reviewer": "Paul",
@@ -951,6 +963,12 @@
       "rationale": "The cited screening-fee section regulates a landlord or agent when charging an applicant; it states no building-level limitation for this duty.",
       "resolved_clause_ids": [
         "c1"
+      ],
+      "resolved_clauses": [
+        {
+          "clause_id": "c1",
+          "text": "Applies to landlords and their agents charging screening fees to applicants for residential rental units"
+        }
       ],
       "review_state": "human_approved",
       "reviewed_at": "2026-10-04T08:43:49.498590+00:00",
@@ -973,6 +991,12 @@
       "resolved_clause_ids": [
         "c1"
       ],
+      "resolved_clauses": [
+        {
+          "clause_id": "c1",
+          "text": "Applies to landlords and their agents who collect an application screening fee from an applicant"
+        }
+      ],
       "review_state": "human_approved",
       "reviewed_at": "2026-10-04T08:43:49.498798+00:00",
       "reviewer": "Paul",
@@ -993,6 +1017,12 @@
       "rationale": "The cited screening-fee cap applies to a landlord or agent charging an applicant; it states no building-level limitation for this duty.",
       "resolved_clause_ids": [
         "c1"
+      ],
+      "resolved_clauses": [
+        {
+          "clause_id": "c1",
+          "text": "Applies to landlords (owners of residential rental property) and their agents charging applicants, including guarantors and cosigners, for residential rental units"
+        }
       ],
       "review_state": "human_approved",
       "reviewed_at": "2026-10-04T08:43:49.498916+00:00",

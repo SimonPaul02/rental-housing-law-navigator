@@ -241,7 +241,9 @@ def test_a_rule_with_no_building_condition_applies_across_its_jurisdiction():
     assert result == "applies"
 
 
-def test_a_compound_small_landlord_exemption_stays_pending_without_review():
+def test_a_compound_small_landlord_exemption_is_defeated_by_a_large_building():
+    """Owner-occupied *and* at most two units: 40 units settles it whoever owns
+    the building - on the machine's reading, so the answer says it is low."""
     rule = make_rule(
         category="security_deposits",
         jurisdiction="NJ",
@@ -249,8 +251,11 @@ def test_a_compound_small_landlord_exemption_stays_pending_without_review():
     )
     address = make_address(postal_city="Newark", legal_city="Newark", state="NJ", units=40)
     result, why = decide(rule, address)
-    assert result == "unknown"
-    assert "could not be translated" in why
+    assert result == "applies"
+    assert "Confidence: low" in why and "40" in why
+
+    small = make_address(postal_city="Newark", legal_city="Newark", state="NJ", units=2)
+    assert decide(rule, small)[0] == "unknown"  # an owner might live there
 
 
 def test_untranslatable_coverage_text_is_unknown_not_applies():

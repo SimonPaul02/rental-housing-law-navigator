@@ -9,6 +9,7 @@ import pytest
 
 from app.modules.address_lookup.rule_adapter.compiler import apply_proposal, compile_rule
 from app.modules.address_lookup.rule_adapter.models import (
+    Basis,
     CoverageBasis,
     Field,
     InvalidCompilation,
@@ -123,13 +124,17 @@ def test_ai_atom_must_match_entire_correct_clause(field, op, value, passage):
     assert len(pending) == 1
 
 
-def test_verified_clause_is_kept_but_second_clause_stays_pending():
+def test_verified_clause_is_kept_and_rso_clause_is_read_as_membership():
     coverage = "5 or more units; units subject to the Los Angeles RSO"
     source = "5 or more units. units subject to the Los Angeles RSO"
     compiled, _ = compile_rule(Rule(coverage_conditions=coverage), source_text=source)
-    assert [(a.op, a.value) for a in compiled.coverage.atoms()] == [(Op.gte, 5)]
-    assert [u.clause_id for u in compiled.unmapped_text] == ["c2"]
-    assert compiled.review_state is ReviewState.needs_review
+    verified, membership = compiled.coverage.atoms()
+    assert (verified.op, verified.value, verified.basis) == (Op.gte, 5, Basis.source_verified)
+    assert (membership.field, membership.basis) == (
+        Field.los_angeles_rso_membership,
+        Basis.machine_read,
+    )
+    assert compiled.review_state is ReviewState.machine_classified
 
 
 @pytest.mark.parametrize(
@@ -139,14 +144,26 @@ def test_verified_clause_is_kept_but_second_clause_stays_pending():
         ("Rental units in Los Angeles", "Non-RSO properties are not covered"),
     ],
 )
-def test_rso_cross_reference_stays_material_and_pending(coverage, exemption):
+def test_rso_cross_reference_stays_material(coverage, exemption):
+    """Being in Los Angeles never satisfies RSO membership: it stays a
+    condition on the building, read from year built, never unconditional."""
     source = "\n".join(x for x in (coverage, exemption) if x)
     compiled, _ = compile_rule(
         Rule(coverage_conditions=coverage, exemptions=exemption), source_text=source
     )
-    assert compiled.review_state is ReviewState.needs_review
-    assert compiled.has_unmapped
-    assert compiled.coverage_basis is CoverageBasis.unresolved
+    assert compiled.coverage_basis is not CoverageBasis.explicit_unconditional
+    fields = {a.field for a in (*compiled.coverage.atoms(), *compiled.exemptions.atoms())}
+    assert Field.los_angeles_rso_membership in fields
+    no_year = AddressEvidence(
+        address_id="A0001",
+        legal_city=FactValue("Los Angeles", "present"),
+        legal_state=FactValue("CA", "present"),
+        units=FactValue(32, "present"),
+        year_built=FactValue(),
+        certificate_of_occupancy_date=FactValue(),
+        use_code=FactValue(),
+    )
+    assert evaluate_base(compiled, no_year, dt.date(2026, 10, 4)).result is BaseResult.unknown
 
 
 def test_missing_coverage_does_not_become_unconditional():
@@ -228,7 +245,8 @@ def test_human_clearance_is_bound_to_current_rule_source_and_compiler(tmp_path):
     changed, _ = compile_rule(
         Rule(coverage_conditions=source, title="Changed title"), source_text=source
     )
-    assert store.apply_reviews(changed).review_state is ReviewState.needs_review
+    # The stale review no longer applies; only the machine's own reading is left.
+    assert store.apply_reviews(changed).review_state is ReviewState.machine_classified
     with pytest.raises(InvalidCompilation, match="source or compiler version changed"):
         store.review_coverage(
             changed,

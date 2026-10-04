@@ -19,6 +19,7 @@ from app.modules.address_lookup.rule_evaluation.decisions import (
     CheckTrace,
     Confidence,
     Decision,
+    Ternary,
 )
 
 _WHY = {
@@ -41,7 +42,12 @@ def _reason(trace: CheckTrace) -> str:
 def assess(decision: Decision, rule: CompiledRule) -> None:
     """Set `confidence` and its reasons on one decision, from its own checks."""
     reasons: list[str] = []
+    # For a settled answer an unknown check cannot have decided it - it sat in
+    # a branch something definite outvoted - so only definite checks count.
+    settled = decision.result is not BaseResult.unknown
     for trace in (*decision.base.checks, *decision.interaction_checks):
+        if settled and trace.value is Ternary.unknown:
+            continue
         if trace.basis and Basis(trace.basis).is_low:
             reason = _reason(trace)
             if reason not in reasons:
