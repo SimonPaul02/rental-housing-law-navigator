@@ -493,10 +493,9 @@ class ReviewStore:
                     source_hash=compiled.source_hash,
                 ),
             )
-        compiled.notes = (
-            *compiled.notes,
-            f"dates reviewed by {decision['reviewer']}: {decision['rationale']}",
-        )
+        marker = f"dates reviewed by {decision['reviewer']}: {decision['rationale']}"
+        if marker not in compiled.notes:
+            compiled.notes = (*compiled.notes, marker)
         return compiled
 
     def review_coverage(
@@ -676,6 +675,15 @@ class ReviewStore:
                         raise InvalidCompilation("reviewed atom has stale provenance")
             except (InvalidCompilation, ValueError, KeyError, TypeError):
                 compiled.review_state = ReviewState.needs_review
+                return compiled
+            marker = f"coverage reviewed by {decision['reviewer']}: {decision['rationale']}"
+            if (
+                marker in compiled.notes
+                and compiled.coverage.to_json() == coverage.to_json()
+                and compiled.exemptions.to_json() == exemptions.to_json()
+            ):
+                # A stored revision already carries this review: its resolved
+                # clauses are gone because the review removed them, not drift.
                 return compiled
             if drifted := _drifted_clauses(compiled, decision):
                 compiled.review_state = ReviewState.needs_review

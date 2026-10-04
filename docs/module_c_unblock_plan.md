@@ -151,6 +151,15 @@ The counterfactual for this case only needs the bill's state geography. Coverage
 
 ## Item 5 — Calculated and second-document effective dates (T1, T3)
 
+> **Status (2026-10-04): implemented in Module B, differently in two places.** The
+> enactment-offset date is computed by the compiler itself from the act's own two
+> passages (`compiler.enactment_offset`), so T3 needs no decision file. Second-
+> document evidence is a date review that may quote another captured document when
+> the same act is named in both (`ReviewStore.review_dates(evidence_doc_id=...)`),
+> recorded by `apply_ab325_date` and available to `scripts/review_dates.py`. Module
+> C's date preflight now blocks only a rule with no date at all. T1 still waits on
+> D092 being captured.
+
 **Problem, confirmed by compiling both rules.** The compiler accepts a date only if the date itself appears in the rule's own source with an "effective" cue nearby (`compiler.py:541-630`). The date review accepts a date only if a quoted passage *from that same document* contains it (`review.py:322-335`). Neither T1 nor T3 can pass that test:
 
 | Test | Source | What the source says | What we need |

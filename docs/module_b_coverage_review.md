@@ -63,6 +63,31 @@ passage from the current `Document.body` that supports the scope finding.
 The empty coverage tree remains unresolved
 until that review is recorded.
 
+## Machine readings and how a review replaces them
+
+A clause the strict compiler cannot verify word for word is read a second
+time by `rule_adapter/classify.py`. What that reading settles is the
+machine's own: atoms carry `basis: machine_read`, clauses set aside as
+stating no building condition are kept under `classified` with their
+rationale, and the rule is `machine_classified`. Such a rule is evaluated -
+its answers are reported at low confidence, with the reason in the
+explanation - and it stays in the review queue (`compile_rules.py --queue`).
+
+A review works exactly as above, and may resolve any clause: unmapped,
+classified, or read into an atom. Its expression replaces the machine's
+trees, so supply the full coverage and exemption trees with source spans.
+A `hold` puts the rule back to `needs_review` over the machine's reading;
+a `reject` marks it rejected. Each review records the text of every clause
+it resolved, and stops applying if a later split of the prose moves that
+text to another clause id. Bumping `CLASSIFIER_VERSION` (models.py)
+recompiles everything without unbinding reviews; bumping `COMPILER_VERSION`
+unbinds them all.
+
+The classifier's readings of every real clause are pinned in
+`backend/tests/fixtures/clause_readings.json`. A change to the classifier
+or the splitter that alters any reading fails that test: review the
+changed readings clause by clause, then regenerate the fixture.
+
 ## Date and relationship review (compiler v3)
 
 Run `cd backend && .venv/bin/python scripts/compile_rules.py --no-model` after
@@ -94,7 +119,7 @@ must include the current `rule_version_hash`, `source_hash`, and
 }
 ```
 
-Submit it with `scripts/review_dates.py --decision <file>`. An empty
+Submit it with `scripts/review_dates.py --decision <file>`. When the rule's own source never states the date, the passage may come from another captured document: add `evidence_doc_id` (for example `"D092"`) and `act_markers` (for example `["AB 325", "338"]`); every marker must occur both in the quoted passage and in the rule's own source. Acts that take effect a stated interval after enactment need no review: the compiler computes the date from the act's enactment clause and approval date. An empty
 `effective_dates` list is an explicit finding that the record has no
 rule-effective date. When clearing an ambiguous date without a value period,
 include `role_evidence_span` with the exact source passage that explains the

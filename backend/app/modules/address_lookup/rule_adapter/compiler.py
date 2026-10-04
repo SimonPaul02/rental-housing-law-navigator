@@ -873,6 +873,22 @@ def compile_relations(
     return relations, unmapped
 
 
+def rule_relations(
+    record: Any, classified: list[ClassifiedClause], known_ids: set[str], peers: list[Any] | None
+) -> tuple[list, list[UnmappedClause]]:
+    """Every precedence link a rule states: from its interaction text, and from
+    the deference clauses among its exemptions. One function for a fresh
+    compile and a stored one, so neither can lose the other's links."""
+    relations, unmapped = compile_relations(record, known_ids, peers)
+    linked = {(r.right_rule_id, r.issue_key) for r in relations}
+    relations.extend(
+        r
+        for r in deference_relations(record, classified, peers)
+        if (r.right_rule_id, r.issue_key) not in linked
+    )
+    return relations, unmapped
+
+
 def deference_relations(
     record: Any, classified: list[ClassifiedClause], peers: list[Any] | None
 ) -> list:
@@ -968,12 +984,8 @@ def compile_rule(
         getattr(record, "exemptions", None), Origin.exemption, record, "x", source_text
     )
     exemptions = Expr("any", (*exemptions.children, *moved))
-    relations, relation_unmapped = compile_relations(record, known, peers)
-    linked = {(r.right_rule_id, r.issue_key) for r in relations}
-    relations.extend(
-        r
-        for r in deference_relations(record, [*cover_classified, *exempt_classified], peers)
-        if (r.right_rule_id, r.issue_key) not in linked
+    relations, relation_unmapped = rule_relations(
+        record, [*cover_classified, *exempt_classified], known, peers
     )
     # An interaction naming no rule that exists in this run has nothing to
     # displace or be displaced by, so it cannot change an answer: noted, not

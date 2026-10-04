@@ -312,6 +312,8 @@ export interface ChangeStats {
 export interface CompilationSummary {
   rules: number;
   needs_review: number;
+  /** Answered at low confidence on the machine's own reading; still queued. */
+  machine_classified?: number;
   with_unmapped_text: number;
   relations: number;
   relations_approved: number;

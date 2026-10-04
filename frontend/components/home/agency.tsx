@@ -113,7 +113,9 @@ export async function AgencyHome({ health }: { places: Place[]; health: Health }
     },
   ];
 
-  const unreviewed = compilation?.summary.needs_review ?? 0;
+  // Nothing a machine read counts as reviewed: both kinds wait for a human.
+  const machineRead = compilation?.summary.machine_classified ?? 0;
+  const unreviewed = (compilation?.summary.needs_review ?? 0) + machineRead;
   const untranslated = compilation?.summary.with_unmapped_text ?? 0;
   const ruleQueue = (compilation?.queue ?? []).filter((item) => item.team_rule_id).slice(0, 12);
 
@@ -300,7 +302,11 @@ export async function AgencyHome({ health }: { places: Place[]; health: Health }
                 label="Awaiting review"
                 value={unreviewed}
                 tone={unreviewed ? "warning" : "good"}
-                sub="not yet approved by a human"
+                sub={
+                  machineRead
+                    ? `not yet approved by a human; ${machineRead} answered at low confidence meanwhile`
+                    : "not yet approved by a human"
+                }
               />
               <Stat
                 label="With untranslated text"

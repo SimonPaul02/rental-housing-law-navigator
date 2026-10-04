@@ -367,20 +367,65 @@ kind and source provenance. Its status flags prevent an invalid or contradictory
 unit count from silently determining rule coverage. Both packages live under
 `backend/app/modules/address_lookup/`; the IO bridges live in `adapters/`.
 
-Coverage conditions are parsed into predicates and evaluated deterministically
-(`coverage.py`). **"Unknown" is a first-class answer**, not a failure:
+Each rule is compiled once per version (`rule_adapter/`) and evaluated per
+address and query date (`rule_evaluation/`). Every answer carries a
+**confidence**: `high` when every check behind it is the cited source text or a
+named reviewer's decision, `low` when one rests on the machine's own reading -
+and the explanation says which. `lookups.json` keeps its four fields, so a low
+answer says "Confidence: low, for human review - ..." in its explanation; the
+API and the rule cards carry it as a field and a badge.
+
+A clause is read **strictly** first: a simple condition the source states word
+for word becomes a source-verified check. Module A writes paraphrases, so most
+clauses fall to a **second reading** (`rule_adapter/classify.py`), a fixed table
+of the shapes this corpus uses, checked by hand against all 321 real clauses
+and pinned as a test fixture:
+
+- conditions the evaluator can test - the rolling fifteen-year new-construction
+  test, ordinance membership, owner-occupancy exemptions bounded by building
+  size, the small-landlord four-unit test, property type, subsidy, seasonal use;
+- clauses naming who or what is regulated (landlords, applicants, deposits,
+  software, a tenancy) rather than which buildings, set aside with their reason;
+- everything else stays unresolved and the answer **unknown** - including every
+  cross-reference to another provision, every contingency, and any building
+  condition the source does not state verbatim.
+
+**"Unknown" is still a first-class answer**, not a failure:
 
 - a building in a certificate-of-occupancy **cutoff year** is unknown, because
-  year built is not the certificate date (SF 1979-06-13, LA 1978-10-01);
+  year built is not the certificate date (SF 1979-06-13, LA 1978-10-01). Outside
+  that year the cutoff is read from year built - which is also how LA RSO and
+  SF Rent Ordinance membership are decided (low confidence);
 - a missing unit count or year built is unknown, naming the field that blocked
   it;
-- owner identity is absent from the data by design, so owner-type conditions
-  are unknown.
+- owner identity is absent from the data by design, so an owner-only exemption
+  is unknown - but "owner-occupied *and* at most four units" is defeated by a
+  32-unit building whoever owns it, which the brief asks for explicitly.
 
-Coverage conditions and exemptions are evaluated **separately**, because they
-pull in opposite directions — an exemption matching means the rule does *not*
-apply. That also lets a 32-unit building defeat a "2 or fewer units"
-small-landlord exemption whoever owns it, which the brief asks for explicitly.
+The parcel description is read too (`rule_evaluation/derived_facts.py`): a
+subsidy code or a New Jersey unit count ("3S-F-D-6U") is a stated fact; that an
+apartment building is not seasonal, or that NJ class 4C means five or more
+units, is **presumed** - and a presumption may only rule an exemption out, never
+decide coverage.
+
+**Effective dates** are read as the acts state them: "the first day of the
+twelfth month next following the date of enactment", approved July 20, 2026, is
+computed from those two passages as 2027-07-01 (the FAIR Act). A record date the
+source does not state is read at low confidence; a date stated only in another
+captured document (AB 325's, in D092) enters through a date review that names
+the same act in both.
+
+**Precedence**: where a state rule's own text defers to local law ("units
+subject to the City's RSO are also not covered") and the local rule applies, the
+state rule is `superseded` - the brief's San Francisco example. Unreviewed
+deference is low confidence; any other unreviewed claim, such as a city rule
+saying it preempts state law, leaves the answer unknown and flagged.
+
+Every machine reading stays in the review queue (`scripts/review_coverage.py`,
+`review_dates.py`, `review_rules.py`); a version-bound human decision replaces it,
+and a hold outranks it. `scripts/replay_offline.py` replays all 500 addresses in
+about two seconds against `data/rule_snapshot.json`
+([latest replay](docs/module_b_replay_2026-10-04.md)).
 
 ### Module C — change tracking (`/api/change-tracking`)
 

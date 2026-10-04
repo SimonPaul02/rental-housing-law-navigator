@@ -680,3 +680,46 @@ def test_an_unreviewed_preemption_claim_does_not_supersede(tmp_path):
     assert relations and all(r.basis is None for r in relations)
     assert decisions["r-city"].result is BaseResult.unknown
     assert decisions["r-city"].conflict_flag
+
+
+def test_a_stored_revision_keeps_its_review_when_reviews_are_applied_again(tmp_path):
+    """The service applies reviews to revisions read back from the store,
+    which already carry them. That must not read as drift."""
+    source = "Rental dwelling units offered by a housing provider"
+    record = make_rule(body=source, coverage_conditions=source, jurisdiction="NJ")
+    compiled = compile_rule(record, source_text=source)[0]
+    store = ReviewStore(tmp_path / "compiled.json")
+    store.review_coverage(
+        compiled,
+        source_text=source,
+        reviewer="Alex",
+        rationale="Program scope only",
+        resolved_clause_ids=["c1"],
+        coverage_basis="explicit_unconditional",
+        scope_evidence_span=source,
+    )
+    once = store.apply_reviews(compiled)
+    store.put(once)
+    stored = store.get(once.team_rule_id, once.rule_version_hash, once.source_hash)
+    again = store.apply_reviews(stored)
+    assert again.review_state is ReviewState.human_approved
+    assert again.notes.count(once.notes[-1]) == 1
+
+
+def test_a_stored_rule_keeps_its_deference_links(tmp_path):
+    """Reusing a stored revision must rebuild the same links a fresh compile
+    makes, or the state cap stops yielding the moment the store is warm."""
+    from app.modules.address_lookup.rule_adapter import adapters
+
+    rules = _brief_rules()
+    store = ReviewStore(tmp_path / "compiled.json")
+    sources = {r.source_doc_id: r.document.body for r in rules}
+    _, fresh, _ = adapters.compile_all(rules, review_store=store, sources=sources, persist=False)
+    _, warm, recompiled = adapters.compile_all(
+        rules, review_store=store, sources=sources, persist=False
+    )
+    assert not recompiled
+    assert {(r.left_rule_id, r.right_rule_id) for r in warm} == {
+        (r.left_rule_id, r.right_rule_id) for r in fresh
+    }
+    assert any(r.basis == "local_deference" for r in warm)

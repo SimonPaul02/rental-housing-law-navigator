@@ -63,8 +63,8 @@ def compile_all(
         source_hash = compiler.content_hash(source_text)
         existing = store_.get(rule_id, version, source_hash)
         if existing is not None:
+            rels, _ = compiler.rule_relations(record, list(existing.classified), known_ids, records)
             compiled[rule_id] = store_.apply_reviews(existing)
-            rels, _ = compiler.compile_relations(record, known_ids, records)
             relations.extend(rels)
             continue
 
@@ -316,7 +316,16 @@ def unreviewed_summary(review_store: ReviewStore) -> dict[str, int]:
             1
             for r in revisions
             if r.get("review_state")
-            not in (str(ReviewState.machine_verified), str(ReviewState.human_approved))
+            not in (
+                str(ReviewState.machine_verified),
+                str(ReviewState.human_approved),
+                str(ReviewState.machine_classified),
+            )
+        ),
+        # Answered at low confidence on the machine's own reading, and still
+        # queued for a reviewer.
+        "machine_classified": sum(
+            r.get("review_state") == str(ReviewState.machine_classified) for r in revisions
         ),
         "machine_verified": sum(
             r.get("review_state") == str(ReviewState.machine_verified) for r in revisions
