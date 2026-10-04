@@ -144,6 +144,25 @@ Two guards matter for scoring:
 `POST /api/rule-extraction/extract` starts a background pass and returns a run id;
 `GET /api/rule-extraction/runs/{run_id}/stream` streams progress as server-sent events.
 
+**A pass is extracted once and then moved, not re-run per environment.** The
+model costs money and does not repeat itself exactly, so the pass that was
+reviewed is the one that should be served. `POST /api/rule-extraction/rules/import`
+takes a `rules.json` payload with `{"rules": [...], "replace": true}`:
+
+```bash
+curl -X POST https://<host>/api/rule-extraction/rules/import \
+  -H 'Authorization: Bearer <access token>' -H 'Content-Type: application/json' \
+  --data-binary @rules.json
+```
+
+The span guard runs **again** on the way in, against that deployment's own copy
+of each source document, so an import cannot introduce a rule the corpus does
+not support — anything that fails comes back in `rejected` instead of being
+written. Ids are derived from the rule rather than from a counter, so importing
+the same pass twice updates the rows in place. `replace` deletes the existing
+rules first, and `lookups` cascades off them, so Module B needs re-running
+afterwards (`POST /api/address-lookup/lookup`).
+
 ### Module B — address lookup (`/api/address-lookup`)
 
 Resolves each address to its **legal** jurisdiction, then tests every rule's
