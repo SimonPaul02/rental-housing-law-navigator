@@ -7,10 +7,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from urllib.parse import urlparse
 
+from .address_parser import parse_address
 from .models import (
     AcceptedEndpoint,
     AddressInput,
     AddressQuery,
+    AddressShape,
     GeocodeCandidate,
     LookupAttempt,
     ResolvedAddress,
@@ -35,8 +37,12 @@ DEFAULT_SEARCH_ALIASES: dict[str, str] = {
     "van nuys": "Los Angeles",
 }
 
-_HOUSE_RANGE = re.compile(r"^\s*(\d+(?:\.\d+)?[A-Za-z]?)-(\d+(?:\.\d+)?[A-Za-z]?)-?\s+(.+)$")
 _HOUSE_NUMBER = re.compile(r"^\s*(\d+(?:\.\d+)?[A-Za-z]?)\s+(.+)$")
+_PADDED_STREET_ORDINAL = re.compile(
+    r"^(\s*\d+(?:\.\d+)?[A-Za-z]?\s+(?:(?:N|S|E|W|NORTH|SOUTH|EAST|WEST)\s+)?)"
+    r"0+(\d+)(ST|ND|RD|TH)(\b.*)$",
+    re.I,
+)
 _SUFFIXES = {
     "AV": "AVE",
     "AVENUE": "AVE",
@@ -111,12 +117,60 @@ def _street_match_kind(query: AddressQuery, candidate: GeocodeCandidate) -> str 
     return None
 
 
-def _street_endpoints(street_address: str) -> tuple[str, ...]:
-    match = _HOUSE_RANGE.match(street_address)
+def describe_candidate_differences(
+    address: AddressInput, candidate: GeocodeCandidate, shape: AddressShape | None = None
+) -> tuple[str, ...]:
+    """Summarize observable input/candidate differences for a human reviewer.
+
+    These are comparisons, not a claim that the source or candidate is correct.
+    Multi-address inputs are compared against all parsed components.
+    """
+    components = (shape or parse_address(address.street_address)).components
+    parsed = [_house_number_and_street(component) for component in components]
+    source_numbers = tuple(dict.fromkeys(number for number, _ in parsed if number))
+    source_streets = tuple(dict.fromkeys(words for _, words in parsed if words))
+    matched_number, matched_street = _house_number_and_street(candidate.street_address)
+    differences: list[str] = []
+
+    if source_numbers and matched_number not in source_numbers:
+        differences.append(
+            f"house number: {' / '.join(source_numbers)} → {matched_number or 'missing'}"
+        )
+    if source_streets and not any(
+        _canonical_street(words) == _canonical_street(matched_street)
+        for words in source_streets
+    ):
+        differences.append(
+            f"street: {' / '.join(' '.join(words) for words in source_streets)}"
+            f" → {' '.join(matched_street) or 'missing'}"
+        )
+    if candidate.state.upper() != address.state.upper():
+        differences.append(f"state: {address.state.upper()} → {candidate.state.upper()}")
+    if address.zip and candidate.zip and address.zip != candidate.zip:
+        differences.append(f"input ZIP: {address.zip} → candidate ZIP: {candidate.zip}")
+    if candidate.city and candidate.city.casefold() != address.postal_city.casefold():
+        differences.append(
+            f"postal city: {address.postal_city} → incorporated place: {candidate.city}"
+        )
+    if not candidate.city or not candidate.city_geoid:
+        differences.append("incorporated place unverified")
+    return tuple(differences)
+
+
+def _unpadded_ordinal_query(street: str) -> str | None:
+    """Offer one reversible search spelling; never rewrite a house number."""
+    match = _PADDED_STREET_ORDINAL.fullmatch(street)
     if not match:
-        return (street_address.strip(),)
-    first, last, street = match.groups()
-    return tuple(dict.fromkeys((f"{first} {street}", f"{last} {street}")))
+        return None
+    prefix, digits, suffix, remainder = match.groups()
+    number = int(digits)
+    if 10 < number % 100 < 14:
+        expected_suffix = "TH"
+    else:
+        expected_suffix = {1: "ST", 2: "ND", 3: "RD"}.get(number % 10, "TH")
+    if suffix.upper() != expected_suffix:
+        return None
+    return f"{prefix}{number}{suffix}{remainder}"
 
 
 def _queries(
@@ -162,40 +216,67 @@ def _lookup_endpoint(
             [LookupAttempt(query, "invalid_input", "Missing or unsupported house number")],
             [],
         )
-    for query in _queries(street, address, aliases):
-        try:
-            response = geocoder.lookup(query)
-        except CacheMissError as exc:
-            attempts.append(LookupAttempt(query, "cache_miss", str(exc)))
-            continue
-        except GeocoderError as exc:
-            attempts.append(LookupAttempt(query, "service_error", str(exc)))
-            continue
-        candidates_seen.extend(response.candidates)
-        credible = [item for item in response.candidates if _credible(item, query)]
-        places = {item.city_geoid for item in credible}
-        if len(places) == 1:
-            selected = next(
-                (item for item in credible if _street_match_kind(query, item) == "exact"),
-                credible[0],
-            )
-            kind = _street_match_kind(query, selected)
-            attempts.append(
-                LookupAttempt(
-                    query,
-                    "match" if kind == "exact" else "normalized_match",
-                    selected.matched_address,
+    query_groups = [("original", _queries(street, address, aliases))]
+    variant_street = _unpadded_ordinal_query(street)
+    if variant_street and variant_street != street:
+        query_groups.append(("zero_padded_ordinal", _queries(variant_street, address, aliases)))
+    earlier_ambiguity = False
+    for variant, queries in query_groups:
+        for query in queries:
+            source_query = replace(query, street=street)
+            try:
+                response = geocoder.lookup(query)
+            except CacheMissError as exc:
+                attempts.append(LookupAttempt(query, "cache_miss", str(exc), variant))
+                continue
+            except GeocoderError as exc:
+                attempts.append(LookupAttempt(query, "service_error", str(exc), variant))
+                continue
+            candidates_seen.extend(response.candidates)
+            credible = [item for item in response.candidates if _credible(item, source_query)]
+            places = {item.city_geoid for item in credible}
+            if len(places) == 1:
+                selected = next(
+                    (
+                        item
+                        for item in credible
+                        if _street_match_kind(source_query, item) == "exact"
+                    ),
+                    credible[0],
                 )
-            )
-            return selected, attempts, candidates_seen
-        if len(places) > 1:
-            attempts.append(LookupAttempt(query, "ambiguous", "Multiple incorporated places"))
-        elif response.candidates:
-            attempts.append(
-                LookupAttempt(query, "rejected", "No candidate passed address and place checks")
-            )
-        else:
-            attempts.append(LookupAttempt(query, "no_match"))
+                if earlier_ambiguity:
+                    attempts.append(
+                        LookupAttempt(
+                            query,
+                            "ambiguous",
+                            "An earlier query returned multiple incorporated places",
+                            variant,
+                        )
+                    )
+                    continue
+                kind = _street_match_kind(source_query, selected)
+                attempts.append(
+                    LookupAttempt(
+                        query,
+                        "match" if kind == "exact" else "normalized_match",
+                        selected.matched_address,
+                        variant,
+                    )
+                )
+                return selected, attempts, candidates_seen
+            if len(places) > 1:
+                earlier_ambiguity = True
+                attempts.append(
+                    LookupAttempt(query, "ambiguous", "Multiple incorporated places", variant)
+                )
+            elif response.candidates:
+                attempts.append(
+                    LookupAttempt(
+                        query, "rejected", "No candidate passed address and place checks", variant
+                    )
+                )
+            else:
+                attempts.append(LookupAttempt(query, "no_match", query_variant=variant))
     return None, attempts, candidates_seen
 
 
@@ -207,9 +288,11 @@ def choose_resolution(
     search_aliases: Mapping[str, str] = DEFAULT_SEARCH_ALIASES,
     accepted_endpoints: Sequence[AcceptedEndpoint] = (),
     expected_endpoint_count: int | None = None,
+    address_shape: AddressShape | None = None,
 ) -> ResolvedAddress:
     """Make the final decision from supplied evidence; performs no I/O."""
     warnings: list[str] = []
+    shape = address_shape or parse_address(address.street_address)
     endpoint_count = (
         expected_endpoint_count if expected_endpoint_count is not None else len(endpoint_results)
     )
@@ -218,10 +301,24 @@ def choose_resolution(
         warnings.append("missing_input_zip")
     elif zip_assessment.status == "invalid_for_state":
         warnings.append("suspicious_input_zip")
-    if len(endpoint_results) > 1:
+    if shape.kind in {"same_street_range", "fractional_range"} and len(endpoint_results) > 1:
         warnings.append("house_number_range_checked_at_both_endpoints")
+    elif shape.kind == "compound_same_street":
+        warnings.append("compound_address_checked_at_all_components")
+    elif shape.kind == "compound_cross_street":
+        warnings.append("compound_address_requires_source_review")
+    elif shape.kind == "no_house_number":
+        warnings.append("missing_house_number")
+    elif shape.kind == "unsupported":
+        warnings.append("unsupported_address_shape")
     if any(attempt.outcome == "normalized_match" for attempt in attempts):
         warnings.append("street_normalized_match")
+    if any(
+        attempt.query_variant == "zero_padded_ordinal"
+        and attempt.outcome in {"match", "normalized_match"}
+        for attempt in attempts
+    ):
+        warnings.append("zero_padded_ordinal_query_used")
 
     selected: GeocodeCandidate | None = None
     if endpoint_results and all(item is not None for item in endpoint_results):
@@ -230,6 +327,8 @@ def choose_resolution(
             selected = resolved_candidates[0]
         else:
             warnings.append("range_endpoints_disagree")
+    if selected is not None and shape.kind == "compound_cross_street":
+        selected = None
     if selected is not None:
         expected_city = search_aliases.get(
             address.postal_city.strip().casefold(), address.postal_city.strip()
@@ -262,6 +361,7 @@ def choose_resolution(
         benchmark=selected.benchmark if selected else None,
         vintage=selected.vintage if selected else None,
         resolution_method="geocoder" if selected else "unresolved",
+        address_shape=shape,
         zip_assessment=zip_assessment,
         accepted_endpoints=tuple(accepted_endpoints),
         warnings=tuple(warnings),
@@ -291,7 +391,18 @@ def resolve_addresses(
         accepted_endpoints: list[AcceptedEndpoint] = []
         attempts: list[LookupAttempt] = []
         candidates: list[GeocodeCandidate] = []
-        streets = _street_endpoints(address.street_address)
+        shape = parse_address(address.street_address)
+        streets = shape.components
+        if not streets:
+            attempts.append(
+                LookupAttempt(
+                    AddressQuery(
+                        address.street_address, address.postal_city, address.state.upper()
+                    ),
+                    "invalid_input",
+                    shape.note or "Unsupported address shape",
+                )
+            )
         for street in streets:
             chosen, endpoint_attempts, endpoint_candidates = _lookup_endpoint(
                 street, address, geocoder, search_aliases
@@ -305,6 +416,7 @@ def resolve_addresses(
                         match_kind="normalized"
                         if endpoint_attempts[-1].outcome == "normalized_match"
                         else "exact",
+                        query_variant=endpoint_attempts[-1].query_variant,
                     )
                 )
             attempts.extend(endpoint_attempts)
@@ -317,7 +429,8 @@ def resolve_addresses(
                 candidates,
                 search_aliases,
                 accepted_endpoints,
-                len(streets),
+                len(streets) or 1,
+                shape,
             )
         )
     return output

@@ -14,6 +14,7 @@ from app.modules.address_lookup.adapters.address_files import (  # noqa: E402
     write_to_internal_json,
     write_zip_review_csv,
 )
+from app.modules.address_lookup.adapters.zip_reviews import read_zip_reviews_csv  # noqa: E402
 from app.modules.address_lookup.address_resolution.census import (  # noqa: E402
     CachedGeocoder,
     CensusGeocoder,
@@ -33,6 +34,11 @@ def main() -> int:
     parser.add_argument("--cache", default=str(DATA_DIR / "census_geocode_cache.jsonl"))
     parser.add_argument("--review", default=str(DATA_DIR / "address_review.csv"))
     parser.add_argument("--zip-review", default=str(DATA_DIR / "zip_review.csv"))
+    parser.add_argument(
+        "--zip-reviews",
+        default=str(DATA_DIR / "zip_reviews.csv"),
+        help="CSV of source-backed ZIP repair decisions",
+    )
     parser.add_argument("--overrides", help="CSV of source-backed review decisions")
     parser.add_argument("--offline", action="store_true", help="Only use cached Census responses")
     args = parser.parse_args()
@@ -42,9 +48,21 @@ def main() -> int:
     results = resolve_addresses(addresses, geocoder)
     if args.overrides:
         results = apply_review_overrides(results, read_review_overrides_csv(args.overrides))
+    zip_reviews = []
+    if args.zip_reviews and Path(args.zip_reviews).exists():
+        by_id = {result.address_id: result for result in results}
+        zip_reviews = [
+            review
+            for review in read_zip_reviews_csv(args.zip_reviews)
+            if review.address_id in by_id
+            and not any(
+                attempt.outcome in {"cache_miss", "service_error"}
+                for attempt in by_id[review.address_id].attempts
+            )
+        ]
+    write_zip_review_csv(results, args.zip_review, zip_reviews)
     write_to_internal_json(results, args.output)
     write_review_csv(results, args.review)
-    write_zip_review_csv(results, args.zip_review)
     counts = Counter(item.status for item in results)
     print(f"Processed {len(results)} addresses: {dict(counts)}")
     print(f"Resolution output: {args.output}")

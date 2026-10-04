@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from app.modules.address_lookup.address_resolution.models import (
     ResolvedAddress,
     ReviewOverride,
 )
+from app.modules.address_lookup.address_resolution.resolver import describe_candidate_differences
+from app.modules.address_lookup.zip_reviews import ZipReviewDecision, validate_decision
 
 _REQUIRED_COLUMNS = {"address_id", "street_address", "postal_city", "state", "zip"}
 _REVIEW_COLUMNS = {
@@ -110,6 +113,7 @@ def write_review_csv(results: list[ResolvedAddress], path: str | Path) -> None:
                 "warnings",
                 "attempts",
                 "candidate_cities",
+                "candidate_differences",
             ],
         )
         writer.writeheader()
@@ -138,12 +142,50 @@ def write_review_csv(results: list[ResolvedAddress], path: str | Path) -> None:
                     "candidate_cities": "; ".join(
                         sorted({item.city for item in item.candidates if item.city})
                     ),
+                    "candidate_differences": _candidate_differences_for_review(item),
                 }
             )
 
 
-def write_zip_review_csv(results: list[ResolvedAddress], path: str | Path) -> None:
-    """Export ZIP discrepancies without changing jurisdiction or raw source data."""
+def _candidate_differences_for_review(item: ResolvedAddress) -> str:
+    """Keep one readable comparison per distinct Census candidate."""
+    seen: set[tuple[str, str, str | None, str | None, str | None]] = set()
+    summaries: list[str] = []
+    for candidate in item.candidates:
+        key = (
+            candidate.street_address,
+            candidate.state,
+            candidate.city,
+            candidate.city_geoid,
+            candidate.zip,
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        differences = describe_candidate_differences(item.input, candidate, item.address_shape)
+        place = candidate.city or "no incorporated place"
+        zip_code = candidate.zip or "no ZIP"
+        summary = "; ".join(differences) if differences else "address fields match"
+        summaries.append(f"{candidate.street_address} [{place}, {zip_code}]: {summary}")
+    return " | ".join(summaries) if summaries else "no candidate returned"
+
+
+def write_zip_review_csv(
+    results: list[ResolvedAddress],
+    path: str | Path,
+    reviews: Sequence[ZipReviewDecision] = (),
+) -> None:
+    """Export ZIP discrepancies and validated repair evidence without changing raw data."""
+    by_id = {result.address_id: result for result in results}
+    reviewed: dict[str, ZipReviewDecision] = {}
+    for decision in reviews:
+        if decision.address_id in reviewed:
+            raise ValueError(f"Duplicate ZIP review: {decision.address_id}")
+        result = by_id.get(decision.address_id)
+        if result is None:
+            raise ValueError(f"ZIP review has unknown address ID: {decision.address_id}")
+        validate_decision(decision, result.input, result.zip_assessment)
+        reviewed[decision.address_id] = decision
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open("w", newline="", encoding="utf-8") as stream:
@@ -165,6 +207,12 @@ def write_zip_review_csv(results: list[ResolvedAddress], path: str | Path) -> No
                 "reason",
                 "source_dataset",
                 "source_retrieved_at",
+                "review_decision",
+                "confirmed_property_zip",
+                "review_source_url",
+                "review_reason",
+                "reviewer",
+                "reviewed_at",
             ],
         )
         writer.writeheader()
@@ -176,6 +224,7 @@ def write_zip_review_csv(results: list[ResolvedAddress], path: str | Path) -> No
                 "matches_some_endpoints",
             }:
                 continue
+            decision = reviewed.get(result.address_id)
             writer.writerow(
                 {
                     "address_id": result.address_id,
@@ -192,5 +241,11 @@ def write_zip_review_csv(results: list[ResolvedAddress], path: str | Path) -> No
                     "reason": assessment.reason,
                     "source_dataset": assessment.source_dataset,
                     "source_retrieved_at": assessment.source_retrieved_at,
+                    "review_decision": decision.decision if decision else "",
+                    "confirmed_property_zip": decision.confirmed_zip if decision else "",
+                    "review_source_url": decision.source_url if decision else "",
+                    "review_reason": decision.reason if decision else "",
+                    "reviewer": decision.reviewer if decision else "",
+                    "reviewed_at": decision.reviewed_at.isoformat() if decision else "",
                 }
             )

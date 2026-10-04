@@ -37,8 +37,8 @@ The command produces:
 
 - `data/resolved_addresses.json` – one processed record per input, including unresolved records marked `needs_review`
 - `data/census_geocode_cache.jsonl` – cached Census API responses
-- `data/address_review.csv` – unresolved addresses and unexpected postal/legal-city mismatches to inspect
-- `data/zip_review.csv` – ZIP discrepancies, with the original and accepted Census ZIPs
+- `data/address_review.csv` – unresolved addresses and unexpected postal/legal-city mismatches to inspect, with deduplicated candidate differences
+- `data/zip_review.csv` – ZIP discrepancies, with the original and accepted Census ZIPs and any source-backed repair decision
 
 The command exits with code `2` if a cache miss or service error leaves an address
 unresolved, or if no addresses resolve at all. It still writes the output and
@@ -82,6 +82,31 @@ A `legal_city` is assigned from a validated Census **Incorporated Place** or a d
 
 For address ranges, both endpoints must resolve to the same incorporated place before that place is accepted as the legal city.
 
+## Address shapes and query variants
+
+`parse_address()` records whether the source is a single address, same-street
+range, fractional range, same-street compound, cross-street compound, or lacks a
+house number. Its components and original text are retained in each result's
+`address_shape`. A range or same-street compound needs every component to match
+the same incorporated place. Cross-street compounds remain in review even if
+both components match, because their shared property identity is not established.
+Missing-number and unsupported shapes remain unresolved.
+
+The review CSV compares every distinct candidate with the parsed source
+components. Its `candidate_differences` column names changes in house number,
+street, state, input ZIP, and postal city versus incorporated place. It is a
+triage aid: a difference does not prove which source is correct, and an
+`address fields match` candidate can still be part of an incomplete range.
+
+When an original query does not produce an accepted match, the resolver can
+retry a zero-padded street ordinal such as `397 05TH AV` as `397 5TH AV`. This
+does not rewrite the source row or the house number. Candidate validation still
+uses the original address; `query_variant` and
+`zero_padded_ordinal_query_used` make a successful retry auditable. An earlier
+query returning multiple incorporated places is not cleared by a later
+ZIP-constrained query. New query responses must be cached for an offline run;
+an uncached retry remains an explicit cache miss.
+
 The resolver accepts a small set of equivalent street spellings (for example,
 `SECOND`/`2ND`, `WY`/`WAY`, and `SOUTH`/`S`) while keeping the house number and
 every directional component. These results carry a `street_normalized_match`
@@ -97,9 +122,9 @@ Census candidates are excluded. Its statuses are `missing_input`,
 `matches_some_endpoints`, and `mismatch`. The original ZIP and legal city are
 never changed by this assessment.
 
-The offline snapshot currently has 467 resolved jurisdictions and 33 needing
-review. It has 92 ZIP discrepancies on resolved addresses. `zip_review.csv`
-contains 93 rows because one more address has an invalid ZIP and an unresolved
+The offline snapshot currently has 474 resolved jurisdictions and 26 needing
+review. It has 93 ZIP discrepancies on resolved addresses. `zip_review.csv`
+contains 94 rows because one more address has an invalid ZIP and an unresolved
 jurisdiction. The detailed assessment and endpoint evidence are included in
 `resolved_addresses.json` and stored by the backend in
 `address_jurisdictions.resolution_evidence`.
@@ -111,9 +136,18 @@ Census cache without changing jurisdiction decisions:
 cd backend && python3 scripts/backfill_zip_assessments.py
 ```
 
-Human ZIP findings use the separate, append-only `address_zip_reviews` table, so
-resolver reruns cannot erase them. An operator can copy
-`data/zip_reviews.example.csv`, add source-backed decisions, and import them:
+Source-backed ZIP findings use the separate, append-only `address_zip_reviews`
+table, so resolver reruns cannot erase them. The checked-in
+`data/zip_reviews.csv` contains the A0344 finding: New Jersey's parcel source
+has `ZIP_CODE=07304` for the owner's `PO BOX 4742` mailing address, while the
+City of Jersey City planning attachment lists the property at `238 & 242
+GARFIELD AVE.` with ZIP `07305`. The record retains the original input, verified
+property ZIP, public source URL, explanation, reviewer identity, and review
+date. The raw `sample_addresses.csv` and raw ZIP assessment remain unchanged.
+The resolver validates current review records and includes them in
+`zip_review.csv`; a review is deferred if its address has a cache miss or service
+error. Additional decisions can be added to this CSV or a copy of
+`data/zip_reviews.example.csv` and imported into the database:
 
 ```bash
 cd backend && python3 scripts/import_zip_reviews.py --input ../data/zip_reviews.csv

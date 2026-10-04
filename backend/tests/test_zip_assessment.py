@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import datetime as dt
+import json
 from dataclasses import asdict, replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -11,11 +13,14 @@ import pytest
 
 from app.db.models import Address, AddressJurisdiction, AddressZipReview
 from app.modules.address_lookup import router, service
+from app.modules.address_lookup.adapters.address_files import write_zip_review_csv
 from app.modules.address_lookup.adapters.zip_reviews import read_zip_reviews_csv
 from app.modules.address_lookup.address_resolution.models import (
     AcceptedEndpoint,
     AddressInput,
     GeocodeCandidate,
+    ResolvedAddress,
+    ZipAssessment,
 )
 from app.modules.address_lookup.address_resolution.zip_assessment import assess_zip
 from app.modules.address_lookup.schemas import JurisdictionRecord
@@ -141,6 +146,65 @@ def test_zip_review_csv_adapter_parses_review_date() -> None:
         reviews = read_zip_reviews_csv(path)
     assert len(reviews) == 1
     assert reviews[0].reviewed_at == dt.date(2026, 10, 4)
+
+
+def test_checked_in_garfield_repair_matches_the_current_source_row() -> None:
+    data_dir = Path(__file__).resolve().parents[2] / "data"
+    decision = read_zip_reviews_csv(data_dir / "zip_reviews.csv")[0]
+    record = next(
+        row
+        for row in json.loads((data_dir / "resolved_addresses.json").read_text())
+        if row["address_id"] == decision.address_id
+    )
+    address = AddressInput(**record["input"])
+    assessment = ZipAssessment(**record["zip_assessment"])
+    validate_decision(decision, address, assessment)
+    assert decision.input_zip == "07304"
+    assert decision.confirmed_zip == "07305"
+    assert "mailing address" in decision.reason
+
+
+def test_source_backed_zip_repair_is_visible_in_review_export() -> None:
+    address = AddressInput("A1", "12 OAK ST", "Newark", "NJ", "11219")
+    endpoint = accepted("12 OAK ST", "07102")
+    result = ResolvedAddress(
+        address_id="A1",
+        input=address,
+        status="resolved",
+        legal_state="NJ",
+        legal_county="Essex",
+        legal_city="Newark",
+        city_geoid="3451000",
+        longitude=-74.0,
+        latitude=40.0,
+        matched_address=endpoint.candidate.matched_address,
+        benchmark="Public_AR_Current",
+        vintage="Current_Current",
+        zip_assessment=assess_zip(address, [endpoint], 1),
+    )
+    decision = ZipReviewDecision(
+        address_id="A1",
+        input_street_address="12 OAK ST",
+        input_postal_city="Newark",
+        input_state="NJ",
+        input_zip="11219",
+        decision="census_zip_supported",
+        confirmed_zip="07102",
+        source_url="https://example.gov/parcel",
+        reason="Public parcel record confirms the property ZIP",
+        reviewer="reviewer-1",
+        reviewed_at=dt.date(2026, 10, 4),
+    )
+    with TemporaryDirectory() as directory:
+        path = Path(directory) / "zip_review.csv"
+        write_zip_review_csv([result], path, [decision])
+        with path.open(newline="", encoding="utf-8") as stream:
+            row = next(csv.DictReader(stream))
+        assert row["input_zip"] == "11219"
+        assert row["confirmed_property_zip"] == "07102"
+        assert row["review_source_url"] == decision.source_url
+        with pytest.raises(ValueError, match="stale"):
+            write_zip_review_csv([result], path, [replace(decision, input_zip="07103")])
 
 
 @pytest.mark.asyncio
