@@ -141,6 +141,13 @@ export function RulesExplorer({
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
     [stats],
   );
+  // The map and the URL both hand back a corpus spelling; the menu has to
+  // match one of its own options to show it as chosen, so it is resolved
+  // against the option list rather than trusted verbatim.
+  const chosenJurisdiction =
+    allJurisdictions.find(
+      ({ name }) => name.toLowerCase() === jurisdiction.trim().toLowerCase(),
+    )?.name ?? "";
   const categories = Object.keys(stats?.by_category ?? {}).sort();
   const statuses = Object.keys(stats?.by_status ?? {}).sort();
   const active = Boolean(q || level || category || status || conflictsOnly || jurisdiction);
@@ -163,6 +170,21 @@ export function RulesExplorer({
               placeholder="Requirement, title, citation or id"
               onChange={(event) => setQ(event.target.value)}
             />
+          </label>
+          <label className="filter-field">
+            <span>Jurisdiction</span>
+            <select
+              className="field"
+              value={chosenJurisdiction}
+              onChange={(e) => setJurisdiction(e.target.value)}
+            >
+              <option value="">Every jurisdiction</option>
+              {allJurisdictions.map(({ name, count }) => (
+                <option key={name} value={name}>
+                  {name} ({count})
+                </option>
+              ))}
+            </select>
           </label>
           <label className="filter-field">
             <span>Level</span>
@@ -200,49 +222,35 @@ export function RulesExplorer({
           </label>
         </div>
 
+        {/* What is left here is not a choice of one value out of forty — it is
+            a toggle and an escape hatch, and both read better as chips than as
+            another menu with two entries in it. */}
         <div className="filter-row">
-          <div className="filter-field" style={{ flex: "1 1 100%" }}>
-            <span>Jurisdiction</span>
-            <div className="chips">
-              {allJurisdictions.slice(0, 10).map(({ name, count }) => (
-                <button
-                  key={name}
-                  type="button"
-                  className="chip"
-                  aria-pressed={jurisdiction.toLowerCase() === name.toLowerCase()}
-                  onClick={() =>
-                    setJurisdiction(jurisdiction.toLowerCase() === name.toLowerCase() ? "" : name)
-                  }
-                >
-                  {name} <span className="chip-count">{count}</span>
-                </button>
-              ))}
+          <div className="chips">
+            <button
+              type="button"
+              className="chip"
+              aria-pressed={conflictsOnly}
+              onClick={() => setConflictsOnly(!conflictsOnly)}
+            >
+              Conflicts only <span className="chip-count">{stats?.flagged_conflicts ?? 0}</span>
+            </button>
+            {active && (
               <button
                 type="button"
                 className="chip"
-                aria-pressed={conflictsOnly}
-                onClick={() => setConflictsOnly(!conflictsOnly)}
+                onClick={() => {
+                  setQ("");
+                  setLevel("");
+                  setCategory("");
+                  setStatus("");
+                  setConflictsOnly(false);
+                  setJurisdiction("");
+                }}
               >
-                Conflicts only{" "}
-                <span className="chip-count">{stats?.flagged_conflicts ?? 0}</span>
+                Clear all
               </button>
-              {active && (
-                <button
-                  type="button"
-                  className="chip"
-                  onClick={() => {
-                    setQ("");
-                    setLevel("");
-                    setCategory("");
-                    setStatus("");
-                    setConflictsOnly(false);
-                    setJurisdiction("");
-                  }}
-                >
-                  Clear all
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </div>
