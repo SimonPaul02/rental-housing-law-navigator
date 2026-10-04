@@ -46,6 +46,13 @@ class ChangeTestResult(BaseModel):
     detail: dict = Field(default_factory=dict)
     # True when every canonical id in the test resolved to a real rule.
     rules_resolved: bool = True
+    # Why this case could not be replayed at all, when it could not be.
+    #
+    # Set only by `service.blocked_result`, and it changes how every other
+    # field here must be read: the affected set is empty because nothing was
+    # computed, not because the answer is nobody. Anything counting addresses
+    # has to skip these rows rather than add their zeroes in.
+    blocked_reason: str | None = None
 
 
 class RunTestsRequest(BaseModel):

@@ -98,11 +98,26 @@ async def run_all(
 async def list_results(
     session: AsyncSession = Depends(get_session),
 ) -> list[ChangeTestResult]:
-    """Current results only; stored rows may describe older rule versions."""
-    try:
-        return [await service.run_test(session, t, persist=False) for t in service.load_tests()]
-    except service.ChangeInputError as exc:
-        raise HTTPException(409, str(exc)) from exc
+    """Current results only; stored rows may describe older rule versions.
+
+    One case that cannot be replayed does not withhold the other four. A case
+    whose rules are missing comes back carrying the reason in place of an
+    answer, because "no verified rule for HOB-ALG-01 yet" belongs in that
+    case's own place on the page - where it names the thing to go and fix.
+    Failing the whole list instead blanks four answers that are perfectly
+    good, which is what used to happen on any checkout whose corpus had not
+    been through a full extraction pass.
+
+    `/export` still refuses outright on the same error: a submission file may
+    not be partial, and that gate is the reason this one can afford not to be.
+    """
+    results: list[ChangeTestResult] = []
+    for test in service.load_tests():
+        try:
+            results.append(await service.run_test(session, test, persist=False))
+        except service.ChangeInputError as exc:
+            results.append(service.blocked_result(test, str(exc)))
+    return results
 
 
 @router.get("/export")

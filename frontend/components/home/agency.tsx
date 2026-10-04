@@ -363,7 +363,12 @@ export async function AgencyHome({ health }: { places: Place[]; health: Health }
               </tr>
             </thead>
             <tbody>
-              {(changeResults ?? []).map((result) => (
+              {(changeResults ?? [])
+                /* A blocked case computed nothing, so its zero is not a share
+                   of the stock. It is reported on /changes, where the reason
+                   and the rule it waits on can be read together. */
+                .filter((result) => !result.blocked_reason)
+                .map((result) => (
                 <tr key={result.test_id}>
                   <Td>
                     <span className="mono text-xs">{result.test_id}</span>{" "}

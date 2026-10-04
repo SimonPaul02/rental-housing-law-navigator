@@ -80,6 +80,30 @@ def get_test(test_id: str) -> ChangeTest | None:
     return next((t for t in load_tests() if t.test_id == test_id), None)
 
 
+def blocked_result(test: ChangeTest, reason: str) -> ChangeTestResult:
+    """A case that could not be replayed, returned as a result that says so.
+
+    Used only where a reader is better served by four answers and one stated
+    reason than by nothing at all - which is the UI, and emphatically not the
+    export. The empty affected set here means "not computed", so a caller that
+    counts addresses must drop these rows rather than add their zeroes in.
+    """
+    return ChangeTestResult(
+        test_id=test.test_id,
+        title=test.title,
+        type=test.type,
+        as_of=test.as_of or test.as_of_after or dt.date.fromisoformat(settings.default_as_of),
+        affected_address_ids=[],
+        conflict_flag_address_ids=[],
+        notes=reason,
+        expected_behavior=test.expected_behavior,
+        canonical_matches=[],
+        detail={},
+        rules_resolved=False,
+        blocked_reason=reason,
+    )
+
+
 async def resolve_canonical(
     session: AsyncSession, canonical_id: str
 ) -> tuple[CanonicalMatch, list[Rule]]:

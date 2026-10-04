@@ -107,6 +107,70 @@ async def test_missing_canonical_rule_stops_a_run(monkeypatch: pytest.MonkeyPatc
         await service.run_test(None, case, persist=False)
 
 
+@pytest.mark.asyncio
+async def test_one_unanswerable_case_does_not_blank_the_others(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A reader gets the answers that exist, plus the reason for the one missing.
+
+    `/results` feeds the UI, where four good answers withheld because a fifth
+    case has no extracted ordinance is the worse failure. The blocked row has
+    to be unmistakable, though: its empty affected set means "not computed",
+    and anything counting buildings must be able to tell that from "nobody".
+    """
+    from app.modules.change_tracking.router import list_results
+    from app.modules.change_tracking.schemas import ChangeTestResult
+
+    cases = [
+        ChangeTest(
+            test_id="T1",
+            title="date gate",
+            type="as_of",
+            rule_ids=["CA-ALG-01"],
+            expected_behavior="transition",
+            as_of_before=dt.date(2025, 12, 31),
+            as_of_after=dt.date(2026, 1, 2),
+        ),
+        ChangeTest(
+            test_id="T2",
+            title="city boundary",
+            type="boundary",
+            rule_ids=["HOB-ALG-01"],
+            expected_behavior="Hoboken only",
+            as_of=dt.date(2026, 10, 1),
+        ),
+    ]
+    answered = ChangeTestResult(
+        test_id="T1",
+        title="date gate",
+        type="as_of",
+        as_of=dt.date(2026, 1, 2),
+        affected_address_ids=["A0001"],
+        notes="one address moved",
+        expected_behavior="transition",
+    )
+
+    async def run(_session, test, **_kwargs):
+        if test.test_id == "T2":
+            raise service.ChangeInputError("T2 has no verified rule for: HOB-ALG-01")
+        return answered
+
+    monkeypatch.setattr(service, "load_tests", lambda: cases)
+    monkeypatch.setattr(service, "run_test", run)
+
+    rows = await list_results(None)
+
+    assert [row.test_id for row in rows] == ["T1", "T2"]
+    assert rows[0].blocked_reason is None
+    assert rows[0].affected_address_ids == ["A0001"]
+
+    blocked = rows[1]
+    assert blocked.blocked_reason is not None
+    assert "HOB-ALG-01" in blocked.blocked_reason
+    assert blocked.affected_address_ids == []
+    assert blocked.rules_resolved is False
+
+
 def test_massachusetts_bill_ids_are_source_distinct() -> None:
     selectors = service.CANONICAL_RULES
     assert selectors["MA-ALG-P1"].source_doc_ids == ("D089",)

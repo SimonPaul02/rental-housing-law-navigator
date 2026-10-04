@@ -155,12 +155,37 @@ export interface LookupResponse {
   unknown_count: number;
 }
 
+/** What kind of question a change case asks.
+ *
+ *  Each kind means a different thing by "affected", which is why the UI never
+ *  prints that word on its own:
+ *
+ *  - `as_of`    a law on the books that comes into force between two dates;
+ *               affected = the buildings whose answer changes across them.
+ *  - `boundary` two city ordinances that must not reach past their own city
+ *               limits; affected = the buildings each one reaches on one date.
+ *  - `pending`  a bill not yet enacted, so nothing is in force today;
+ *               affected = who would fall in scope if it passed.
+ *  - `negative` a measure that failed; the correct affected set is empty, and
+ *               anything in it is a bug rather than a finding.
+ */
+export type ChangeKind = "as_of" | "boundary" | "pending" | "negative";
+
 export interface ChangeTest {
   test_id: string;
   title: string;
-  type: string;
+  type: ChangeKind | string;
   rule_ids: string[];
   expected_behavior: string;
+  /** The one date a boundary, pending or negative case is asked on. */
+  as_of?: string | null;
+  /** An as_of case's pair: not in force on the first date, in force on the second. */
+  as_of_before?: string | null;
+  as_of_after?: string | null;
+  /** The states the case scans. Empty means the whole sample. */
+  states?: string[];
+  /** Rules already covering the same ground, which the new one may preempt. */
+  conflict_with?: string[];
 }
 
 export interface CanonicalMatch {
@@ -179,18 +204,59 @@ export interface CanonicalMatch {
   }[];
 }
 
+/** The replay's working, which is what makes a count inspectable.
+ *
+ *  The backend fills a different subset of these per case kind, so every
+ *  member is optional and the UI reads only the ones its kind defines. It is
+ *  typed rather than left as `Record<string, unknown>` because the page used
+ *  to render the interesting half of it as `JSON.stringify` output.
+ */
+export interface ChangeDetail {
+  /** How many addresses the case scanned, which is the denominator. */
+  addresses_examined?: number;
+  /* as_of */
+  as_of_before?: string;
+  as_of_after?: string;
+  /** Covered outright on the later date. */
+  covered_after?: number;
+  /** In force on the later date, but coverage turns on a fact the data lacks. */
+  coverage_unresolved_after?: number;
+  /** address id -> rule id -> the evaluator's answer on each date. */
+  transitions?: Record<string, Record<string, { before: string; after: string }>>;
+  /** address id -> every algorithmic-rent answer before and after, rule by rule. */
+  rule_sets?: Record<string, { before: Record<string, string>; after: Record<string, string> }>;
+  /** rule id -> status, with its effective date where the case recorded one. */
+  rule_status?: Record<string, { status: string; effective_date?: string | null } | string>;
+  /* boundary, pending */
+  /** canonical rule id -> the addresses it reaches. */
+  per_rule?: Record<string, string[]>;
+  /** Addresses more than one city rule claimed — for disjoint cities, a defect. */
+  overlap?: string[];
+  /* pending */
+  in_force_now?: boolean;
+  /* negative */
+  unexpected_applications?: string[];
+  unexpected_rent_caps?: string[];
+}
+
 export interface ChangeTestResult {
   test_id: string;
   title: string;
-  type: string;
+  type: ChangeKind | string;
   as_of: string;
   affected_address_ids: string[];
   conflict_flag_address_ids: string[];
   notes: string;
   expected_behavior: string;
   canonical_matches: CanonicalMatch[];
-  detail: Record<string, unknown>;
+  detail: ChangeDetail;
   rules_resolved: boolean;
+  /** Why this case could not be replayed, when it could not be.
+   *
+   *  Set means every other field is empty for want of a computation, not
+   *  because the answer was nobody — so a reader counting buildings must skip
+   *  the row rather than treat its zero as a finding. */
+  blocked_reason?: string | null;
 }
 
 export interface ChangeStats {
