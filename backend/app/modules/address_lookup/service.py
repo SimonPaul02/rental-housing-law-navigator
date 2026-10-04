@@ -184,12 +184,27 @@ def _value_period_note(rule: CompiledRule, as_of: dt.date) -> str | None:
     return None
 
 
+def _carry_record_conflict(decision: Decision, record: Rule) -> None:
+    """Module A's own conflict flag belongs to every answer about the rule.
+
+    Folded into the decision rather than the outcome, so the API view, the
+    audit log and lookups.json all report the same flag.
+    """
+    if record.conflict_flag and not decision.conflict_flag:
+        decision.conflict_flag = True
+        decision.conflict_reason = decision.conflict_reason or (
+            f"The sources disagree about this rule: {record.conflict_note}."
+            if record.conflict_note
+            else "The sources disagree about this rule."
+        )
+
+
 def _outcome_from(decision: Decision, record: Rule, compiled: CompiledRule) -> RuleOutcome:
     return RuleOutcome(
         team_rule_id=decision.team_rule_id,
         result=str(decision.result),
         explanation=decision.explanation,
-        conflict_flag=decision.conflict_flag or bool(record.conflict_flag),
+        conflict_flag=decision.conflict_flag,
         unresolved_fields=list(decision.base.unresolved_fields),
         in_jurisdiction=decision.base.geography is not Ternary.false,
         category=record.category,
@@ -222,7 +237,9 @@ def decide_for_address(
     """Base decisions for every rule, then the interaction pass across them."""
     bases = [evaluate_base(compiled[r.team_rule_id], evidence, as_of) for r in records]
     decisions = resolve_interactions(bases, relations)
+    by_id = {r.team_rule_id: r for r in records}
     for decision in decisions:
+        _carry_record_conflict(decision, by_id[decision.team_rule_id])
         decision.explanation = explain(decision)
         if note := _value_period_note(compiled[decision.team_rule_id], decision.base.as_of):
             decision.explanation += " " + note
@@ -292,6 +309,7 @@ def evaluate_rule_for_address(
     base = evaluate_base(compiled, evidence, as_of)
     decision = Decision(base=base, result=base.result, conflict_flag=base.conflict_flag)
     decision.conflict_reason = base.conflict_reason
+    _carry_record_conflict(decision, rule)
     decision.explanation = explain(decision)
     if note := _value_period_note(compiled, as_of):
         decision.explanation += " " + note
@@ -309,38 +327,14 @@ async def lookup_address(
     evidence = evidence_for(address)
     records, compiled, relations = await compiled_rules(session)
     decisions = decide_for_address(records, compiled, relations, evidence, as_of)
+    reportable, outcomes = _reported_outcomes(
+        decisions, records, compiled, include_not_applicable=include_not_applicable
+    )
 
-    by_id = {r.team_rule_id: r for r in records}
-    # Report anything that bears on this address. A rule that definitely does
-    # not cover it, and a measure that failed, are dropped; pending and
-    # not-yet-effective rules are kept so the answer can say so out loud.
-    outcomes = [
-        _outcome_from(d, by_id[d.team_rule_id], compiled[d.team_rule_id])
-        for d in decisions
-        if d.base.could_be_relevant and d.result is not BaseResult.does_not_apply
-    ]
-
-    # What is persisted, exported and counted is always the list above - the
-    # five results the submission format has words for. `does_not_apply` is
-    # appended only for a caller that asked, and never written: it is the
-    # absence of a result, not one of them.
+    # What is persisted, exported and counted is always `reportable` - the
+    # five results the submission format has words for.
     if persist:
-        await _persist_lookups(session, address.address_id, as_of, outcomes)
-
-    reportable = outcomes
-    if include_not_applicable:
-        # A housing provider's question - which exemptions does this building
-        # claim - is answerable only from the rules that do *not* bind it, and
-        # the exemption check that beat each one is in the trace. That is the
-        # one caller this exists for.
-        outcomes = [
-            *outcomes,
-            *(
-                _outcome_from(d, by_id[d.team_rule_id])
-                for d in decisions
-                if d.result is BaseResult.does_not_apply
-            ),
-        ]
+        await _persist_lookups(session, address.address_id, as_of, reportable)
 
     juris = address.jurisdiction
     return LookupResponse(
@@ -353,6 +347,41 @@ async def lookup_address(
         applies_count=sum(1 for o in reportable if o.result == "applies"),
         unknown_count=sum(1 for o in reportable if o.result == "unknown"),
     )
+
+
+def _reported_outcomes(
+    decisions: list[Decision],
+    records: list[Rule],
+    compiled: dict[str, CompiledRule],
+    *,
+    include_not_applicable: bool = False,
+) -> tuple[list[RuleOutcome], list[RuleOutcome]]:
+    """The reportable outcomes, and the list the caller asked to see.
+
+    A rule that definitely does not cover the address, and a measure that
+    failed, are dropped; pending and not-yet-effective rules are kept so the
+    answer can say so out loud. `does_not_apply` is appended only for a caller
+    that asked, and never persisted: it is the absence of a result. A housing
+    provider's question - which exemptions does this building claim - is
+    answerable only from the rules that do *not* bind it, and the exemption
+    check that beat each one is in the trace.
+    """
+    by_id = {r.team_rule_id: r for r in records}
+
+    def outcome(d: Decision) -> RuleOutcome:
+        return _outcome_from(d, by_id[d.team_rule_id], compiled[d.team_rule_id])
+
+    reportable = [
+        outcome(d)
+        for d in decisions
+        if d.base.could_be_relevant and d.result is not BaseResult.does_not_apply
+    ]
+    if not include_not_applicable:
+        return reportable, reportable
+    return reportable, [
+        *reportable,
+        *(outcome(d) for d in decisions if d.result is BaseResult.does_not_apply),
+    ]
 
 
 async def _persist_lookups(

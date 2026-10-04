@@ -25,8 +25,6 @@ from sqlalchemy import select  # noqa: E402
 from app.core.db import SessionLocal  # noqa: E402
 from app.db.models import Document, Rule  # noqa: E402
 from app.modules.address_lookup.rule_adapter import adapters  # noqa: E402
-from app.modules.address_lookup.rule_adapter.compiler import content_hash  # noqa: E402
-from app.modules.address_lookup.rule_adapter.models import rule_version_hash  # noqa: E402
 
 
 async def load_rules() -> tuple[list[Rule], dict[str, str]]:
@@ -34,37 +32,6 @@ async def load_rules() -> tuple[list[Rule], dict[str, str]]:
         rows = await session.execute(select(Rule).order_by(Rule.team_rule_id))
         docs = await session.execute(select(Document.doc_id, Document.body))
         return list(rows.scalars().all()), {doc_id: body for doc_id, body in docs if body}
-
-
-def proposal_key(record: Rule, source_text: str | None = None) -> str:
-    from app.core.config import settings
-
-    return "|".join(
-        [
-            record.team_rule_id,
-            rule_version_hash(record),
-            content_hash(source_text) or "missing-source",
-            settings.extraction_model,
-            adapters.PROMPT_VERSION,
-        ]
-    )
-
-
-def cached_suggestion(
-    proposals: dict[str, dict], record: Rule, source_text: str | None
-) -> dict | None:
-    """Old model output is only a suggestion; the current compiler revalidates it."""
-    current = proposals.get(proposal_key(record, source_text))
-    if current is not None:
-        return current
-    return next(
-        (
-            value
-            for key, value in proposals.items()
-            if key.startswith(f"{record.team_rule_id}|") and isinstance(value, dict)
-        ),
-        None,
-    )
 
 
 async def main() -> None:
@@ -106,7 +73,9 @@ async def main() -> None:
     if not args.no_model and needing:
         targets = needing[: args.limit] if args.limit else needing
         todo = [
-            r for r in targets if proposal_key(r, sources.get(r.source_doc_id)) not in proposals
+            r
+            for r in targets
+            if adapters.proposal_key(r, sources.get(r.source_doc_id)) not in proposals
         ]
         cached = len(targets) - len(todo)
         print(f"asking the model about {len(todo)} rule(s) ({cached} already cached)")
@@ -120,7 +89,7 @@ async def main() -> None:
                 ]
                 try:
                     proposals[
-                        proposal_key(record, sources.get(record.source_doc_id))
+                        adapters.proposal_key(record, sources.get(record.source_doc_id))
                     ] = await adapters.propose_for(record, texts, sources.get(record.source_doc_id))
                 except Exception as exc:  # noqa: BLE001 - one rule must not stop the pass
                     print(f"  {record.team_rule_id}: proposal failed ({type(exc).__name__}: {exc})")
@@ -135,7 +104,7 @@ async def main() -> None:
 
     # Pass two: compile for real, folding in every validated proposal.
     by_key = {
-        r.team_rule_id: cached_suggestion(proposals, r, sources.get(r.source_doc_id))
+        r.team_rule_id: adapters.cached_suggestion(proposals, r, sources.get(r.source_doc_id))
         for r in records
     }
     store = adapters.store()

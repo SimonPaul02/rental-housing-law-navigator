@@ -215,6 +215,37 @@ def save_proposals(proposals: dict[str, dict]) -> None:
     )
 
 
+def proposal_key(record: Any, source_text: str | None = None) -> str:
+    from app.modules.address_lookup.rule_adapter.compiler import content_hash
+
+    return "|".join(
+        [
+            record.team_rule_id,
+            rule_version_hash(record),
+            content_hash(source_text) or "missing-source",
+            settings.extraction_model,
+            PROMPT_VERSION,
+        ]
+    )
+
+
+def cached_suggestion(
+    proposals: dict[str, dict], record: Any, source_text: str | None
+) -> dict | None:
+    """Old model output is only a suggestion; the current compiler revalidates it."""
+    current = proposals.get(proposal_key(record, source_text))
+    if current is not None:
+        return current
+    return next(
+        (
+            value
+            for key, value in proposals.items()
+            if key.startswith(f"{record.team_rule_id}|") and isinstance(value, dict)
+        ),
+        None,
+    )
+
+
 async def propose_for(
     record: Any, unmapped_texts: list[str], source_text: str | None = None
 ) -> dict:

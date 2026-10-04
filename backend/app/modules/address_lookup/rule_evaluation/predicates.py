@@ -88,6 +88,8 @@ _OPS = {
     Op.lte: lambda a, b: a <= b,
     Op.gt: lambda a, b: a > b,
     Op.gte: lambda a, b: a >= b,
+    Op.is_true: lambda a, _: a is True,
+    Op.is_false: lambda a, _: a is False,
 }
 
 _HUMAN_OP = {
