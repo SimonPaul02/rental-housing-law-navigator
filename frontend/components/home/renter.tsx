@@ -64,7 +64,7 @@ export async function RenterHome({ places, health }: { places: Place[]; health: 
 
   const lookups = await evaluate(places);
   const lookup = lookups.get(home.address_id);
-  const { applies, unknown, coming } = split(lookup);
+  const { applies, unknown, coming, superseded } = split(lookup);
   const rulesLoaded = Boolean(ruleStats?.total);
   const lease = (contracts ?? []).filter((contract) => contract.place_id === home.id);
   const point = placePoint(home, "mine", [
@@ -194,9 +194,9 @@ export async function RenterHome({ places, health }: { places: Place[]; health: 
             />
             {applies.length === 0 ? (
               <p className="text-sm" style={{ color: "var(--faint)" }}>
-                No rule in this corpus covers your building on today&rsquo;s date.
-                That is an answer about the rules we have read, not a statement
-                that nothing protects you.
+                {unknown.length + coming.length + superseded.length > 0
+                  ? "No rule is confirmed to apply on this date. The other outcomes below explain what remains unsettled, is not yet in force, or is superseded."
+                  : "No rule in this corpus covers your building on today's date. That is an answer about the rules we have read, not a statement that nothing protects you."}
               </p>
             ) : (
               <ByCategory outcomes={applies} />
@@ -212,6 +212,20 @@ export async function RenterHome({ places, health }: { places: Place[]; health: 
               />
               <ul className="space-y-3">
                 {coming.map((outcome) => (
+                  <Outcome key={outcome.team_rule_id} outcome={outcome} />
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {superseded.length > 0 && (
+            <section className="space-y-4">
+              <SectionTitle
+                title="Governed by another rule here"
+                hint="These rules were checked, but a reviewed relationship gives another applicable rule precedence for this building."
+              />
+              <ul className="space-y-3">
+                {superseded.map((outcome) => (
                   <Outcome key={outcome.team_rule_id} outcome={outcome} />
                 ))}
               </ul>

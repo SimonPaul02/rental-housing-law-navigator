@@ -60,6 +60,21 @@ def evaluate_time(
             ),
         )
 
+    if rule.effective_date_unresolved:
+        return (
+            Ternary.unknown,
+            BaseResult.unknown,
+            CheckTrace(
+                check="time",
+                value=Ternary.unknown,
+                reason=Reason.effective_date_missing,
+                detail=(
+                    "A date in the rule record has an unverified meaning in the source; "
+                    "its effective date needs review."
+                ),
+            ),
+        )
+
     dates = list(rule.effective_dates)
 
     if not dates:

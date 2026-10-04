@@ -30,11 +30,13 @@ from app.modules.address_lookup.rule_adapter.models import (
     InvalidCompilation,
     Op,
     Origin,
+    Qualification,
     Relation,
     RelationType,
     ReviewState,
     SourceAnchor,
     UnmappedClause,
+    ValuePeriod,
     validate_expr,
 )
 
@@ -84,6 +86,7 @@ def expr_from_json(payload: dict) -> Expr:
 
 
 def compiled_from_json(payload: dict) -> CompiledRule:
+    period = payload.get("key_value_period")
     return CompiledRule(
         team_rule_id=payload["team_rule_id"],
         rule_version_hash=payload["rule_version_hash"],
@@ -103,6 +106,16 @@ def compiled_from_json(payload: dict) -> CompiledRule:
                 d["precision"],
             )
             for d in payload.get("effective_dates", [])
+        ),
+        effective_date_unresolved=payload.get("effective_date_unresolved", False),
+        key_value_period=(
+            ValuePeriod(
+                dt.date.fromisoformat(period["start"]),
+                dt.date.fromisoformat(period["end"]),
+                _anchor_from(period["anchor"]),
+            )
+            if period
+            else None
         ),
         coverage=expr_from_json(payload.get("coverage", {"all": []})),
         exemptions=expr_from_json(payload.get("exemptions", {"any": []})),
@@ -125,6 +138,19 @@ def compiled_from_json(payload: dict) -> CompiledRule:
 
 
 def relation_from_json(payload: dict) -> Relation:
+    # Old phrase-pattern approvals have no version-bound decision and are unsafe.
+    reviewed = bool(
+        payload.get("compiler_version") == COMPILER_VERSION
+        and payload.get("qualification") in set(Qualification)
+        and payload.get("left_evidence_span")
+        and payload.get("right_evidence_span")
+        and payload.get("reviewer")
+        and payload.get("reviewed_at")
+        and payload.get("left_version_hash")
+        and payload.get("right_version_hash")
+        and payload.get("left_source_hash")
+        and payload.get("right_source_hash")
+    )
     return Relation(
         left_rule_id=payload["left_rule_id"],
         right_rule_id=payload["right_rule_id"],
@@ -132,7 +158,22 @@ def relation_from_json(payload: dict) -> Relation:
         relation=RelationType(payload["relation"]),
         anchor=_anchor_from(payload),
         condition=payload.get("condition"),
-        review_state=ReviewState(payload.get("review_state", "needs_review")),
+        review_state=ReviewState(payload.get("review_state", "needs_review"))
+        if reviewed
+        else ReviewState.needs_review,
+        qualification=Qualification(payload.get("qualification", "unresolved"))
+        if reviewed
+        else Qualification.unresolved,
+        valid_from=dt.date.fromisoformat(payload["valid_from"])
+        if reviewed and payload.get("valid_from")
+        else None,
+        left_version_hash=payload.get("left_version_hash"),
+        right_version_hash=payload.get("right_version_hash"),
+        left_source_hash=payload.get("left_source_hash"),
+        right_source_hash=payload.get("right_source_hash"),
+        reviewer=payload.get("reviewer"),
+        reviewed_at=payload.get("reviewed_at"),
+        review_note=payload.get("review_note"),
     )
 
 
@@ -145,6 +186,7 @@ class ReviewStore:
     revisions: dict[str, dict] = field(default_factory=dict)
     relations: list[dict] = field(default_factory=list)
     reviews: dict[str, dict] = field(default_factory=dict)
+    date_reviews: dict[str, dict] = field(default_factory=dict)
 
     @classmethod
     def load(cls, path: Path) -> ReviewStore:
@@ -156,6 +198,7 @@ class ReviewStore:
             revisions=payload.get("revisions", {}),
             relations=payload.get("relations", []),
             reviews=payload.get("reviews", {}),
+            date_reviews=payload.get("date_reviews", {}),
         )
 
     def save(self) -> None:
@@ -166,6 +209,7 @@ class ReviewStore:
                     "revisions": self.revisions,
                     "relations": self.relations,
                     "reviews": self.reviews,
+                    "date_reviews": self.date_reviews,
                 },
                 indent=2,
                 sort_keys=True,
@@ -223,6 +267,10 @@ class ReviewStore:
             and all(decision.get(key) is not None for key in required)
             and str(decision.get("reviewer", "")).strip()
             and str(decision.get("rationale", "")).strip()
+            and (
+                decision.get("coverage_basis") != str(CoverageBasis.explicit_unconditional)
+                or decision.get("scope_evidence_span")
+            )
         )
 
     def review_for(
@@ -238,6 +286,133 @@ class ReviewStore:
             return None
         return decision
 
+    def review_dates(
+        self,
+        compiled: CompiledRule,
+        *,
+        source_text: str,
+        reviewer: str,
+        rationale: str,
+        effective_dates: list[dict],
+        key_value_period: dict | None = None,
+        role_evidence_span: str | None = None,
+    ) -> None:
+        """Resolve date roles using passages in the current source document."""
+        from app.modules.address_lookup.rule_adapter.compiler import (
+            _SOURCE_DATE,
+            _source_contains,
+            _source_date,
+            content_hash,
+            parse_effective_date,
+        )
+
+        if (
+            not reviewer.strip()
+            or not rationale.strip()
+            or compiled.compiler_version != COMPILER_VERSION
+            or not compiled.source_hash
+            or content_hash(source_text) != compiled.source_hash
+        ):
+            raise InvalidCompilation("current source, reviewer and rationale are required")
+        if not effective_dates and compiled.effective_date_unresolved:
+            role_evidence_span = role_evidence_span or (
+                key_value_period or {}
+            ).get("source_span")
+            if not role_evidence_span or not _source_contains(source_text, role_evidence_span):
+                raise InvalidCompilation("clearing an ambiguous date needs source evidence")
+        parsed: list[EffectiveDate] = []
+        for item in effective_dates:
+            date = parse_effective_date(item.get("raw"))
+            span = item.get("source_span", "")
+            supported = bool(
+                date
+                and (
+                    date.raw in span
+                    or any(
+                        _source_date(match.group(0)) == date.earliest
+                        for match in _SOURCE_DATE.finditer(span)
+                    )
+                )
+            )
+            if not supported or not _source_contains(source_text, span):
+                raise InvalidCompilation("effective date needs a current source passage")
+            parsed.append(date)
+        if key_value_period:
+            try:
+                start = dt.date.fromisoformat(key_value_period["start"])
+                end = dt.date.fromisoformat(key_value_period["end"])
+                span = key_value_period["source_span"]
+            except (KeyError, ValueError, TypeError) as exc:
+                raise InvalidCompilation("invalid key value period") from exc
+            mentioned = {_source_date(match.group(0)) for match in _SOURCE_DATE.finditer(span)}
+            if (
+                start > end
+                or not _source_contains(source_text, span)
+                or not {start, end} <= mentioned
+            ):
+                raise InvalidCompilation(
+                    "key value period needs an ordered, current source passage"
+                )
+        self.date_reviews[compiled.team_rule_id] = {
+            "rule_version_hash": compiled.rule_version_hash,
+            "source_hash": compiled.source_hash,
+            "compiler_version": COMPILER_VERSION,
+            "reviewer": reviewer,
+            "reviewed_at": dt.datetime.now(dt.UTC).isoformat(),
+            "rationale": rationale,
+            "effective_dates": [d.to_json() for d in parsed],
+            "effective_date_evidence": effective_dates,
+            "role_evidence_span": role_evidence_span,
+            "key_value_period": key_value_period,
+        }
+
+    def date_review_for(
+        self, team_rule_id: str, rule_version_hash: str, source_hash: str | None
+    ) -> dict | None:
+        decision = self.date_reviews.get(team_rule_id)
+        if not decision or any(
+            decision.get(key) != expected
+            for key, expected in (
+                ("rule_version_hash", rule_version_hash),
+                ("source_hash", source_hash),
+                ("compiler_version", COMPILER_VERSION),
+            )
+        ):
+            return None
+        return decision
+
+    def apply_date_review(self, compiled: CompiledRule) -> CompiledRule:
+        decision = self.date_review_for(
+            compiled.team_rule_id, compiled.rule_version_hash, compiled.source_hash
+        )
+        if not decision:
+            return compiled
+        compiled.effective_dates = tuple(
+            EffectiveDate(
+                item["raw"],
+                dt.date.fromisoformat(item["earliest"]),
+                dt.date.fromisoformat(item["latest"]),
+                item["precision"],
+            )
+            for item in decision["effective_dates"]
+        )
+        compiled.effective_date_unresolved = False
+        if period := decision.get("key_value_period"):
+            compiled.key_value_period = ValuePeriod(
+                dt.date.fromisoformat(period["start"]),
+                dt.date.fromisoformat(period["end"]),
+                SourceAnchor(
+                    period["source_span"],
+                    compiled.source_doc_id,
+                    source_hash=compiled.source_hash,
+                ),
+            )
+        compiled.notes = (
+            *compiled.notes,
+            f"dates reviewed by {decision['reviewer']}: {decision['rationale']}",
+        )
+        return compiled
+
     def review_coverage(
         self,
         compiled: CompiledRule,
@@ -250,6 +425,7 @@ class ReviewStore:
         coverage: dict | None = None,
         exemptions: dict | None = None,
         coverage_basis: str | None = None,
+        scope_evidence_span: str | None = None,
     ) -> None:
         """Record an explicit interpretation bound to rule, source and compiler."""
         from app.modules.address_lookup.rule_adapter.compiler import _source_contains, content_hash
@@ -318,6 +494,10 @@ class ReviewStore:
         if not parsed_coverage.is_empty and basis is CoverageBasis.explicit_unconditional:
             raise InvalidCompilation("unconditional basis requires empty coverage")
         if parsed_coverage.is_empty and basis is CoverageBasis.explicit_unconditional:
+            if any("rso" in u.text.casefold() for u in compiled.unmapped_text):
+                raise InvalidCompilation("RSO scope cannot be approved as unconditional coverage")
+            if not scope_evidence_span or not _source_contains(source_text, scope_evidence_span):
+                raise InvalidCompilation("unconditional scope needs a current source passage")
             coverage_ids = {
                 u.clause_id for u in compiled.unmapped_text if u.origin is Origin.coverage
             }
@@ -336,10 +516,12 @@ class ReviewStore:
             "coverage": parsed_coverage.to_json(),
             "exemptions": parsed_exemptions.to_json(),
             "coverage_basis": str(basis),
+            "scope_evidence_span": scope_evidence_span,
         }
 
     def apply_reviews(self, compiled: CompiledRule) -> CompiledRule:
         """Promote a revision a reviewer approved for exactly this text."""
+        compiled = self.apply_date_review(compiled)
         decision = self.review_for(
             compiled.team_rule_id, compiled.rule_version_hash, compiled.source_hash
         )
@@ -366,6 +548,12 @@ class ReviewStore:
                     not coverage.is_empty and basis is CoverageBasis.explicit_unconditional
                 ):
                     raise InvalidCompilation("reviewed coverage basis conflicts with expression")
+                if (
+                    coverage.is_empty
+                    and basis is CoverageBasis.explicit_unconditional
+                    and any("rso" in u.text.casefold() for u in compiled.unmapped_text)
+                ):
+                    raise InvalidCompilation("RSO scope cannot be unconditional")
                 for atom in (*coverage.atoms(), *exemptions.atoms()):
                     if (
                         not atom.anchor
@@ -398,32 +586,98 @@ class ReviewStore:
 
     # -- relations ------------------------------------------------------------
     def put_relations(self, relations: list[Relation]) -> None:
-        known = {(r["left_rule_id"], r["right_rule_id"], r["issue_key"]) for r in self.relations}
+        old = {(r["left_rule_id"], r["right_rule_id"], r["issue_key"]): r for r in self.relations}
+        current: list[dict] = []
         for rel in relations:
-            key = (rel.left_rule_id, rel.right_rule_id, rel.issue_key)
-            if key not in known:
-                self.relations.append(rel.to_json())
-                known.add(key)
+            payload = rel.to_json()
+            previous = old.get((rel.left_rule_id, rel.right_rule_id, rel.issue_key))
+            stable = (
+                "left_version_hash",
+                "right_version_hash",
+                "left_source_hash",
+                "right_source_hash",
+                "condition",
+                "source_span",
+                "relation",
+                "compiler_version",
+            )
+            payload["compiler_version"] = COMPILER_VERSION
+            if (
+                previous
+                and previous.get("reviewer")
+                and all(previous.get(field) == payload.get(field) for field in stable)
+            ):
+                for field in (
+                    "review_state",
+                    "qualification",
+                    "valid_from",
+                    "reviewer",
+                    "reviewed_at",
+                    "review_note",
+                    "left_evidence_span",
+                    "right_evidence_span",
+                ):
+                    payload[field] = previous.get(field)
+            current.append(payload)
+        self.relations = current
 
     def approved_relations(self) -> list[Relation]:
         return [
             relation_from_json(r)
             for r in self.relations
-            if r.get("review_state") == str(ReviewState.approved)
+            if relation_from_json(r).review_state is ReviewState.approved
         ]
 
     def all_relations(self) -> list[Relation]:
         return [relation_from_json(r) for r in self.relations]
 
-    def approve_relation(self, left: str, right: str, issue_key: str, note: str = "") -> bool:
+    def review_relation(
+        self,
+        left: str,
+        right: str,
+        issue_key: str,
+        *,
+        left_source_text: str,
+        right_source_text: str,
+        reviewer: str,
+        rationale: str,
+        qualification: Qualification,
+        left_evidence_span: str,
+        right_evidence_span: str,
+        valid_from: dt.date | None = None,
+    ) -> bool:
+        from app.modules.address_lookup.rule_adapter.compiler import _source_contains, content_hash
+
+        if not reviewer.strip() or not rationale.strip():
+            raise InvalidCompilation("reviewer and rationale are required")
         for rel in self.relations:
             if (rel["left_rule_id"], rel["right_rule_id"], rel["issue_key"]) == (
                 left,
                 right,
                 issue_key,
             ):
-                rel["review_state"] = str(ReviewState.approved)
-                rel["review_note"] = note
+                if (
+                    rel.get("compiler_version") != COMPILER_VERSION
+                    or rel.get("left_source_hash") != content_hash(left_source_text)
+                    or rel.get("right_source_hash") != content_hash(right_source_text)
+                    or not _source_contains(left_source_text, left_evidence_span)
+                    or not _source_contains(right_source_text, right_evidence_span)
+                ):
+                    raise InvalidCompilation("relation evidence is absent or stale")
+                rel.update(
+                    review_state=str(
+                        ReviewState.approved
+                        if qualification is not Qualification.unresolved
+                        else ReviewState.needs_review
+                    ),
+                    qualification=str(qualification),
+                    valid_from=valid_from.isoformat() if valid_from else None,
+                    reviewer=reviewer,
+                    reviewed_at=dt.datetime.now(dt.UTC).isoformat(),
+                    review_note=rationale,
+                    left_evidence_span=left_evidence_span,
+                    right_evidence_span=right_evidence_span,
+                )
                 return True
         return False
 
@@ -437,10 +691,16 @@ class ReviewStore:
         items: list[dict[str, Any]] = []
         for rule_id, payload in sorted(self.revisions.items()):
             unmapped = payload.get("unmapped_text", [])
+            date_pending = bool(
+                payload.get("effective_date_unresolved")
+            ) and not self.date_review_for(
+                rule_id, payload.get("rule_version_hash", ""), payload.get("source_hash")
+            )
             if (
                 payload.get("review_state")
                 in (str(ReviewState.machine_verified), str(ReviewState.human_approved))
                 and not unmapped
+                and not date_pending
             ):
                 continue
             items.append(
@@ -458,11 +718,13 @@ class ReviewStore:
                     "coverage": payload.get("coverage"),
                     "exemptions": payload.get("exemptions"),
                     "unmapped_count": len(unmapped),
+                    "effective_date_unresolved": date_pending,
+                    "key_value_period": payload.get("key_value_period"),
                     "unmapped_text": unmapped,
                 }
             )
         for rel in self.relations:
-            if rel.get("review_state") != str(ReviewState.approved):
+            if relation_from_json(rel).review_state is not ReviewState.approved:
                 items.append({"relation": rel})
         items.sort(
             key=lambda i: (

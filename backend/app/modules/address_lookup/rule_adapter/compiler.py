@@ -35,6 +35,7 @@ from app.modules.address_lookup.rule_adapter.models import (
     ReviewState,
     SourceAnchor,
     UnmappedClause,
+    ValuePeriod,
     rule_version_hash,
     validate_atom,
 )
@@ -481,6 +482,60 @@ def compile_expression(
 
 # ------------------------------------------------------------------- dates ---
 _DATE_IN_TEXT = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
+_MONTH_DATE = (
+    r"(?:January|February|March|April|May|June|July|August|September|October|"
+    r"November|December)\s+\d{1,2},\s+\d{4}"
+)
+_SOURCE_DATE = re.compile(rf"\d{{4}}-\d{{2}}-\d{{2}}|{_MONTH_DATE}", re.I)
+_RATE_PERIOD = re.compile(
+    rf"annual\s+rent\s+increases?.{{0,180}}?effective\s+({_MONTH_DATE}|\d{{4}}-\d{{2}}-\d{{2}})"
+    rf"\s*,?\s*(?:through|to|until)\s+({_MONTH_DATE}|\d{{4}}-\d{{2}}-\d{{2}})",
+    re.I | re.S,
+)
+_RATE_PERIOD_VALUE_FIRST = re.compile(
+    rf"Allowable\s+Rent\s+Increase:\s*(\d+(?:\.\d+)?%)\s+for\s+({_MONTH_DATE}|\d{{4}}-\d{{2}}-\d{{2}})"
+    rf"\s*[-–—]\s*({_MONTH_DATE}|\d{{4}}-\d{{2}}-\d{{2}})",
+    re.I,
+)
+_EFFECTIVE_CUE = re.compile(r"(?:effective|takes? effect|operative)(?:\s+on|\s+from)?\s*$", re.I)
+
+
+def _source_date(raw: str) -> dt.date | None:
+    try:
+        return dt.date.fromisoformat(raw)
+    except ValueError:
+        try:
+            return dt.datetime.strptime(raw, "%B %d, %Y").date()
+        except ValueError:
+            return None
+
+
+def _value_period(record: Any, source_text: str | None) -> ValuePeriod | None:
+    if not source_text or not getattr(record, "key_value", None):
+        return None
+    for match in _RATE_PERIOD.finditer(source_text):
+        start, end = _source_date(match.group(1)), _source_date(match.group(2))
+        if start and end and start <= end:
+            # The source passage also has to state the reported value nearby.
+            following = source_text[match.end() : match.end() + 90]
+            value = str(record.key_value).strip()
+            percentage = re.search(r"\d+(?:\.\d+)?%", value)
+            if value and (value in following or (percentage and percentage.group(0) in following)):
+                return ValuePeriod(
+                    start,
+                    end,
+                    _anchor(match.group(0), record, source_hash=content_hash(source_text)),
+                )
+    for match in _RATE_PERIOD_VALUE_FIRST.finditer(source_text):
+        start, end = _source_date(match.group(2)), _source_date(match.group(3))
+        value = str(record.key_value)
+        if start and end and start <= end and match.group(1) in value:
+            return ValuePeriod(
+                start,
+                end,
+                _anchor(match.group(0), record, source_hash=content_hash(source_text)),
+            )
+    return None
 
 
 def parse_effective_date(raw: str | None) -> EffectiveDate | None:
@@ -509,32 +564,76 @@ def parse_effective_date(raw: str | None) -> EffectiveDate | None:
         return None
 
 
-def candidate_dates(record: Any) -> tuple[list[EffectiveDate], list[str]]:
-    """Every effective date the record offers, plus notes about disagreement.
-
-    More than one candidate is not an error to be averaged away: before all of
-    them the rule is future, after all of them it is effective, and between
-    them the answer is unknown and the conflict is reported.
-    """
+def candidate_dates(
+    record: Any, source_text: str | None = None
+) -> tuple[list[EffectiveDate], list[str], bool, ValuePeriod | None]:
+    """Accept only source-backed law dates; keep annual rate periods separate."""
     found: list[EffectiveDate] = []
     notes: list[str] = []
+    unresolved = False
+    period = _value_period(record, source_text)
+    rate_ranges = [
+        m.span()
+        for pattern in (_RATE_PERIOD, _RATE_PERIOD_VALUE_FIRST)
+        for m in pattern.finditer(source_text or "")
+    ]
+    source_mentions: dict[dt.date, list[tuple[int, int, bool]]] = {}
+    for match in _SOURCE_DATE.finditer(source_text or ""):
+        day = _source_date(match.group(0))
+        if day:
+            in_rate = any(start <= match.start() < end for start, end in rate_ranges)
+            source_mentions.setdefault(day, []).append((match.start(), match.end(), in_rate))
+
+    def role(day: dt.date) -> str:
+        mentions = source_mentions.get(day, [])
+        for start, _, in_rate in mentions:
+            if not in_rate and _EFFECTIVE_CUE.search(
+                (source_text or "")[max(0, start - 55) : start]
+            ):
+                return "effective"
+        if period and period.start == day and any(in_rate for _, _, in_rate in mentions):
+            return "rate_period"
+        if mentions and all(in_rate for _, _, in_rate in mentions):
+            return "rate_period"
+        return "ambiguous"
 
     primary = parse_effective_date(getattr(record, "effective_date", None))
     if primary:
-        found.append(primary)
+        if not primary.is_exact:
+            position = (source_text or "").find(primary.raw)
+            if position >= 0 and _EFFECTIVE_CUE.search(
+                (source_text or "")[max(0, position - 55) : position]
+            ):
+                found.append(primary)
+            else:
+                unresolved = True
+                notes.append(f"partial effective date {primary.raw} needs source review")
+        else:
+            meaning = role(primary.earliest)
+            if meaning == "effective":
+                found.append(primary)
+            elif meaning == "rate_period" and period:
+                notes.append(f"{primary.raw} starts a value period, not the rule")
+            else:
+                unresolved = True
+                notes.append(f"effective-date meaning of {primary.raw} needs source review")
 
-    # An interaction or requirement sometimes states a second date in prose.
+    # An additional candidate needs an explicit law-effective cue in the source.
     for attr in ("interaction", "requirement", "key_value"):
         text = getattr(record, attr, None)
         if not isinstance(text, str):
             continue
         for m in _DATE_IN_TEXT.finditer(text):
             parsed = parse_effective_date(m.group(0))
-            if parsed and all(parsed.earliest != f.earliest for f in found):
+            if (
+                parsed
+                and role(parsed.earliest) == "effective"
+                and all(parsed.earliest != f.earliest for f in found)
+            ):
                 found.append(parsed)
-                notes.append(f"a second date {m.group(0)} appears in {attr}")
+                notes.append(f"another source-backed effective date {m.group(0)} appears in {attr}")
 
-    return found, notes
+    return found, notes, unresolved, period
 
 
 # --------------------------------------------------------------- relations ---
@@ -727,7 +826,7 @@ def compile_rule(
         getattr(record, "exemptions", None), Origin.exemption, record, "x", source_text
     )
     relations, relation_unmapped = compile_relations(record, known, peers)
-    dates, date_notes = candidate_dates(record)
+    dates, date_notes, date_unresolved, value_period = candidate_dates(record, source_text)
 
     unmapped = (*cover_unmapped, *exempt_unmapped, *relation_unmapped)
 
@@ -771,6 +870,8 @@ def compile_rule(
         jurisdiction=getattr(record, "jurisdiction", "") or "",
         status=getattr(record, "status", "in_force") or "in_force",
         effective_dates=tuple(dates),
+        effective_date_unresolved=date_unresolved,
+        key_value_period=value_period,
         coverage=coverage,
         exemptions=exemptions,
         unmapped_text=unmapped,
@@ -791,10 +892,9 @@ def apply_proposal(
 ):
     """Fold a validated model proposal into a partial compilation.
 
-    Every atom is re-validated here and must quote text that genuinely occurs
-    in the rule record. A proposal is a suggestion about wording we already
-    hold - never a source of new facts - so an invented date, threshold or
-    field is dropped and the clause stays unmapped.
+    Every atom is re-validated against a matching passage in Document.body.
+    A proposal is only a suggestion; an invented date, threshold, or field is
+    dropped and the clause stays unmapped.
     """
 
     def anchored(atom_json: dict, clause: UnmappedClause) -> Atom | None:

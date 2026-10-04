@@ -22,6 +22,19 @@ def sample_address_ids(path: Path) -> set[str]:
     return set(ids)
 
 
+def require_sample_address_ids(path: Path, database_ids: list[str]) -> set[str]:
+    """Require the database import to match the canonical 500 IDs exactly."""
+    expected = sample_address_ids(path)
+    actual = set(database_ids)
+    if len(database_ids) != len(expected) or actual != expected:
+        raise ValueError(
+            "Database addresses differ from the 500 supplied sample IDs: "
+            f"missing={sorted(expected - actual)[:5]}, "
+            f"extra={sorted(actual - expected)[:5]}"
+        )
+    return expected
+
+
 def validate_changes(payload: Mapping[str, object], *, address_ids: set[str]) -> list[str]:
     problems: list[str] = []
     required = set(REQUIRED_TEST_IDS)

@@ -84,6 +84,7 @@ class Reason(StrEnum):
     # interactions
     superseded_by = "superseded_by"
     governing_rule_unknown = "governing_rule_unknown"
+    relation_qualification_unknown = "relation_qualification_unknown"
     both_apply = "both_apply"
     possible_conflict = "possible_conflict"
 

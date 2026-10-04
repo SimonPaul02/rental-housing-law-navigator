@@ -33,7 +33,11 @@ from app.modules.address_lookup.rule_evaluation import predicates as pred
 from app.modules.address_lookup.rule_evaluation.base import evaluate_base
 from app.modules.address_lookup.rule_evaluation.decisions import BaseResult, Decision, Ternary
 from app.modules.address_lookup.rule_evaluation.explanations import explain
-from app.modules.address_lookup.rule_evaluation.export import to_submission, validate_submission
+from app.modules.address_lookup.rule_evaluation.export import (
+    SubmissionInvalid,
+    to_submission,
+    validate_submission,
+)
 from app.modules.address_lookup.rule_evaluation.interactions import resolve_interactions
 from app.modules.address_lookup.schemas import LookupResponse, RuleOutcome
 from app.modules.address_lookup.status import VERIFIED_METHODS
@@ -170,7 +174,17 @@ async def compiled_rules(
     return records, compiled, relations
 
 
-def _outcome_from(decision: Decision, record: Rule) -> RuleOutcome:
+def _value_period_note(rule: CompiledRule, as_of: dt.date) -> str | None:
+    period = rule.key_value_period
+    if period and not period.start <= as_of <= period.end:
+        return (
+            f"The quoted numerical value covers {period.start.isoformat()} through "
+            f"{period.end.isoformat()}; its value for {as_of.isoformat()} is not established here."
+        )
+    return None
+
+
+def _outcome_from(decision: Decision, record: Rule, compiled: CompiledRule) -> RuleOutcome:
     return RuleOutcome(
         team_rule_id=decision.team_rule_id,
         result=str(decision.result),
@@ -183,7 +197,12 @@ def _outcome_from(decision: Decision, record: Rule) -> RuleOutcome:
         level=record.level,
         status=record.status,
         title=record.title,
-        key_value=record.key_value,
+        key_value=(
+            None
+            if compiled.effective_date_unresolved
+            or _value_period_note(compiled, decision.base.as_of)
+            else record.key_value
+        ),
         citation=record.citation,
         source_url=record.source_url,
         quoted_span=record.quoted_span,
@@ -205,6 +224,8 @@ def decide_for_address(
     decisions = resolve_interactions(bases, relations)
     for decision in decisions:
         decision.explanation = explain(decision)
+        if note := _value_period_note(compiled[decision.team_rule_id], decision.base.as_of):
+            decision.explanation += " " + note
     return decisions
 
 
@@ -272,7 +293,9 @@ def evaluate_rule_for_address(
     decision = Decision(base=base, result=base.result, conflict_flag=base.conflict_flag)
     decision.conflict_reason = base.conflict_reason
     decision.explanation = explain(decision)
-    return _outcome_from(decision, rule)
+    if note := _value_period_note(compiled, as_of):
+        decision.explanation += " " + note
+    return _outcome_from(decision, rule, compiled)
 
 
 async def lookup_address(
@@ -292,7 +315,7 @@ async def lookup_address(
     # not cover it, and a measure that failed, are dropped; pending and
     # not-yet-effective rules are kept so the answer can say so out loud.
     outcomes = [
-        _outcome_from(d, by_id[d.team_rule_id])
+        _outcome_from(d, by_id[d.team_rule_id], compiled[d.team_rule_id])
         for d in decisions
         if d.base.could_be_relevant and d.result is not BaseResult.does_not_apply
     ]
@@ -393,7 +416,8 @@ async def run_lookup_export(
     """
     import json
 
-    records, compiled, relations = await compiled_rules(session)
+    from app.modules.change_tracking.validation import require_sample_address_ids
+
     addresses = (
         (
             await session.execute(
@@ -405,6 +429,13 @@ async def run_lookup_export(
         .scalars()
         .all()
     )
+    try:
+        expected_ids = require_sample_address_ids(
+            settings.addresses_csv, [address.address_id for address in addresses]
+        )
+    except ValueError as exc:
+        raise SubmissionInvalid(str(exc)) from exc
+    records, compiled, relations = await compiled_rules(session)
 
     decisions: list[Decision] = []
     for address in addresses:
@@ -412,10 +443,10 @@ async def run_lookup_export(
             decide_for_address(records, compiled, relations, evidence_for(address), as_of)
         )
 
-    payload = to_submission(decisions, [a.address_id for a in addresses], as_of)
+    payload = to_submission(decisions, sorted(expected_ids), as_of)
     problems = validate_submission(
         payload,
-        expected_address_ids=[a.address_id for a in addresses],
+        expected_address_ids=sorted(expected_ids),
         known_rule_ids={r.team_rule_id for r in records},
     )
 

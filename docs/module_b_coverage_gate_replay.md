@@ -4,6 +4,12 @@ Date: 2026-10-04. Address set: `data/sample_addresses.csv` joined to
 `data/resolved_addresses.json` (500 addresses). Rule set: the 115 checked-in
 compiler v1 revisions. Evaluation date: 2026-10-04.
 
+This is a historical v1 quarantine report. The subsequent compiler v3 work
+separates rule-effective dates from annual value periods and invalidates the
+legacy relationship approvals. Its live rebuild and replay still require the
+Module A database; see `docs/module_b_coverage_review.md` for the current
+commands and review formats.
+
 ## What was available
 
 The local Postgres service on port 5432 was unavailable. The current Module A

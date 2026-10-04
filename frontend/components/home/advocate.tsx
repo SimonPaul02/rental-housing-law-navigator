@@ -363,9 +363,19 @@ export async function AdvocateHome({ places, health }: { places: Place[]; health
                   ))}
                   {item.applies.length === 0 && (
                     <p className="text-sm" style={{ color: "var(--faint)" }}>
-                      No rule in the corpus binds this address on{" "}
-                      {health.default_as_of}.
+                      {item.unknown.length + item.coming.length + item.superseded.length > 0
+                        ? `No rule is confirmed to bind this address on ${health.default_as_of}; the other outcomes below explain why.`
+                        : `No rule in the corpus binds this address on ${health.default_as_of}.`}
                     </p>
+                  )}
+                  {item.coming.length > 0 && (
+                    <Expand label={`${item.coming.length} pending or not yet effective`}>
+                      <div className="space-y-4">
+                        {item.coming.map((outcome) => (
+                          <Evidence key={outcome.team_rule_id} outcome={outcome} />
+                        ))}
+                      </div>
+                    </Expand>
                   )}
                   {item.unknown.length > 0 && (
                     <Expand
@@ -383,6 +393,7 @@ export async function AdvocateHome({ places, health }: { places: Place[]; health
                       <ul className="space-y-2 text-sm">
                         {item.superseded.map((outcome) => (
                           <li key={outcome.team_rule_id}>
+                            <ResultBadge result={outcome.result} />{" "}
                             <span className="font-medium">
                               {outcome.title ?? outcome.team_rule_id}
                             </span>{" "}

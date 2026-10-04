@@ -20,6 +20,7 @@ from app.modules.address_lookup.rule_adapter.models import (
     Field,
     Op,
     Origin,
+    Qualification,
     Relation,
     RelationType,
     ReviewState,
@@ -391,6 +392,7 @@ def relation(**kw) -> Relation:
         relation=RelationType.yields_to,
         anchor=ANCHOR,
         review_state=ReviewState.approved,
+        qualification=Qualification.confirmed,
     )
     base.update(kw)
     return Relation(**base)
@@ -421,14 +423,28 @@ def test_a_reviewed_relation_supersedes_the_yielding_rule():
     assert by_id["r-state"].superseded_by == "r-city"
 
 
-def test_an_unreviewed_relation_supersedes_nothing():
+def test_an_unreviewed_relation_makes_precedence_unknown():
     city, state = city_and_state()
     ev = evidence()
     decisions = resolve_interactions(
         [evaluate_base(city, ev, AS_OF), evaluate_base(state, ev, AS_OF)],
         [relation(review_state=ReviewState.needs_review)],
     )
-    assert all(d.result is BaseResult.applies for d in decisions)
+    by_id = {d.team_rule_id: d for d in decisions}
+    assert by_id["r-city"].result is BaseResult.applies
+    assert by_id["r-state"].result is BaseResult.unknown
+    assert by_id["r-state"].conflict_flag
+
+
+def test_a_disproved_or_future_qualification_does_not_supersede():
+    city, state = city_and_state()
+    bases = [evaluate_base(city, evidence(), AS_OF), evaluate_base(state, evidence(), AS_OF)]
+    for candidate in (
+        relation(qualification=Qualification.excluded),
+        relation(qualification=Qualification.confirmed, valid_from=dt.date(2027, 1, 1)),
+    ):
+        by_id = {d.team_rule_id: d for d in resolve_interactions(bases, [candidate])}
+        assert by_id["r-state"].result is BaseResult.applies
 
 
 def test_a_relation_for_a_different_issue_supersedes_nothing():

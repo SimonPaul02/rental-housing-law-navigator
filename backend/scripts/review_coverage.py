@@ -100,6 +100,7 @@ async def main() -> None:
             coverage=decision.get("coverage"),
             exemptions=decision.get("exemptions"),
             coverage_basis=decision.get("coverage_basis"),
+            scope_evidence_span=decision.get("scope_evidence_span"),
         )
         store.put(compiled)
         store.save()

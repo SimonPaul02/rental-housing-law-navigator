@@ -73,6 +73,8 @@ def make_rule(**kw) -> Rule:
     defaults.update(kw)
     rule = Rule(**defaults)
     source = "\n".join(str(value) for value in (rule.coverage_conditions, rule.exemptions) if value)
+    if rule.effective_date:
+        source += f"\n\nEffective {rule.effective_date}."
     rule.document = Document(
         doc_id="DTEST",
         jurisdictions=rule.jurisdiction,
@@ -99,6 +101,25 @@ def test_the_same_rule_applies_once_its_date_has_passed():
     rule = make_rule(status="not_yet_effective", effective_date="2027-07-02")
     result, _ = decide(rule, make_address(), dt.date(2027, 7, 2))
     assert result == "applies"
+
+
+def test_an_expired_annual_rate_is_not_displayed_as_current():
+    rule = make_rule(
+        jurisdiction="Los Angeles, CA",
+        level="city",
+        category="rent_increase_limits",
+        effective_date="2025-07-01",
+        key_value="3%",
+    )
+    rule.document.body = (
+        "All residential rental units.\n\n"
+        "Annual rent increases for rental units subject to the RSO, effective "
+        "July 1, 2025, through June 30, 2026 is 3%."
+    )
+    outcome = evaluate_rule_for_address(rule, evidence_for(make_address()), AS_OF)
+    assert outcome.result == "applies"
+    assert outcome.key_value is None
+    assert "value for 2026-10-01 is not established" in outcome.explanation
 
 
 def test_not_yet_effective_without_a_date_is_unknown():

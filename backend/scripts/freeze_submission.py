@@ -28,7 +28,7 @@ from app.modules.address_lookup.service import run_lookup_export  # noqa: E402
 from app.modules.change_tracking import service as changes  # noqa: E402
 from app.modules.change_tracking.validation import (  # noqa: E402
     REQUIRED_TEST_IDS,
-    sample_address_ids,
+    require_sample_address_ids,
     validate_changes,
 )
 from app.modules.rule_extraction.schemas import RuleRecord  # noqa: E402
@@ -45,9 +45,10 @@ def _write_json(path: Path, payload: dict) -> None:
 
 async def build() -> dict[str, dict]:
     async with SessionLocal() as session:
-        addresses = set((await session.execute(select(Address.address_id))).scalars())
-        if addresses != sample_address_ids(settings.addresses_csv):
-            raise ValueError("Database addresses differ from the 500 supplied sample IDs")
+        addresses = require_sample_address_ids(
+            settings.addresses_csv,
+            list((await session.execute(select(Address.address_id))).scalars()),
+        )
         rules = list((await session.execute(select(Rule).order_by(Rule.team_rule_id))).scalars())
         documents = {d.doc_id: d for d in (await session.execute(select(Document))).scalars()}
         for rule in rules:

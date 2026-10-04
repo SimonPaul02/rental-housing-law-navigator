@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Replay 500 addresses after a source-backed compiler v2 rebuild.
+"""Replay 500 addresses after a source-backed compiler v3 rebuild.
 
 Run after `scripts/compile_rules.py --no-model` (or its model-assisted form).
 The baseline CSV is the checked-in v1 applies-to-unknown quarantine comparison.
@@ -14,6 +14,7 @@ import csv
 import datetime as dt
 import json
 import sys
+from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -73,7 +74,12 @@ async def main() -> None:
         for r in json.loads((root / "resolved_addresses.json").read_text(encoding="utf-8"))
     }
     addresses = list(csv.DictReader((root / "sample_addresses.csv").open(encoding="utf-8")))
-    if len(addresses) != 500 or len(resolutions) != 500:
+    address_ids = [row["address_id"] for row in addresses]
+    if (
+        len(addresses) != 500
+        or len(set(address_ids)) != 500
+        or set(address_ids) != set(resolutions)
+    ):
         parser.error("expected the full 500-address sample and resolution snapshot")
 
     async with SessionLocal() as session:
@@ -83,11 +89,34 @@ async def main() -> None:
         docs = await session.execute(select(Document.doc_id, Document.body))
         sources = {doc_id: body for doc_id, body in docs if body}
     compiled, relations, _ = adapters.compile_all(records, sources=sources, persist=True)
-    if len(compiled) != 115:
-        parser.error(f"expected 115 rules; found {len(compiled)}")
+    rule_ids = [r.team_rule_id for r in records]
+    if not rule_ids or len(compiled) != len(records) or len(set(rule_ids)) != len(records):
+        parser.error("current Rule IDs are missing, duplicated, or were not all compiled")
+
+    previous_counts = Counter(rule_id for _, rule_id in old_applies)
+    by_id = {r.team_rule_id: r for r in records}
+    change_cases = json.loads((settings.change_tests).read_text(encoding="utf-8"))
+    change_rule_ids = {
+        rule_id for case in change_cases for rule_id in case.get("rule_ids", [])
+    }
+    missing_change_ids = sorted(change_rule_ids - set(by_id))
+
+    def priority(rule_id: str) -> int:
+        if rule_id in change_rule_ids:
+            return 0
+        record = by_id[rule_id]
+        text = " ".join(
+            str(getattr(record, field, "") or "")
+            for field in ("title", "requirement", "jurisdiction", "citation")
+        ).lower()
+        if any(term in text for term in ("ab 325", "sb 763", "fair act", "s.2983", "h.5222")):
+            return 0
+        if ("los angeles" in text or "san francisco" in text) and "rent" in text:
+            return 1
+        return 2
 
     output: list[dict] = []
-    new_applies = former_unknown = 0
+    new_applies = former_unknown = restored_applies = 0
     for address in addresses:
         ev = evidence(address, resolutions[address["address_id"]])
         bases = [evaluate_base(rule, ev, as_of) for rule in compiled.values()]
@@ -101,6 +130,9 @@ async def main() -> None:
             elif was_applies and result == "unknown":
                 category = "former_applies_unknown"
                 former_unknown += 1
+            elif was_applies and result == "applies":
+                category = "former_applies_restored"
+                restored_applies += 1
             elif was_applies:
                 category = "former_applies_other"
             else:
@@ -115,6 +147,8 @@ async def main() -> None:
                     "baseline": "applies" if was_applies else "other",
                     "rebuilt": result,
                     "category": category,
+                    "review_priority": priority(key[1]),
+                    "former_applies_count": previous_counts[key[1]],
                     "review_state": str(rule.review_state),
                     "coverage_basis": str(rule.coverage_basis),
                     "source_hash": rule.source_hash or "",
@@ -122,6 +156,15 @@ async def main() -> None:
                     "explanation": explain(decision),
                 }
             )
+
+    output.sort(
+        key=lambda row: (
+            row["review_priority"],
+            -row["former_applies_count"],
+            row["team_rule_id"],
+            row["address_id"],
+        )
+    )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8", newline="") as target:
@@ -135,6 +178,8 @@ async def main() -> None:
                 "baseline",
                 "rebuilt",
                 "category",
+                "review_priority",
+                "former_applies_count",
                 "review_state",
                 "coverage_basis",
                 "source_hash",
@@ -145,8 +190,13 @@ async def main() -> None:
         writer.writeheader()
         writer.writerows(output)
     print(f"replayed {len(addresses)} addresses x {len(compiled)} rules as of {as_of}")
-    print(f"new applies: {new_applies}; former applies now unknown: {former_unknown}")
+    print(
+        f"new applies: {new_applies}; restored applies: {restored_applies}; "
+        f"former applies now unknown: {former_unknown}"
+    )
     print(f"review rows: {len(output)}; report: {args.output}")
+    if missing_change_ids:
+        print(f"change-case rule IDs absent from current Module A rows: {missing_change_ids}")
 
 
 if __name__ == "__main__":
