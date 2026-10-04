@@ -26,8 +26,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   // One menu for all four roles, for now. The session is resolved here rather
-  // than per page, because the sidebar shows who is signed in and what they
-  // signed up as; `viewer()` is memoised per render.
+  // than per page, because the nav shows who is signed in and what they signed
+  // up as; `viewer()` is memoised per render.
   const seen = await viewer();
   const nav =
     seen.state === "ready" ? NAV : seen.state === "open" ? OPEN_NAV : [];
@@ -37,26 +37,15 @@ export default async function RootLayout({
       <body>
         <AuthKitProvider>
           <div className="app-shell">
-            <aside className="sidebar">
+            <header className="glass-navigation">
               <Link href={seen.state === "ready" ? "/home" : "/"} className="brand">
-                <span className="brand-mark" aria-hidden>
-                  R
-                </span>
-                <span>
-                  Navigator<span className="brand-period">.</span>
-                </span>
+                Navigator<span className="brand-period">.</span>
               </Link>
 
-              {nav.length > 0 && (
-                <nav>
-                  <p className="nav-caption">Navigate</p>
-                  {nav.map((item) => (
-                    <NavLink key={item.href} href={item.href} label={item.label} />
-                  ))}
-                </nav>
-              )}
-
-              <div className="sidebar-bottom">
+              <nav>
+                {nav.map((item) => (
+                  <NavLink key={item.href} href={item.href} label={item.label} />
+                ))}
                 {seen.state === "ready" ? (
                   <AccountMenu
                     name={displayName(seen.user)}
@@ -64,18 +53,25 @@ export default async function RootLayout({
                   />
                 ) : (
                   <a className="nav-item" href="/api/docs">
-                    <span className="nav-dot" aria-hidden />
                     API docs
                   </a>
                 )}
-                <p className="sidebar-note">
-                  Not legal advice. Every answer cites the source text it came
-                  from.
-                </p>
-              </div>
-            </aside>
+              </nav>
+            </header>
 
             <main className="app-main">{children}</main>
+
+            <footer
+              style={{
+                maxWidth: 1200,
+                margin: "0 auto",
+                padding: "40px 8px 0",
+                fontSize: 12,
+                color: "#6b818d",
+              }}
+            >
+              Not legal advice. Every answer cites the source text it came from.
+            </footer>
           </div>
         </AuthKitProvider>
       </body>
