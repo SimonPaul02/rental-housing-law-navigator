@@ -191,6 +191,48 @@ async def report() -> None:
     print(f"    missing units       {no_units}")
 
 
+async def seed_portfolios() -> tuple[int, int]:
+    """Hand the imported book to any account that is answerable for it.
+
+    A housing provider's portfolio *is* the import, and a new account gets it
+    when it is created. This is the other half: accounts that already existed
+    when the deployment was loaded, which on a fresh deployment is all of them.
+    The container runs this on every start, so there is no step for anybody to
+    remember and no credentials for anybody to go and find - a provider signs
+    in to their buildings rather than to a page telling them to type in the
+    ones they already own.
+
+    Only an account holding *nothing* is given the book. Removing a building
+    is a decision, and re-adding it on the next deploy would quietly undo it;
+    an empty portfolio is not a decision, it is an account the import never
+    reached.
+    """
+    from app.db.models import SavedPlace, User
+    from app.modules.accounts.schemas import Role
+    from app.modules.accounts.service import ADOPTS_THE_IMPORT, adopt_the_import
+
+    adopted = accounts = 0
+    async with SessionLocal() as session:
+        users = (await session.execute(select(User))).scalars().all()
+        for user in users:
+            if Role(user.role) not in ADOPTS_THE_IMPORT:
+                continue
+            held = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(SavedPlace)
+                    .where(SavedPlace.owner_id == user.workos_user_id)
+                )
+            ).scalar_one()
+            if held:
+                continue
+            fresh = await adopt_the_import(session, user)
+            adopted += fresh
+            accounts += 1 if fresh else 0
+        await session.commit()
+    return adopted, accounts
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--only", choices=["corpus", "addresses"], default=None)
@@ -214,6 +256,8 @@ async def main() -> None:
         print(f"addresses: {created} created, {updated} updated")
         juris_created, juris_updated = await seed_jurisdictions()
         print(f"jurisdictions: {juris_created} created, {juris_updated} updated")
+        adopted, accounts = await seed_portfolios()
+        print(f"portfolios: {adopted} buildings adopted by {accounts} account(s)")
 
     print("\nnow in the database:")
     await report()
