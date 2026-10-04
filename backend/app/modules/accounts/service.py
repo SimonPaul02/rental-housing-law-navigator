@@ -13,17 +13,31 @@ challenge modules:
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
+import io
+import logging
 
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import defer, selectinload
 
 from app.core.auth import Principal
-from app.db.models import Address, SavedPlace, User
+from app.db.models import Address, PlaceContract, SavedPlace, User
 from app.modules.address_lookup.status import jurisdiction_status, zip_discrepancy
 
-from .schemas import ROLE_LABELS, Account, Place, Role
+from .schemas import (
+    CONTRACT_TYPES,
+    MAX_CONTRACT_BYTES,
+    ROLE_LABELS,
+    Account,
+    Contract,
+    ContractMeta,
+    Place,
+    Role,
+)
+
+log = logging.getLogger(__name__)
 
 
 def _account(user: User) -> Account:
@@ -126,6 +140,13 @@ def _place(row: SavedPlace) -> Place:
             and juris.legal_city
             and juris.legal_city.casefold() != address.postal_city.casefold()
         ),
+        # Whatever the geocoder actually returned, and nothing more. An unresolved row has
+        # no coordinate, and so does one a human resolved by override - so a map can place
+        # fewer buildings than a person has saved, and has to say so rather than invent a
+        # point for the rest.
+        latitude=juris.latitude if juris else None,
+        longitude=juris.longitude if juris else None,
+        contract_count=len(row.contracts),
         created_at=row.created_at,
     )
 
@@ -134,7 +155,12 @@ def _owned(owner_id: str):
     return (
         select(SavedPlace)
         .where(SavedPlace.owner_id == owner_id)
-        .options(selectinload(SavedPlace.address).selectinload(Address.jurisdiction))
+        .options(
+            selectinload(SavedPlace.address).selectinload(Address.jurisdiction),
+            # Loaded eagerly but without the bytes: a list of buildings needs to say how
+            # many agreements each one carries, not to carry them.
+            selectinload(SavedPlace.contracts).options(defer(PlaceContract.data)),
+        )
     )
 
 
@@ -204,4 +230,178 @@ async def update_place(
 
 async def remove_place(session: AsyncSession, principal: Principal, place_id: int) -> None:
     row = await one_place(session, principal, place_id)
+    await session.delete(row)
+
+
+# --------------------------------------------------------------- contracts ---
+def _contract(row: PlaceContract) -> Contract:
+    return Contract(
+        id=row.id,
+        place_id=row.place_id,
+        unit_label=row.unit_label,
+        filename=row.filename,
+        content_type=row.content_type,
+        kind=CONTRACT_TYPES.get(row.content_type, "file"),
+        byte_size=row.byte_size,
+        sha256=row.sha256,
+        page_count=row.page_count,
+        starts_on=row.starts_on,
+        ends_on=row.ends_on,
+        monthly_rent_cents=row.monthly_rent_cents,
+        note=row.note,
+        created_at=row.created_at,
+    )
+
+
+def _page_count(content_type: str, data: bytes) -> int | None:
+    """How many pages a PDF has, or None.
+
+    Worth knowing on the card - a two-page lease and a forty-page one are different
+    documents - and cheap, since pypdf is already here for the corpus. A file that will not
+    parse is still kept: it is the person's own lease and refusing it over a page count
+    would be absurd.
+    """
+    if content_type != "application/pdf":
+        return None
+    try:
+        from pypdf import PdfReader
+
+        return len(PdfReader(io.BytesIO(data)).pages)
+    except Exception as exc:  # noqa: BLE001 - informational only
+        log.info("could not read page count from an uploaded PDF: %s", exc)
+        return None
+
+
+def _contracts_of(owner_id: str, place_id: int | None = None):
+    """Every agreement the caller owns, optionally narrowed to one building.
+
+    Filtered on `owner_id` directly rather than through the place, so the owner check does
+    not depend on the join being written correctly. Columns are listed explicitly to leave
+    `data` behind: a listing never needs the bytes.
+    """
+    stmt = (
+        select(PlaceContract)
+        .where(PlaceContract.owner_id == owner_id)
+        .order_by(PlaceContract.unit_label, PlaceContract.id)
+        .options(defer(PlaceContract.data))
+    )
+    if place_id is not None:
+        stmt = stmt.where(PlaceContract.place_id == place_id)
+    return stmt
+
+
+async def contracts(
+    session: AsyncSession, principal: Principal, place_id: int | None = None
+) -> list[Contract]:
+    if place_id is not None:
+        # 404s for a place that is not the caller's, which is also what proves the
+        # contracts under it are theirs to list.
+        await one_place(session, principal, place_id)
+    rows = (await session.execute(_contracts_of(principal.user_id, place_id))).scalars()
+    return [_contract(row) for row in rows]
+
+
+async def one_contract(
+    session: AsyncSession, principal: Principal, contract_id: int
+) -> PlaceContract:
+    """Load an agreement the caller owns, with its bytes, or 404.
+
+    Reported as missing rather than forbidden when it belongs to somebody else: "not yours"
+    would confirm the row exists, and this is the one lookup where an account could
+    otherwise probe for other people's leases.
+    """
+    stmt = select(PlaceContract).where(
+        PlaceContract.id == contract_id, PlaceContract.owner_id == principal.user_id
+    )
+    row = (await session.execute(stmt)).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(404, "No such agreement.")
+    return row
+
+
+async def add_contract(
+    session: AsyncSession,
+    principal: Principal,
+    place_id: int,
+    *,
+    filename: str,
+    content_type: str,
+    data: bytes,
+    meta: ContractMeta,
+) -> Contract:
+    """Store an agreement against one of the caller's own buildings."""
+    place = await one_place(session, principal, place_id)
+
+    if content_type not in CONTRACT_TYPES:
+        raise HTTPException(
+            415,
+            f"{content_type or 'that file type'} cannot be uploaded. "
+            f"Accepted: {', '.join(sorted(set(CONTRACT_TYPES.values())))}.",
+        )
+    if not data:
+        raise HTTPException(422, "The file is empty.")
+    if len(data) > MAX_CONTRACT_BYTES:
+        raise HTTPException(
+            413,
+            f"That file is {len(data) // (1024 * 1024)} MB. The limit is "
+            f"{MAX_CONTRACT_BYTES // (1024 * 1024)} MB.",
+        )
+    if meta.starts_on and meta.ends_on and meta.ends_on < meta.starts_on:
+        raise HTTPException(422, "The agreement cannot end before it starts.")
+
+    digest = hashlib.sha256(data).hexdigest()
+    duplicate = (
+        await session.execute(
+            select(PlaceContract).where(
+                PlaceContract.owner_id == principal.user_id,
+                PlaceContract.place_id == place.id,
+                PlaceContract.sha256 == digest,
+                PlaceContract.unit_label == meta.unit_label,
+            )
+        )
+    ).scalar_one_or_none()
+    if duplicate is not None:
+        # The same bytes against the same unit is the same agreement. Returning it keeps
+        # a double-click from filing a second copy of somebody's lease.
+        return _contract(duplicate)
+
+    row = PlaceContract(
+        owner_id=principal.user_id,
+        place_id=place.id,
+        unit_label=meta.unit_label,
+        filename=filename[:255],
+        content_type=content_type,
+        byte_size=len(data),
+        sha256=digest,
+        page_count=_page_count(content_type, data),
+        starts_on=meta.starts_on,
+        ends_on=meta.ends_on,
+        monthly_rent_cents=meta.monthly_rent_cents,
+        note=meta.note,
+        data=data,
+    )
+    session.add(row)
+    await session.flush()
+    return _contract(row)
+
+
+async def update_contract(
+    session: AsyncSession, principal: Principal, contract_id: int, meta: ContractMeta
+) -> Contract:
+    """Correct the details around an agreement. The file itself is never edited."""
+    if meta.starts_on and meta.ends_on and meta.ends_on < meta.starts_on:
+        raise HTTPException(422, "The agreement cannot end before it starts.")
+    row = await one_contract(session, principal, contract_id)
+    row.unit_label = meta.unit_label
+    row.starts_on = meta.starts_on
+    row.ends_on = meta.ends_on
+    row.monthly_rent_cents = meta.monthly_rent_cents
+    row.note = meta.note
+    await session.flush()
+    return _contract(row)
+
+
+async def remove_contract(session: AsyncSession, principal: Principal, contract_id: int) -> None:
+    """Delete an agreement. The bytes are in the row, so this is the whole deletion."""
+    row = await one_contract(session, principal, contract_id)
     await session.delete(row)

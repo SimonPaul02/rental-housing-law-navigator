@@ -20,8 +20,17 @@ class AddressRecord(BaseModel):
     use_code: str | None = None
     use_description: str | None = None
     legal_city: str | None = None
+    legal_state: str | None = None
+    county: str | None = None
     jurisdiction_status: str = "not_checked"
     zip_discrepancy: bool = False
+    postal_city_differs: bool = False
+    # Where to draw it, when there is anywhere. This is the geocoder's own point and
+    # nothing is substituted for it: an unresolved address has none, and so does one a
+    # human resolved by override. A map therefore places fewer rows than exist, which is a
+    # fact about the records worth showing rather than papering over.
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 class ZipAssessmentRecord(BaseModel):
@@ -157,15 +166,29 @@ class LookupBatchRequest(BaseModel):
     as_of: dt.date | None = None
     persist: bool = True
     limit: int = Field(default=500, le=500)
+    include_not_applicable: bool = Field(
+        default=False,
+        description=(
+            "Also return rules that definitely do not cover each address. Never persisted "
+            "and never counted - see the same flag on GET /lookup/{address_id}."
+        ),
+    )
 
 
 class AddressStats(BaseModel):
     total: int
     by_state: dict[str, int]
     by_postal_city: dict[str, int]
+    # The legal city, which is the one rules attach to - and therefore the one a filter
+    # should offer. Counted only over verified resolutions, so a mailing city can never
+    # appear here as though it had been confirmed.
+    by_legal_city: dict[str, int]
     resolved: int
     unresolved: int
     by_method: dict[str, int]
     city_corrections: int
     missing_year_built: int
     missing_units: int
+    # How many rows a map can actually place. Lower than `resolved`, because a human
+    # override settles the legal city without producing a coordinate.
+    with_coordinates: int = 0

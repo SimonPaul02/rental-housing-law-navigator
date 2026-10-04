@@ -10,7 +10,9 @@ export const dynamic = "force-dynamic";
  * Switching role is self-service because there is nobody to ask: with no
  * organisations there is no administrator above an account. It grants nothing
  * either - every row this app serves is either public corpus material or the
- * caller's own - so the only thing a switch changes is which app you see.
+ * caller's own - so the only thing a switch changes is which of the four apps
+ * you see. Saved addresses survive it and are simply read differently: the
+ * building a renter calls home is a provider's first portfolio entry.
  */
 export default async function SettingsPage() {
   const g = await gate();
@@ -33,7 +35,7 @@ export default async function SettingsPage() {
       <Card>
         <SectionTitle
           title="Your role"
-          hint="Every role shares one interface at the moment, so switching changes nothing you can see yet. It is never a permission — what you may read does not depend on it."
+          hint="Switching changes which of the four apps you get — the overview, the menu, and what your saved addresses are called. It is never a permission: what you may read does not depend on it, and nothing saved is lost."
         />
         <RolePicker current={account.role} onDone="/home" />
       </Card>

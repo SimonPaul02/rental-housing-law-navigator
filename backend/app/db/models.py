@@ -16,6 +16,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -385,3 +386,56 @@ class SavedPlace(Base, TimestampMixin):
 
     owner: Mapped[User] = relationship(back_populates="places")
     address: Mapped[Address] = relationship()
+    contracts: Mapped[list[PlaceContract]] = relationship(
+        back_populates="place", cascade="all, delete-orphan", order_by="PlaceContract.id"
+    )
+
+
+class PlaceContract(Base, TimestampMixin):
+    """A tenancy agreement somebody uploaded for one of their own buildings.
+
+    The most private row in this database, and the only one holding a file. Three
+    consequences follow, and all three are deliberate:
+
+    `owner_id` is stored alongside `place_id` even though the place already knows its
+    owner. Every read filters on it directly, so a mistake in a join cannot widen the
+    query - the owner check does not depend on the relationship being written correctly.
+
+    The bytes live in the column. There is no object store in this deployment to put them
+    in, and a lease is a few hundred kilobytes; a filesystem path would be a second place
+    for the data to be, with its own lifecycle and its own way of outliving the row it
+    belongs to. `DELETE` here is the whole deletion.
+
+    `unit_label` is what makes one building hold many agreements. A renter has one lease
+    for one home; a provider with a thirty-two unit building has thirty-two, and the unit
+    is the only thing that tells them apart. The rent and the term are optional and
+    self-reported - nothing in this system verifies them, and nothing computes an
+    entitlement from them. They are here so a figure can be read next to the rule that
+    governs it, which is a person's job and not the evaluator's.
+    """
+
+    __tablename__ = "place_contracts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    owner_id: Mapped[str] = mapped_column(
+        ForeignKey("users.workos_user_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    place_id: Mapped[int] = mapped_column(
+        ForeignKey("saved_places.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Which unit this agreement is for. NULL means the building itself - a single-family
+    # let, or a renter who has one home and no reason to name a unit.
+    unit_label: Mapped[str | None] = mapped_column(String(64))
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    byte_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    page_count: Mapped[int | None] = mapped_column(Integer)
+    # Self-reported, never verified, never used in a calculation.
+    starts_on: Mapped[dt.date | None] = mapped_column(Date)
+    ends_on: Mapped[dt.date | None] = mapped_column(Date)
+    monthly_rent_cents: Mapped[int | None] = mapped_column(Integer)
+    note: Mapped[str | None] = mapped_column(Text)
+    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+
+    place: Mapped[SavedPlace] = relationship(back_populates="contracts")

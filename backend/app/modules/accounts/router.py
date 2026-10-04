@@ -7,7 +7,10 @@ id; the token is the only thing that says who is asking.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Response
+import datetime as dt
+from urllib.parse import quote
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal, require_principal
@@ -15,13 +18,23 @@ from app.core.db import get_session
 
 from . import service
 from .schemas import (
+    CONTRACT_TYPES,
+    MAX_CONTRACT_BYTES,
     Account,
+    Contract,
+    ContractMeta,
     Place,
     PlaceRequest,
     PlaceUpdate,
     RegisterRequest,
     RoleChange,
 )
+
+#: Which uploads a browser may render in place rather than download. PDFs and images
+#: only, and never because the upload said so - the type was checked against an
+#: allowlist on the way in, and `nosniff` stops the browser second-guessing it. Nothing
+#: a browser could execute on this origin is storable in the first place.
+INLINE_TYPES = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -137,3 +150,138 @@ async def remove_place(
 ) -> Response:
     await service.remove_place(session, principal, place_id)
     return Response(status_code=204)
+
+
+# ------------------------------------------------------- tenancy agreements ---
+# A lease is the most private thing in this database, and these five routes are the only
+# way in or out of it. Each one starts from `require_principal` and filters on the token's
+# `sub`; a row belonging to somebody else is reported as missing rather than forbidden,
+# because "not yours" would confirm it exists.
+#
+# Why they hang off a place rather than standing alone: an agreement is only meaningful
+# against a building, and the building is what says which rules the figures in it should be
+# read beside. A contract with no address would be a file in a drawer.
+@router.get("/me/contracts", response_model=list[Contract])
+async def list_all_contracts(
+    principal: Principal = Depends(require_principal),
+    session: AsyncSession = Depends(get_session),
+) -> list[Contract]:
+    """Every agreement the caller has uploaded, across all of their buildings."""
+    return await service.contracts(session, principal)
+
+
+@router.get("/me/places/{place_id}/contracts", response_model=list[Contract])
+async def list_contracts(
+    place_id: int,
+    principal: Principal = Depends(require_principal),
+    session: AsyncSession = Depends(get_session),
+) -> list[Contract]:
+    return await service.contracts(session, principal, place_id)
+
+
+@router.post("/me/places/{place_id}/contracts", response_model=Contract, status_code=201)
+async def upload_contract(
+    place_id: int,
+    file: UploadFile = File(description=f"Max {MAX_CONTRACT_BYTES // (1024 * 1024)} MB."),
+    unit_label: str | None = Form(default=None, max_length=64),
+    starts_on: dt.date | None = Form(default=None),
+    ends_on: dt.date | None = Form(default=None),
+    monthly_rent_cents: int | None = Form(default=None, ge=0, le=100_000_000),
+    note: str | None = Form(default=None, max_length=2000),
+    principal: Principal = Depends(require_principal),
+    session: AsyncSession = Depends(get_session),
+) -> Contract:
+    """File a tenancy agreement against one of the caller's own buildings.
+
+    Multipart rather than JSON because the file is the point, and the details around it
+    arrive in the same submission as the one the person filled in.
+
+    One building holds many agreements, told apart by `unit_label`: a renter has one lease
+    and no unit to name, a thirty-two unit building has thirty-two. Re-uploading the same
+    bytes for the same unit returns the existing row instead of filing a second copy.
+    """
+    # Read before validating the type, because the declared type is the only thing that
+    # can be trusted here and an empty body is the more common mistake.
+    data = await file.read()
+    if len(data) > MAX_CONTRACT_BYTES:
+        raise HTTPException(
+            413,
+            f"That file is {len(data) // (1024 * 1024)} MB. The limit is "
+            f"{MAX_CONTRACT_BYTES // (1024 * 1024)} MB.",
+        )
+    return await service.add_contract(
+        session,
+        principal,
+        place_id,
+        filename=file.filename or "agreement",
+        content_type=(file.content_type or "").split(";")[0].strip().lower(),
+        data=data,
+        meta=ContractMeta(
+            unit_label=(unit_label or None),
+            starts_on=starts_on,
+            ends_on=ends_on,
+            monthly_rent_cents=monthly_rent_cents,
+            note=(note or None),
+        ),
+    )
+
+
+@router.patch("/me/contracts/{contract_id}", response_model=Contract)
+async def edit_contract(
+    contract_id: int,
+    payload: ContractMeta,
+    principal: Principal = Depends(require_principal),
+    session: AsyncSession = Depends(get_session),
+) -> Contract:
+    """Correct the unit, the term, the rent or the note. The file is never edited."""
+    return await service.update_contract(session, principal, contract_id, payload)
+
+
+@router.get("/me/contracts/{contract_id}/file")
+async def download_contract(
+    contract_id: int,
+    principal: Principal = Depends(require_principal),
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    """Hand the caller back their own file.
+
+    `nosniff` and an explicit disposition, because this is served from the same origin the
+    app runs on. Only a PDF or an image is shown in place; anything else downloads. The
+    filename is percent-encoded into `filename*` so a lease called `Mietvertrag Köln.pdf`
+    arrives with its name intact and cannot smuggle a quote into the header.
+    """
+    row = await service.one_contract(session, principal, contract_id)
+    disposition = "inline" if row.content_type in INLINE_TYPES else "attachment"
+    return Response(
+        content=row.data,
+        media_type=row.content_type,
+        headers={
+            "Content-Disposition": (
+                f"{disposition}; filename*=UTF-8''{quote(row.filename, safe='')}"
+            ),
+            "X-Content-Type-Options": "nosniff",
+            # Nobody else may hold this, not even a shared cache for a moment.
+            "Cache-Control": "private, no-store",
+        },
+    )
+
+
+@router.delete("/me/contracts/{contract_id}", status_code=204)
+async def delete_contract(
+    contract_id: int,
+    principal: Principal = Depends(require_principal),
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    """Delete an agreement. The bytes are in the row, so this is the whole deletion."""
+    await service.remove_contract(session, principal, contract_id)
+    return Response(status_code=204)
+
+
+@router.get("/me/contract-types")
+async def contract_types() -> dict:
+    """What may be uploaded, so the file picker and the error message agree."""
+    return {
+        "max_bytes": MAX_CONTRACT_BYTES,
+        "accept": sorted(CONTRACT_TYPES),
+        "names": sorted(set(CONTRACT_TYPES.values())),
+    }

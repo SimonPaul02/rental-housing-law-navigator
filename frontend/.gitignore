@@ -4,3 +4,6 @@ out
 next-env.d.ts
 .vercel
 *.tsbuildinfo
+
+# Staged from node_modules at build time; see scripts/copy-map-worker.mjs
+/public/maplibre/

@@ -14,6 +14,7 @@ MIT AI Hackathon entry. The challenge brief is in
 | Layer | Choice | Where |
 |---|---|---|
 | Frontend | Next.js 15 (App Router, TypeScript, Tailwind 4) | Vercel |
+| Maps | MapLibre GL over CARTO Positron (no API key) | in the browser |
 | Backend | FastAPI + SQLAlchemy 2 (async) in Docker | Fly.io, always-on |
 | Database | Postgres | Supabase |
 | Accounts | WorkOS AuthKit (email + password, Google) | WorkOS |
@@ -45,29 +46,35 @@ travels in an access token only as a property of an *organisation membership*,
 so with no organisations there is no `role` claim to read. The role therefore
 lives in our own `users` table, keyed by the token's `sub`:
 
-| Role | The question they bring |
-|---|---|
-| `renter` | One address. Which rules cover the building they live in, and what each entitles them to. |
-| `provider` | Their buildings. What binds each one, which exemptions it can claim, which fact is still missing. |
-| `agency` | Coverage. How much of the housing stock the system can answer for, and where the records fail. |
-| `advocate` | Evidence. The quoted span and citation behind every answer, and the conflicts still open. |
+**The four roles get four different apps**, and what separates them is not
+styling. It is *how many addresses the person has*, which decides whether the
+page can be about one building in depth, about a set in aggregate, or about
+neither.
 
-**Every role currently gets the same interface.** The role is asked for at
-sign-up and stored, but nothing branches on it yet: one menu, one dashboard, the
-same pages. That is deliberate — asking now means that when the four views do
-diverge, every existing account already carries an answer and nobody has to be
-interrupted for one later.
+| Role | Addresses | The app they get |
+|---|---|---|
+| `renter` | **One.** The home they live in. A second is the flat they are considering or the one they just left — never a set to add up. | One building rendered deeply, in plain words: what applies today, what each rule entitles them to, what is still unsettled and which missing fact would settle it. Their lease sits beside the rule that governs their rent. No corpus statistic appears anywhere on it. |
+| `provider` | **Many, and answerable for all at once.** | The portfolio *is* the page: a building × obligation matrix, a missing-fact queue ordered by how many answers each field would unblock, and the local rules that were tested and still do not bind. One building is the drill-down. |
+| `agency` | **None at all**, and nowhere to keep one. Their subject is the whole sample. | The only view whose headline number is a denominator — how much of the stock can be answered, and what is stopping the rest. The only one complete on first sign-in, and the only role with no saved-address page: one map of the stock answers what a shortlist would, so `/places` sends them to it. |
+| `advocate` | **Many, but they never add up** — each is a different person's situation. | Cases listed, never summed, each with the checks the evaluator ran to reach its answer. Flags raised while answering are kept separate from conflicts in the record, because they are different problems. |
 
-Two places will open along that seam, and only those two: `NAV` in
-`frontend/lib/roles.ts`, and `frontend/components/home/dashboard.tsx` — whose
-two halves (*your buildings*, and *the record*) are already the parts the
-tailored versions will be made of. `app/home/page.tsx` resolves the role and
-passes it down today so the split is a change to one component, not to routing.
+The seam the four opened along is exactly where it was always going to be:
+`navFor()` and `PLACES` in `frontend/lib/roles.ts`, and
+`frontend/components/home/dashboard.tsx`, which is now a dispatcher over
+`renter.tsx`, `provider.tsx`, `agency.tsx` and `advocate.tsx`.
+
+`PLACES` and `CONTRACTS` are `Partial` records for that reason, and the absent
+agency key is the statement: `PLACES.renter` is proven to exist by the type
+system so the three views that have a page need no check, while `placesFor()`
+returns `undefined` for a role resolved at run time, so the one page that has
+to handle the absence cannot forget to.
 
 A role is never a permission. Every row this API serves is either public corpus
 material or the caller's own, which is why switching role is self-service —
 there is no administrator above an account to ask, and the switch grants
-nothing. That stays true when the tailoring arrives.
+nothing. A shorter menu withholds nothing either: every page stays reachable by
+path and the API would serve it regardless. What the role decides is what is
+put in somebody's way.
 
 ### Signing in happens in the page
 
@@ -122,6 +129,72 @@ need an account. The API refuses to serve without it when
 than publishing the data. `/api/health` reports `auth_required`, so the two
 sides can never disagree about who has to sign in.
 
+## The map, and the table beside it
+
+Every view that can be drawn geographically offers both, and **the toggle is a
+rendering choice, never a different dataset**: whatever the filters leave is
+what the map draws and what the table lists, down to the row. The table is also
+the version that works with a screen reader, with the browser's own find, and
+on paper — so the map is never the only way to reach something.
+
+It is [MapLibre GL](https://maplibre.org) over CARTO's keyless Positron
+basemap, overridable per deployment with `NEXT_PUBLIC_MAP_STYLE`. If the
+basemap will not load the pins, the filters and the popups still work and the
+legend says so; a borrowed canvas failing should not take the page with it.
+
+Three honesty constraints shape it, and each is stated in the interface rather
+than buried here:
+
+- **A pin is the geocoder's own coordinate.** 474 of the 500 sample addresses
+  have one. An unresolved address has none — and so does one a human resolved
+  by override — so the map always places fewer rows than the table lists and
+  reports the difference. Nothing is ever approximated onto the map.
+- **A shaded jurisdiction is the extent of our sample, not a boundary.** We
+  hold no city geometry. Highlighting Los Angeles draws the convex hull of the
+  addresses we have there, labelled as exactly that. A city with fewer than
+  three placed addresses is not shaded at all, and is left out of the legend
+  rather than promising a shape that is not on the map.
+- **A rule has a jurisdiction, not a coordinate.** The rules map draws one
+  bubble per jurisdiction, area proportional to its rule count, at the mean of
+  that jurisdiction's sample addresses. Rules in jurisdictions the sample does
+  not reach — Santa Ana's five — are counted off to one side instead of being
+  dropped, because a map that hides what it cannot draw makes coverage look
+  better than it is.
+
+Colour never carries meaning alone: every legend states each tone in words.
+The map library is loaded on demand, so a page that opens on its table pays
+nothing for a canvas nobody asked for.
+
+MapLibre resolves its own worker through `import.meta.url`, which a bundler
+rewrites — so `scripts/copy-map-worker.mjs` stages the worker into `public/`
+and the component points at it. `next.config.ts` runs it, rather than an npm
+hook, because CI calls `next build` directly.
+
+## Tenancy agreements
+
+A person can file the agreement for a building they have saved — the renter
+their lease, the others one per let unit, which is how a thirty-two unit
+building carries thirty-two. Private to its owner like everything else here:
+`place_contracts` is filtered on the token's `sub` directly rather than through
+the place, so a mistake in a join cannot widen the query, and a row belonging to
+somebody else is reported as missing rather than forbidden.
+
+The bytes live in the row. There is no object store in this deployment, a lease
+is a few hundred kilobytes, and a second home for the data would be a second
+way for a deleted lease to survive its own deletion — `DELETE` here is the whole
+deletion. Uploads are checked against an allowlist of types, because the file is
+served back from the same origin the app runs on: nothing a browser could
+execute is storable, downloads carry `nosniff` and `private, no-store`, and only
+a PDF or an image is shown in place.
+
+**Nothing reads the file.** The term and the rent are typed in by the person who
+uploaded it, are never verified against it, and are never used in a calculation.
+They are shown *beside* the rule that governs them — a renter sees their
+$1,850 next to "0% additional utility increase" — because extracting a figure
+from somebody's own document and then telling them what they are owed would be
+advice resting on an unverified reading. A rent cap worded "the lower of 5% +
+CPI or 10%" also needs a CPI figure this corpus does not carry.
+
 ## The three modules
 
 Each is a package under `backend/app/modules/` with its own router, schemas and
@@ -164,6 +237,17 @@ rules first, and `lookups` cascades off them, so Module B needs re-running
 afterwards (`POST /api/address-lookup/lookup`).
 
 ### Module B — address lookup (`/api/address-lookup`)
+
+`GET /addresses` carries the coordinate and the verified legal city alongside
+each row, and filters on state, legal city, jurisdiction status, ZIP
+discrepancy, year-built and unit ranges, and whether a row can be mapped at
+all — which is what the explorer's facets are built from. `GET /lookup/{id}`
+and `POST /lookup` take `include_not_applicable`, which adds the rules that
+definitively do *not* bind an address. It exists for one caller: a provider
+asking what was tested and missed. Those outcomes are never persisted, never
+exported, and never counted in `applies_count` or `unknown_count` — the
+submission vocabulary stays the five results it has words for.
+
 
 Resolves each address to its **legal** jurisdiction, then tests every rule's
 coverage conditions against the building.
@@ -231,6 +315,11 @@ in the WorkOS values; `make user EMAIL=you@rhln-local.dev` then creates a test
 account to sign in with. Without them the app runs open — see
 [Sign in](#sign-in-and-the-four-roles).
 
+**Put the same `WORKOS_CLIENT_ID` in `backend/.env`.** The frontend will sign
+somebody in without it and the API will then refuse to say who they are, so
+every role-specific page reports that the account could not be loaded while the
+corpus views keep working — a confusing state to debug, and one setting away.
+
 `make help` lists the rest. API docs at `/api/docs`.
 
 Module A needs `ANTHROPIC_API_KEY`; without it those endpoints return 503 and
@@ -247,18 +336,25 @@ Each module exports its submission file in the shape
 | `GET /api/address-lookup/lookup/export` | `lookups.json` |
 | `GET /api/change-tracking/export` | `changes.json` |
 
+`include_not_applicable` touches none of these: the exports are built from the
+five reportable results, exactly as before.
+
 ## Layout
 
 ```
 backend/     FastAPI app, Dockerfile, fly.toml, migrations, tests
   app/core/auth.py           WorkOS token verification (public keys only)
-  app/modules/accounts/      the signed-in person and their saved buildings
+  app/modules/accounts/      the person, their buildings, their agreements
 frontend/    Next.js app
   middleware.ts              AuthKit session upkeep
   app/sign-in|sign-up/       the hosted flow, and the Google shortcut
   app/auth/                  the in-page sign-in, token handout, registration
-  lib/roles.ts               the four roles, and the one menu they share
-  components/home/           the dashboard everyone sees
+  lib/roles.ts               the four roles: cardinality, menu, vocabulary
+  lib/jurisdictions.ts       where a rule's jurisdiction sits, and why
+  components/home/           dashboard.tsx dispatches to the four apps
+  components/map/            MapLibre, the palette, and the hull
+  components/explorer/       filters + map/table for addresses, rules, changes
+  components/contracts.tsx   filing a tenancy agreement
 corpus/      87 source documents (54 with supplied text)
 data/        500 sample addresses
 schema/      rule_record.schema.json

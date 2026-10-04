@@ -16,6 +16,8 @@ dependencies = [
     "python-dotenv>=1.0",
     "jsonschema>=4.23",
     "pypdf>=5.1",
+    # Multipart form parsing, for uploading a tenancy agreement.
+    "python-multipart>=0.0.20",
     # Verifying WorkOS access tokens: RS256 means the crypto extra.
     "pyjwt[crypto]>=2.10",
 ]

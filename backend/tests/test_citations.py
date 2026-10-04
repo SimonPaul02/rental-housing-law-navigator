@@ -75,3 +75,53 @@ def test_wrong_section_is_rejected():
 
 def test_empty_citation_is_rejected():
     assert not check("", document_text="x", source_url="y").verified
+
+
+def test_a_conflict_reason_is_not_repeated_when_a_check_already_said_it():
+    """A flag whose reason is also a check detail must be stated once.
+
+    `conflicting_effective_dates` sets both the check detail and the decision's
+    `conflict_reason` to the same sentence, so appending the latter blindly
+    printed it twice in the explanation - in the UI, and in the audit trail.
+    """
+    import datetime as dt
+
+    from app.modules.address_lookup.rule_evaluation.decisions import (
+        BaseDecision,
+        BaseResult,
+        CheckTrace,
+        Decision,
+        Reason,
+        Ternary,
+    )
+    from app.modules.address_lookup.rule_evaluation.explanations import explain
+
+    reason = "The sources disagree about the effective date (2025-07-01, 2026-06-30)."
+    base = BaseDecision(
+        team_rule_id="r-0001",
+        address_id="A0001",
+        as_of=dt.date(2026, 10, 1),
+        result=BaseResult.unknown,
+        issue_key="rent_increase",
+        geography=Ternary.true,
+        time=Ternary.unknown,
+        checks=[
+            CheckTrace(
+                check="time",
+                value=Ternary.unknown,
+                reason=Reason.conflicting_effective_dates,
+                detail=reason,
+            )
+        ],
+        conflict_flag=True,
+        conflict_reason=reason,
+    )
+    decision = Decision(
+        base=base,
+        result=BaseResult.unknown,
+        conflict_flag=True,
+        conflict_reason=reason,
+    )
+
+    text = explain(decision)
+    assert text.count(reason) == 1, text

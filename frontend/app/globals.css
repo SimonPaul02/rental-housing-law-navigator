@@ -20,6 +20,11 @@
   --accent: #35635c;
   --accent-ink: #2b514b;
 
+  /* A quiet panel inside a card: lighter than `.card`, so a list of rules
+     reads as items within a surface rather than as a stack of cards. Several
+     components already asked for this token by name. */
+  --surface: #ffffff52;
+
   --glass: linear-gradient(125deg, #ffffff91, #ffffff38 55%, #ffffff68);
   --glass-strong: linear-gradient(125deg, #ffffff83, #ffffff45 58%, #ffffff70);
   --glass-edge: #ffffffba;
@@ -404,27 +409,51 @@ code:not(pre code) {
   background: #65808733;
 }
 
+/* Flat, hairline, no bevel. The inset highlight that used to sit inside every
+   input read as a pressed-in groove - the look of a 2013 control panel - and
+   fought the flat glass surfaces around it. A field is now a tinted pane with
+   one hairline edge, and depth is reserved for things that actually float. */
 .field {
   display: block;
   width: 100%;
-  min-height: 42px;
-  padding: 10px 14px;
-  border-radius: 13px;
-  border: 1px solid #ffffffc9;
-  background: #ffffff78;
+  min-height: 40px;
+  padding: 9px 13px;
+  border-radius: 11px;
+  border: 1px solid #5a7a8526;
+  /* `background-color`, never the `background` shorthand: the shorthand resets
+     `background-image`, and the hover and focus rules below outrank
+     `select.field` — so a shorthand here erased a select's chevron the moment
+     the pointer touched it. */
+  background-color: #ffffff8c;
   color: var(--ink);
-  font-size: 14px;
-  box-shadow: inset 0 1px 2px #35535f0f;
-  transition: background 160ms, border-color 160ms, box-shadow 160ms;
+  font-size: 13.5px;
+  transition: background-color 150ms, border-color 150ms, box-shadow 150ms;
 }
-.field::placeholder { color: #8ca0a4; }
-.field:hover { background: #ffffff92; }
+.field::placeholder { color: #93a7ab; }
+.field:hover { background-color: #ffffffb5; border-color: #5a7a8540; }
 .field:focus {
   outline: none;
-  background: #ffffffb5;
-  border-color: #ffffff;
-  box-shadow: 0 0 0 3px #4f7f7922, inset 0 1px 2px #35535f0f;
+  background-color: #fff;
+  border-color: #5c8a7c99;
+  box-shadow: 0 0 0 3px #4f7f791f;
 }
+
+/* A real select, not the platform's. The native control draws its own
+   double-arrow stepper and its own grey gradient, which on macOS looks like a
+   different application has been pasted into the page. `appearance: none`
+   takes that away and the chevron below replaces it - still a `<select>`,
+   so the keyboard, the screen reader and the mobile picker all keep working. */
+select.field {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 34px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75' stroke='%236b878d' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  background-size: 11px 7px;
+}
+select.field::-ms-expand { display: none; }
 
 /* Buttons: `.btn` is the older name for `.button`; both render the same. */
 .btn {
@@ -594,4 +623,386 @@ code:not(pre code) {
   font-size: 10.5px;
   color: var(--faint);
   overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------------------------
+   Map, filters and the view toggle.
+
+   The map is a borrowed canvas sitting inside a glass app, so it is framed
+   rather than blended: a rounded, bright-rimmed window with the legend on the
+   glass underneath it. The legend is part of the component and not decoration
+   — colour never carries meaning alone anywhere in this app.
+--------------------------------------------------------------------------- */
+.map-shell {
+  border: 1px solid #ffffffbd;
+  border-radius: 22px;
+  background: var(--glass-strong);
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(28px) saturate(145%);
+  -webkit-backdrop-filter: blur(28px) saturate(145%);
+  overflow: hidden;
+}
+
+.map-canvas {
+  width: 100%;
+  min-height: 240px;
+  background: #e4edeb;
+}
+
+/* maplibre's own chrome, toned down to match the glass language. */
+.map-shell .maplibregl-ctrl-group {
+  border-radius: 12px;
+  border: 1px solid #ffffffd1;
+  background: #ffffffc4;
+  box-shadow: 0 6px 18px #2c525314;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.map-shell .maplibregl-ctrl-group button + button { border-top-color: #65808724; }
+.map-shell .maplibregl-ctrl-attrib {
+  border-radius: 10px 0 0 0;
+  background: #ffffffad;
+  font-size: 10px;
+}
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 13px 20px 15px;
+  border-top: 1px solid #65808722;
+  background: #ffffff4a;
+}
+.map-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: #53707a;
+}
+.map-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.map-dot-hull {
+  background: #35635c2e;
+  border: 1px dashed #35635c99;
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+}
+
+/* The popup. maplibre draws the tip; we own everything inside it. */
+.map-popup .maplibregl-popup-content {
+  border-radius: 16px;
+  padding: 14px 16px;
+  border: 1px solid #ffffffd9;
+  background: #fbfdfcf2;
+  box-shadow: 0 18px 44px -20px #243e5659;
+  font-family: var(--font);
+}
+.map-popup .maplibregl-popup-tip { border-top-color: #fbfdfcf2; border-bottom-color: #fbfdfcf2; }
+.map-card-title { font-size: 14px; font-weight: 600; color: var(--ink-strong); }
+.map-card-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.map-card-line { font-size: 11.5px; color: var(--faint); margin-top: 3px; }
+.map-card-tone {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: #53707a;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid #65808722;
+}
+
+/* ------------------------------------------------------------- segmented */
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 100px;
+  border: 1px solid var(--glass-edge);
+  background: #ffffff70;
+}
+.segment {
+  padding: 7px 17px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #4b6467;
+  transition: background 160ms, box-shadow 160ms, color 160ms;
+}
+.segment:hover:not(.active) { background: #ffffff7a; }
+.segment.active {
+  color: #1f3a3c;
+  background: linear-gradient(125deg, #ffffffe0, #ffffff95);
+  box-shadow: 0 3px 10px #29474e14, inset 0 1px 1px #fff;
+}
+
+/* ----------------------------------------------------------- filter rail */
+/* The filter bar sits *on* the page rather than above it: one hairline, a
+   faint wash, no drop shadow. It is a control strip, and a control strip that
+   casts a shadow competes with the content it is there to narrow. */
+.filters {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #5a7a851f;
+  background: #ffffff4d;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+.filter-field { display: grid; gap: 4px; min-width: 132px; }
+.filter-field > span {
+  font-size: 9px;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #6d868b;
+}
+.filter-field .field { min-height: 38px; }
+.filter-narrow { max-width: 104px; }
+
+/* Everything that is not an everyday filter lives behind one disclosure, so
+   the resting state is a search box and two menus instead of nine inputs. */
+.filter-more {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  margin-top: 1px;
+  border-top: 1px solid #5a7a851f;
+}
+.filter-group { display: grid; gap: 7px; }
+.filter-group > span {
+  font-size: 9px;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #6d868b;
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border-radius: 100px;
+  border: 1px solid #5a7a8526;
+  background: #ffffff7a;
+  font-size: 12px;
+  font-weight: 500;
+  color: #46666e;
+  white-space: nowrap;
+  transition: background 150ms, border-color 150ms, color 150ms;
+}
+.chip:hover { background: #fff; border-color: #5a7a8547; }
+.chip[aria-pressed="true"] {
+  border-color: #5c8a7c;
+  background: #e2f1e8;
+  color: var(--accent-ink);
+  font-weight: 550;
+}
+/* The disclosure that opens the rest. Reads as a control, not an option. */
+.chip-more { border-style: dashed; background: transparent; }
+.chip-more:hover { background: #ffffff7a; }
+.chip-count { font-variant-numeric: tabular-nums; color: var(--faint); }
+.chip[aria-pressed="true"] .chip-count { color: var(--accent); }
+
+.result-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* --------------------------------------------------------- selected card */
+.picked {
+  border: 1px solid #5c8a7c5c;
+  background: linear-gradient(125deg, #ffffffc4, #eaf4efa8);
+  border-radius: 18px;
+  padding: 16px 18px;
+  box-shadow: 0 10px 28px -18px #29474e3d, inset 0 1px 0 #fff;
+}
+
+table.data tbody tr.picked-row { background: #e4f2eab0; }
+table.data tbody tr.clickable { cursor: pointer; }
+
+/* A jurisdiction's name beside its bubble. A DOM marker rather than a text
+   layer, so the labels cannot vanish because a font request failed. */
+.map-label {
+  padding: 3px 9px;
+  border-radius: 100px;
+  border: 1px solid #ffffffd1;
+  background: #ffffffd6;
+  box-shadow: 0 4px 12px #2c525318;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  color: #2b4a4b;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.map-label:hover { background: #fff; border-color: #5c8a7c8c; }
+
+/* ------------------------------------------------------- filed agreements */
+.contract-row {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #ffffff4a;
+  padding: 14px 16px;
+}
+.unit-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-right: 2px;
+  border-radius: 7px;
+  border: 1px solid #5c8a7c54;
+  background: #e4f2eac4;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+  color: var(--accent-ink);
+  vertical-align: 1px;
+}
+.contract-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px dashed #5c8a7c54;
+  background: #ffffff57;
+}
+.contract-form input[type="file"] {
+  padding: 8px 10px;
+  line-height: 1.4;
+}
+
+/* ---------------------------------------------------------------------------
+   The account, in the nav.
+
+   One button rather than three loose items. The nav pill is a fixed width and
+   an email address is not, so laying the address, the role and a sign-out
+   button next to four menu items was the thing that wrapped first and made
+   the header look broken on a narrow window.
+--------------------------------------------------------------------------- */
+.account { position: relative; margin-left: 4px; }
+
+.account-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 13px 5px 5px;
+  border-radius: 100px;
+  border: 1px solid transparent;
+  color: #3f5d62;
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: background 160ms, border-color 160ms, box-shadow 160ms;
+}
+.account-button:hover { background: #ffffff6b; }
+.account-button.open {
+  background: linear-gradient(125deg, #ffffffcf, #ffffff85);
+  border-color: #ffffffd1;
+  box-shadow: 0 4px 12px #29474e14;
+}
+.account-button svg { color: #7c969b; flex: none; }
+
+.account-mark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #4e716b, #2a4a45);
+  color: #f2fbf7;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.account-name {
+  max-width: 15ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 9px);
+  z-index: 60;
+  width: 258px;
+  padding: 6px;
+  border-radius: 18px;
+  border: 1px solid #ffffffd9;
+  background: #fbfdfcf5;
+  box-shadow: 0 22px 50px -24px #243e5666, 0 2px 8px #2c525314;
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+}
+
+.account-head {
+  padding: 11px 12px 12px;
+  border-bottom: 1px solid #65808722;
+  margin-bottom: 5px;
+}
+.account-head-name { font-size: 13.5px; font-weight: 600; color: var(--ink-strong); }
+.account-head-mail {
+  font-size: 11.5px;
+  color: var(--faint);
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+.account-role {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: 100px;
+  border: 1px solid #5c8a7c54;
+  background: #e2f1e8;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-ink);
+}
+
+.account-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #3f5d62;
+  transition: background 140ms;
+}
+.account-item:hover { background: #eaf2f0; }
+.account-hint {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--faint);
+  margin-top: 1px;
+}
+.account-signout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8d4a41;
+}
+.account-signout:hover { background: #f8ecea; }
+
+@media (max-width: 760px) {
+  .account { margin-left: 0; }
+  .account-menu { right: auto; left: 0; width: min(258px, calc(100vw - 48px)); }
 }

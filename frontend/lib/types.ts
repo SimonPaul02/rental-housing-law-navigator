@@ -76,20 +76,49 @@ export interface AddressRecord {
   units: number | null;
   use_description: string | null;
   legal_city: string | null;
+  legal_state: string | null;
+  county: string | null;
   jurisdiction_status: JurisdictionStatus;
   zip_discrepancy: boolean;
+  postal_city_differs: boolean;
+  /** The geocoder's own point, or null. Null for an unresolved address and
+   *  also for one a human resolved by override — so a map always places fewer
+   *  rows than the table lists, and has to say so. */
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface AddressStats {
   total: number;
   by_state: Record<string, number>;
   by_postal_city: Record<string, number>;
+  /** Verified legal cities only — what rules actually attach to. */
+  by_legal_city: Record<string, number>;
   resolved: number;
   unresolved: number;
   by_method: Record<string, number>;
   city_corrections: number;
   missing_year_built: number;
   missing_units: number;
+  with_coordinates: number;
+}
+
+/** One check the evaluator ran, as it reported it.
+ *
+ *  `check` is the dimension - geography, time, coverage, exemption or an
+ *  interaction - and `detail` is the sentence the explanation was built from.
+ *  Together they are the audit trail: an advocate can see which fact decided
+ *  an answer, and a provider can see which exemption beat a rule. */
+export interface RuleCheck {
+  check: string;
+  value: "true" | "false" | "unknown";
+  reason: string;
+  detail: string;
+  condition_id: string | null;
+  source_span: string | null;
+  field: string | null;
+  fact_value: string | number | boolean | null;
+  fact_status: string | null;
 }
 
 export interface RuleOutcome {
@@ -108,6 +137,11 @@ export interface RuleOutcome {
   citation: string | null;
   source_url: string | null;
   quoted_span: string | null;
+  /** Which rule governs this obligation instead, when `result` is superseded. */
+  superseded_by: string | null;
+  /** The obligation this rule speaks to. Two rules sharing one are rivals. */
+  issue_key: string | null;
+  checks: RuleCheck[];
 }
 
 export interface LookupResponse {
@@ -159,6 +193,66 @@ export interface ChangeTestResult {
   rules_resolved: boolean;
 }
 
+export interface ChangeStats {
+  tests_defined: number;
+  tests_run: number;
+  total_affected: number;
+  total_conflicts: number;
+  by_test: Record<string, { affected: number; conflicts: number; as_of: string }>;
+}
+
+/** What the rule adapter made of Module A's prose, and what still needs a human.
+ *  A rule with untranslated text answers `unknown` for every address it could
+ *  reach, which is why the queue is ordered by what it is costing. */
+export interface CompilationSummary {
+  rules: number;
+  needs_review: number;
+  with_unmapped_text: number;
+  relations: number;
+  relations_approved: number;
+}
+
+/** A queue entry is either a rule needing review or an unapproved relation
+ *  between two of them, which is why both halves are optional. */
+export interface CompilationQueueItem {
+  team_rule_id?: string;
+  jurisdiction?: string | null;
+  issue_key?: string | null;
+  review_state?: string | null;
+  unmapped_count?: number;
+  unmapped_text?: { text?: string; where?: string }[];
+  relation?: {
+    left_rule_id: string;
+    right_rule_id: string;
+    issue_key: string;
+    review_state: string;
+  };
+}
+
+export interface RuleCompilation {
+  summary: CompilationSummary;
+  queue: CompilationQueueItem[];
+}
+
+export interface ZipAssessment {
+  status: string;
+  input_zip: string;
+  matched_zips: string[];
+  expected_endpoints: number;
+  accepted_endpoints: number;
+  reason: string;
+}
+
+export interface ZipReviewCase {
+  address_id: string;
+  street_address: string;
+  postal_city: string;
+  state: string;
+  legal_city: string | null;
+  assessment: ZipAssessment;
+  review: { decision: string; confirmed_zip: string | null; source_url: string } | null;
+}
+
 export interface Health {
   status: string;
   database: boolean;
@@ -201,5 +295,36 @@ export interface Place {
   jurisdiction_status: JurisdictionStatus;
   zip_discrepancy: boolean;
   postal_city_differs: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  contract_count: number;
   created_at: string;
+}
+
+/** A tenancy agreement somebody uploaded for a building of their own.
+ *
+ *  The rent and the term are self-reported and nothing verifies them. They are
+ *  here so a figure can be read beside the rule that governs it — this app
+ *  never computes an entitlement from them. */
+export interface Contract {
+  id: number;
+  place_id: number;
+  unit_label: string | null;
+  starts_on: string | null;
+  ends_on: string | null;
+  monthly_rent_cents: number | null;
+  note: string | null;
+  filename: string;
+  content_type: string;
+  kind: string;
+  byte_size: number;
+  sha256: string;
+  page_count: number | null;
+  created_at: string;
+}
+
+export interface ContractTypes {
+  max_bytes: number;
+  accept: string[];
+  names: string[];
 }
