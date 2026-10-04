@@ -12,7 +12,6 @@ import {
 } from "@/components/ui";
 import { AddressExplorer } from "@/components/explorer/address-explorer";
 import { tryApi } from "@/lib/api";
-import { statusOf } from "@/lib/changes";
 import { ROLES } from "@/lib/roles";
 import type {
   AddressRecord,
@@ -364,57 +363,38 @@ export async function AgencyHome({ health }: { places: Place[]; health: Health }
               </tr>
             </thead>
             <tbody>
-              {(changeResults ?? []).map((result) =>
-                statusOf(result) === "blocked" ? (
-                  // No answer is not 0%: a share of the stock is only stated
-                  // for a case that was actually computed.
-                  <tr key={result.test_id}>
-                    <Td>
-                      <span className="mono text-xs">{result.test_id}</span>{" "}
-                      <span className="font-medium">{result.title}</span>
-                      <div className="mt-1 text-xs" style={{ maxWidth: "56ch", color: "var(--faint)" }}>
-                        {result.blocked_reason}
-                      </div>
-                    </Td>
-                    <Td>
-                      <span style={{ color: "var(--critical)" }}>not computed</span>
-                    </Td>
-                    <Td>
+              {(changeResults ?? [])
+                /* A blocked case computed nothing, so its zero is not a share
+                   of the stock. It is reported on /changes, where the reason
+                   and the rule it waits on can be read together. */
+                .filter((result) => !result.blocked_reason)
+                .map((result) => (
+                <tr key={result.test_id}>
+                  <Td>
+                    <span className="mono text-xs">{result.test_id}</span>{" "}
+                    <span className="font-medium">{result.title}</span>
+                    <div className="mt-1 text-xs" style={{ maxWidth: "56ch", color: "var(--faint)" }}>
+                      {result.notes}
+                    </div>
+                  </Td>
+                  <Td className="tabular-nums">{result.affected_address_ids.length}</Td>
+                  <Td className="tabular-nums">
+                    <span style={{ color: "var(--muted)" }}>
+                      {addressStats.total
+                        ? `${Math.round(
+                            (result.affected_address_ids.length / addressStats.total) * 100,
+                          )}%`
+                        : "—"}
+                    </span>
+                  </Td>
+                  <Td className="tabular-nums">
+                    {result.conflict_flag_address_ids.length || (
                       <span style={{ color: "var(--faint)" }}>—</span>
-                    </Td>
-                    <Td>
-                      <span style={{ color: "var(--faint)" }}>—</span>
-                    </Td>
-                    <Td className="mono text-xs">{result.as_of}</Td>
-                  </tr>
-                ) : (
-                  <tr key={result.test_id}>
-                    <Td>
-                      <span className="mono text-xs">{result.test_id}</span>{" "}
-                      <span className="font-medium">{result.title}</span>
-                      <div className="mt-1 text-xs" style={{ maxWidth: "56ch", color: "var(--faint)" }}>
-                        {result.notes}
-                      </div>
-                    </Td>
-                    <Td className="tabular-nums">{result.affected_address_ids.length}</Td>
-                    <Td className="tabular-nums">
-                      <span style={{ color: "var(--muted)" }}>
-                        {addressStats.total
-                          ? `${Math.round(
-                              (result.affected_address_ids.length / addressStats.total) * 100,
-                            )}%`
-                          : "—"}
-                      </span>
-                    </Td>
-                    <Td className="tabular-nums">
-                      {result.conflict_flag_address_ids.length || (
-                        <span style={{ color: "var(--faint)" }}>—</span>
-                      )}
-                    </Td>
-                    <Td className="mono text-xs">{result.as_of}</Td>
-                  </tr>
-                ),
-              )}
+                    )}
+                  </Td>
+                  <Td className="mono text-xs">{result.as_of}</Td>
+                </tr>
+              ))}
             </tbody>
           </Table>
         )}

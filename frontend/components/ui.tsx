@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { ChangeStatus, JurisdictionStatus, LookupResult, RuleStatus } from "@/lib/types";
+import type { JurisdictionStatus, LookupResult, RuleStatus } from "@/lib/types";
 
 /* ------------------------------------------------------------------ shell */
 export function Card({
@@ -113,13 +113,6 @@ const RESULT: Record<LookupResult, { color: string; label: string }> = {
   does_not_apply: { color: "var(--faint)", label: "does not apply" },
 };
 
-const CHANGE_STATUS: Record<ChangeStatus, { color: string; label: string }> = {
-  complete: { color: "var(--good)", label: "answered" },
-  partial: { color: "var(--warn)", label: "partly answered" },
-  // Not "nothing moved" — the case could not be computed at all.
-  blocked: { color: "var(--critical)", label: "not computed" },
-};
-
 const JURISDICTION_STATUS: Record<JurisdictionStatus, { color: string; label: string }> = {
   resolved: { color: "var(--good)", label: "Jurisdiction resolved" },
   needs_review: { color: "var(--warn)", label: "Jurisdiction needs review" },
@@ -143,11 +136,6 @@ export function StatusBadge({ status }: { status: RuleStatus }) {
 export function ResultBadge({ result }: { result: LookupResult }) {
   const r = RESULT[result] ?? { color: "var(--faint)", label: result };
   return <Badge color={r.color} label={r.label} />;
-}
-
-export function ChangeStatusBadge({ status }: { status: ChangeStatus }) {
-  const item = CHANGE_STATUS[status] ?? { color: "var(--faint)", label: status };
-  return <Badge color={item.color} label={item.label} />;
 }
 
 export function JurisdictionBadge({ status }: { status: JurisdictionStatus }) {

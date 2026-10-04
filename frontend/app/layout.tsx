@@ -4,8 +4,9 @@ import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { AccountMenu } from "@/components/account-menu";
 import { Mark, Wordmark } from "@/components/brand";
 import { NavLink } from "@/components/nav-link";
+import { SignInCta } from "@/components/sign-in-cta";
 import { CORPUS_NAV, navFor } from "@/lib/roles";
-import { displayName, viewer } from "@/lib/auth";
+import { displayName, signInConfigured, viewer } from "@/lib/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -71,9 +72,15 @@ export default async function RootLayout({
                     roleLabel={seen.account.role_label}
                   />
                 ) : (
-                  <a className="nav-item" href="/api/docs">
-                    API docs
-                  </a>
+                  <>
+                    <a className="nav-item" href="/api/docs">
+                      API docs
+                    </a>
+                    {/* Signing in is its own page, so this is a link to it
+                        rather than a jump down the front door. Absent when
+                        there is nothing to sign in to, and on /login. */}
+                    {signInConfigured && <SignInCta />}
+                  </>
                 )}
               </nav>
             </header>

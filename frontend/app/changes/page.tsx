@@ -2,17 +2,7 @@ import { gate } from "@/lib/auth";
 import { Unavailable } from "@/components/gate-notice";
 import { tryApi } from "@/lib/api";
 import { ChangesExplorer } from "@/components/explorer/changes-explorer";
-import { answered, statusOf } from "@/lib/changes";
-import {
-  Card,
-  ChangeStatusBadge,
-  Notice,
-  PageHeading,
-  SectionTitle,
-  Table,
-  Td,
-  Th,
-} from "@/components/ui";
+import { Card, Expand, Notice, PageHeading, Table, Td, Th } from "@/components/ui";
 import type {
   AddressRecord,
   CanonicalMatch,
@@ -22,6 +12,21 @@ import type {
 
 export const dynamic = "force-dynamic";
 
+/** Module C, as a page a person can read.
+ *
+ *  Everything a case has to say is said inside the case — its dates, its
+ *  numbers, how to read them, the buildings it moves and the law it read. This
+ *  file is therefore short on purpose: it fetches, states the page's one
+ *  caveat, and hands over.
+ *
+ *  Two things used to live here and no longer do. There was a second rendering
+ *  of all five cases under the explorer, so every fact about T3 appeared twice
+ *  on one page and the two could disagree. And there was a text box wanting an
+ *  address id typed in `A0001` form, whose answer then appeared scattered
+ *  through that duplicate list; picking a building on the map or in the table
+ *  says the same thing in the place a reader is already looking. The
+ *  `?address_id=` link still works and now arrives as a pre-selected building.
+ */
 export default async function ChangesPage({
   searchParams,
 }: {
@@ -44,16 +49,15 @@ export default async function ChangesPage({
     return <Notice title="Backend unreachable" tone="warning" />;
   }
 
-  const resultsById = new Map((results ?? []).map((r) => [r.test_id, r]));
   const unmatched = (canonical ?? []).filter((c) => !c.matched);
-  const requestedAddress = (await searchParams).address_id?.trim().toUpperCase() ?? "";
-  const selectedAddress = /^A\d{4}$/.test(requestedAddress) ? requestedAddress : "";
+  const requested = (await searchParams).address_id?.trim().toUpperCase() ?? "";
+  const linkedAddress = /^A\d{4}$/.test(requested) ? requested : "";
 
   // Only the buildings some case actually touches cross to the browser. The
   // map needs their coordinates; it has no use for the rest of the sample, and
   // shipping all five hundred to draw a hundred would be paying for geography
   // nobody asked to see.
-  const touched = new Set(answered(results).flatMap((r) => r.affected_address_ids));
+  const touched = new Set((results ?? []).flatMap((r) => r.affected_address_ids));
   const involved = (addresses ?? []).filter((a) => touched.has(a.address_id));
 
   return (
@@ -61,233 +65,90 @@ export default async function ChangesPage({
       <PageHeading
         eyebrow="Module C"
         title="Change tracking"
-        lede="Each case is answered by replaying Module B's evaluator at the relevant dates — not by hard-coding the expected outcome."
+        lede="Which rules change, when, and for which buildings. Every answer here is produced by re-running the ordinary address lookup on the dates each case names — never by writing down an expected outcome in advance."
       />
 
-      {unmatched.length > 0 && (
-        <Notice title="Some challenge rule ids have no extracted rule yet" tone="warning">
-          {unmatched.map((c) => c.canonical_id).join(", ")} — a case that needs
-          one of these names it below. Most are not computed and left out of
-          changes.json until the rule is extracted; T5 is answered by its
-          rent-cap check alone and marked partly answered.
-        </Notice>
-      )}
-
-      {!results && (
-        <Notice title="Current change results are unavailable" tone="warning">
-          The change-tracking API did not answer. Once it does, each case reports
-          its own status, so one case that cannot be computed does not hide the
-          others.
-        </Notice>
-      )}
-
       <Notice title="Research aid, not legal advice">
-        Check the cited law and current status before acting on a result.
+        Check the cited law and its current status before acting on anything on
+        this page.
       </Notice>
 
-      <ChangesExplorer tests={tests} results={results ?? []} addresses={involved} />
+      {!results && (
+        <Notice title="The replay could not be reached" tone="warning">
+          The cases below are the definitions only. Their answers come from a
+          separate call that did not return.
+        </Notice>
+      )}
 
+      {/* One root cause behind every blocked case, named once with its fix.
+          Each case still says for itself which id it was waiting on. */}
+      {unmatched.length > 0 && (
+        <Notice title="Some rules in these cases have not been extracted yet" tone="warning">
+          No verified record matches {unmatched.map((c) => c.canonical_id).join(", ")}.
+          A case that needs one of them reports that it cannot be answered,
+          rather than reporting that it affects nobody — except the failed
+          measure, whose empty answer rests on a rent-cap check that runs
+          without its record, so it is answered and marked partly answered.
+          Running a Module A extraction pass over the corpus is what fills them
+          in.
+        </Notice>
+      )}
+
+      <ChangesExplorer
+        tests={tests}
+        results={results ?? []}
+        addresses={involved}
+        initialAddressId={linkedAddress}
+      />
+
+      {/* The id scheme itself, for a reader auditing the bridge rather than
+          reading a case. Each case already carries the law it read. */}
       <Card>
-        <form action="/changes" method="get" className="flex flex-wrap items-end gap-3">
-          <label className="text-sm">
-            Inspect one address across the date cases
-            <input
-              name="address_id"
-              type="text"
-              pattern="A[0-9]{4}"
-              defaultValue={selectedAddress}
-              placeholder="A0001"
-              className="mt-1 block rounded border px-3 py-2 mono"
-              style={{ borderColor: "var(--line)", background: "#ffffff91" }}
-            />
-          </label>
-          <button type="submit" className="rounded border px-4 py-2 text-sm" style={{ borderColor: "var(--line)" }}>
-            Inspect
-          </button>
-        </form>
-      </Card>
-
-
-      <div className="space-y-4">
-        <SectionTitle
-          title="Every case, side by side"
-          hint="The same five, as a list — what each expects and what the evaluator found."
-        />
-        {tests.map((test) => {
-          const result = resultsById.get(test.test_id);
-          const ruleSets = (result?.detail.rule_sets ?? {}) as Record<
-            string,
-            { before: Record<string, string>; after: Record<string, string> }
-          >;
-          const selectedSets = selectedAddress ? ruleSets[selectedAddress] : undefined;
-          const perRule = (result?.detail.per_rule ?? {}) as Record<string, string[]>;
-          // T2 says how many of each city's buildings are covered outright and
-          // how many wait on a fact; older APIs and the other cases do not.
-          const perRuleSplit = (result?.detail.per_rule_split ?? {}) as Record<
-            string,
-            { applies: string[]; coverage_unresolved: string[] }
-          >;
-          const selectedRuleIds = selectedAddress
-            ? Object.entries(perRule)
-                .filter(([, ids]) => ids.includes(selectedAddress))
-                .map(([id]) => id)
-            : [];
-          return (
-            <Card key={test.test_id}>
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span className="mono text-sm font-semibold">{test.test_id}</span>
-                <span className="font-medium">{test.title}</span>
-                <span
-                  className="rounded-full border px-2 py-0.5 text-xs"
-                  style={{ borderColor: "var(--line)", color: "var(--faint)" }}
-                >
-                  {test.type}
-                </span>
-                {result && <ChangeStatusBadge status={statusOf(result)} />}
-              </div>
-
-              <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
-                <strong>Expected:</strong> {test.expected_behavior}
-              </p>
-
-              {result && statusOf(result) === "blocked" ? (
-                <div className="mt-3 space-y-1">
-                  <p className="text-sm">
-                    <strong style={{ color: "var(--critical)" }}>Not computed.</strong>{" "}
-                    {result.blocked_reason}
-                  </p>
-                  <p className="text-xs" style={{ color: "var(--faint)" }}>
-                    Left out of changes.json until it can be answered. Having no
-                    affected addresses here is the absence of an answer, not a
-                    finding that nothing moved.
-                  </p>
-                </div>
-              ) : result ? (
-                <div className="mt-3 space-y-2">
-                  <p className="text-sm">{result.notes}</p>
-                  {(result.warnings ?? []).length > 0 && (
-                    <ul className="list-disc pl-5 text-xs" style={{ color: "var(--warn)" }}>
-                      {(result.warnings ?? []).map((warning) => (
-                        <li key={warning}>{warning}</li>
-                      ))}
-                    </ul>
-                  )}
-                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-                    <span>
-                      <strong className="tabular-nums">
-                        {result.affected_address_ids.length}
-                      </strong>{" "}
-                      <span style={{ color: "var(--muted)" }}>affected</span>
-                    </span>
-                    {result.conflict_flag_address_ids.length > 0 && (
-                      <span>
-                        <strong className="tabular-nums">
-                          {result.conflict_flag_address_ids.length}
-                        </strong>{" "}
-                        <span style={{ color: "var(--muted)" }}>
-                          flagged for review
-                        </span>
-                      </span>
-                    )}
-                    <span className="mono" style={{ color: "var(--faint)" }}>
-                      as of {result.as_of}
-                    </span>
-                  </div>
-                  {/* `detail` is Record<string, unknown>, so the raw member is
-                      `unknown` and React will not render it — and `x && <p/>`
-                      carries that type through. `perRule` above is the same
-                      value already narrowed, so use it. */}
-                  {Object.keys(perRule).length > 0 && (
-                    <p className="text-xs" style={{ color: "var(--muted)" }}>
-                      Per rule: {Object.entries(perRule)
-                        .map(([id, ids]) => {
-                          const split = perRuleSplit[id];
-                          return split
-                            ? `${id}: ${ids.length} (${split.applies.length} covered outright, ${split.coverage_unresolved.length} unresolved)`
-                            : `${id}: ${ids.length}`;
-                        })
-                        .join(" · ")}
-                    </p>
-                  )}
-                  <details className="text-xs" style={{ color: "var(--muted)" }}>
-                    <summary className="cursor-pointer">Inspect affected address IDs</summary>
-                    <p className="mt-2 max-h-32 overflow-y-auto mono break-words">
-                      {result.affected_address_ids.join(", ") || "None"}
-                    </p>
-                  </details>
-                  {selectedSets && (
-                    <div className="mt-3 rounded border p-3 text-xs" style={{ borderColor: "var(--line)" }}>
-                      <strong>{selectedAddress} · before and after rule set</strong>
-                      <p className="mt-1 mono">Before: {JSON.stringify(selectedSets.before)}</p>
-                      <p className="mt-1 mono">After: {JSON.stringify(selectedSets.after)}</p>
-                    </div>
-                  )}
-                  {selectedAddress && (
-                    <p className="text-xs" style={{ color: "var(--muted)" }}>
-                      {selectedAddress}: {result.affected_address_ids.includes(selectedAddress)
-                        ? test.type === "pending" ? "in scope if enacted" : "in affected set"
-                        : "outside affected set"}
-                      {selectedRuleIds.length > 0 && ` · ${selectedRuleIds.join(", ")}`}
-                      {result.conflict_flag_address_ids.includes(selectedAddress) &&
-                        " · possible state/local conflict for review"}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm" style={{ color: "var(--faint)" }}>
-                  Current replay unavailable. Check the required sources and rule mapping.
-                </p>
-              )}
-            </Card>
-          );
-        })}
-      </div>
-
-      <Card>
-        <SectionTitle
-          title="Rule id mapping"
-          hint="How each challenge rule id resolves to our extracted records"
-        />
-        <Table>
-          <thead>
-            <tr>
-              <Th>Challenge id</Th>
-              <Th>Selector</Th>
-              <Th>Matched</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {(canonical ?? []).map((c) => (
-              <tr key={c.canonical_id}>
-                <Td className="mono whitespace-nowrap">{c.canonical_id}</Td>
-                <Td className="text-xs">{c.selector}</Td>
-                <Td className="mono text-xs">
-                  {c.matched ? (
-                    c.matched_rule_ids.join(", ")
-                  ) : (
-                    <span style={{ color: "var(--faint)" }}>none</span>
-                  )}
-                  {/* Guarded, because the frontend and the backend deploy
-                      independently: Vercel ships on every push, Fly only when
-                      backend/ changes. A frontend that reaches for a field its
-                      API does not serve yet should degrade, not white-screen
-                      the whole page. */}
-                  {(c.sources ?? []).map((source) => (
-                    <div key={source.team_rule_id} className="mt-2 font-sans text-xs">
-                      <a href={source.source_url} target="_blank" rel="noreferrer">
-                        {source.citation}
-                      </a>
-                      <span> · {source.source_doc_id} · retrieved {source.retrieved_at ?? "unknown"}</span>
-                      <p className="mt-1" style={{ color: "var(--muted)" }}>
-                        “{source.quoted_span}”
-                      </p>
-                    </div>
-                  ))}
-                </Td>
+        <Expand label="How the brief's rule ids map onto our records">
+          <p className="case-note">
+            The cases name rules by the challenge&apos;s ids; our extracted
+            records carry ours. The bridge is an explicit table rather than a
+            fuzzy match, so an id with nothing behind it is visible here
+            instead of quietly producing an empty answer.
+          </p>
+          <Table>
+            <thead>
+              <tr>
+                <Th>Id in the brief</Th>
+                <Th>What we look for</Th>
+                <Th>What it found</Th>
               </tr>
-            ))}
-          </tbody>
-        </Table>
+            </thead>
+            <tbody>
+              {(canonical ?? []).map((c) => (
+                <tr key={c.canonical_id}>
+                  <Td className="mono whitespace-nowrap">{c.canonical_id}</Td>
+                  <Td className="text-xs">{c.selector}</Td>
+                  <Td className="text-xs">
+                    {c.matched ? (
+                      <span className="mono">{c.matched_rule_ids.join(", ")}</span>
+                    ) : (
+                      <span style={{ color: "var(--faint)" }}>nothing yet</span>
+                    )}
+                    {c.note && <p className="case-note">{c.note}</p>}
+                    {/* The citation only. The span of text each rule rests on
+                        is shown inside the case that reads it, where somebody
+                        is actually weighing it. */}
+                    {c.sources.map((source) => (
+                      <p key={source.team_rule_id} className="case-note">
+                        <a href={source.source_url} target="_blank" rel="noreferrer">
+                          {source.citation}
+                        </a>
+                        {source.source_doc_id && <span> · {source.source_doc_id}</span>}
+                        <span> · retrieved {source.retrieved_at ?? "unknown"}</span>
+                      </p>
+                    ))}
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </Expand>
       </Card>
     </div>
   );

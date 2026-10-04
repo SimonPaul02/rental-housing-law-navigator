@@ -5,6 +5,7 @@ Mounted under /api:
   /api/address-lookup    Module B - address lookup
   /api/change-tracking   Module C - change tracking
   /api/accounts          who is signed in, and their own saved buildings
+  /api/assistant         the agent the overview page is made of
 
 WorkOS holds every account; this process only ever verifies a token's signature against
 WorkOS's published keys, so it carries no WorkOS secret. An unconfigured checkout runs open
@@ -26,6 +27,7 @@ from app.core.config import settings
 from app.core.db import engine
 from app.modules.accounts.router import router as accounts_router
 from app.modules.address_lookup.router import router as module_b_router
+from app.modules.assistant.router import router as assistant_router
 from app.modules.change_tracking.router import router as module_c_router
 from app.modules.rule_extraction.router import router as module_a_router
 
@@ -101,6 +103,11 @@ async def health() -> dict:
         "database": db_ok,
         "database_error": db_error,
         "extraction_available": llm.is_configured(),
+        # The assistant needs the same key. Reported separately because the two
+        # fail independently in practice: a deployment can have read its rules
+        # in from an import and have no key at all, and the overview page needs
+        # to say so rather than render an input box that cannot answer.
+        "assistant_available": llm.is_configured(),
         "default_as_of": settings.default_as_of,
         # Whether a caller needs a WorkOS token. The frontend reads this instead of
         # duplicating the rule, so the two can never disagree about who has to sign in.
@@ -118,6 +125,7 @@ async def meta() -> dict:
         "app": settings.app_name,
         "default_as_of": settings.default_as_of,
         "extraction_model": settings.extraction_model,
+        "assistant_model": settings.assistant_model,
         "categories": [c.value for c in Category],
         "levels": [level.value for level in Level],
         "statuses": [s.value for s in RuleStatus],
@@ -137,4 +145,8 @@ api.include_router(module_a_router, dependencies=signed_in)
 api.include_router(module_b_router, dependencies=signed_in)
 api.include_router(module_c_router, dependencies=signed_in)
 api.include_router(accounts_router)
+# Mounted without the `signed_in` dependency above for the same reason accounts
+# is: every route in it already depends on `require_principal` itself, because
+# the assistant reads the caller's own buildings and documents.
+api.include_router(assistant_router)
 app.include_router(api)

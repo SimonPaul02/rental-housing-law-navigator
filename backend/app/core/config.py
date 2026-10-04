@@ -50,6 +50,25 @@ class Settings(BaseSettings):
     extraction_max_tokens: int = 16000
     extraction_concurrency: int = 4
 
+    # --- Anthropic (the assistant on the overview page) ---
+    # Sonnet 5.5 rather than Opus: a chat turn here reasons over results a tool
+    # has already computed, and the careful statutory reading is Module A's job
+    # at `extraction_model` above. Half the price, and the roster of tools is
+    # what makes the answers good rather than the model's own recall.
+    #
+    # Low effort for the same reason, and because it is what the interface
+    # wants anyway: fewer and more consolidated tool calls, no preamble, terser
+    # answers. See pipeline/models.py for the price table.
+    assistant_model: str = "claude-sonnet-5-5"
+    assistant_effort: str = "low"
+    # A chat answer is two to four sentences, so this is a ceiling against a
+    # runaway rather than a target. Thinking is adaptive and counts against it.
+    assistant_max_tokens: int = 2000
+    # Model calls per turn. The loop is read-tool -> answer, which is two; six
+    # leaves room to recover from a bad address id without letting a confused
+    # turn spend somebody's money in a circle.
+    assistant_max_steps: int = 6
+
     # --- WorkOS (identity) ---
     # WorkOS owns every account, credential and session. Only the *public* client id is
     # needed to check one, because checking it means verifying a signature against WorkOS's

@@ -89,6 +89,43 @@ def get_test(test_id: str) -> ChangeTest | None:
     return next((t for t in load_tests() if t.test_id == test_id), None)
 
 
+def blocked_result(
+    test: ChangeTest,
+    reason: str,
+    *,
+    as_of: dt.date | None = None,
+    matches: list[CanonicalMatch] | None = None,
+    detail: dict | None = None,
+) -> ChangeTestResult:
+    """A case that could not be replayed, returned as a result that says so.
+
+    A reader is better served by four answers and one stated reason than by
+    nothing at all. The empty affected set here means "not computed", so a
+    caller that counts addresses must drop these rows rather than add their
+    zeroes in - `status` and `blocked_reason` say which rows those are. The
+    export never writes one, and by default refuses to be written while any
+    case is not complete.
+    """
+    matches = matches or []
+    return ChangeTestResult(
+        test_id=test.test_id,
+        title=test.title,
+        type=test.type,
+        as_of=(
+            as_of or test.as_of or test.as_of_after or dt.date.fromisoformat(settings.default_as_of)
+        ),
+        affected_address_ids=[],
+        conflict_flag_address_ids=[],
+        notes=f"Not computed: {reason}",
+        expected_behavior=test.expected_behavior,
+        canonical_matches=matches,
+        detail=detail or {},
+        rules_resolved=bool(matches) and all(m.matched for m in matches),
+        status="blocked",
+        blocked_reason=reason,
+    )
+
+
 async def resolve_canonical(
     session: AsyncSession, canonical_id: str
 ) -> tuple[CanonicalMatch, list[Rule]]:
@@ -292,33 +329,6 @@ def _undated(rules: list[Rule]) -> dict[str, str]:
     return reasons
 
 
-def _blocked(
-    test: ChangeTest,
-    as_of: dt.date,
-    matches: list[CanonicalMatch],
-    reason: str,
-    *,
-    detail: dict | None = None,
-) -> ChangeTestResult:
-    """A case with no answer. Its empty sets mean "not computed", and every
-    consumer has to read them that way - which is why `status` says so."""
-    return ChangeTestResult(
-        test_id=test.test_id,
-        title=test.title,
-        type=test.type,
-        as_of=as_of,
-        affected_address_ids=[],
-        conflict_flag_address_ids=[],
-        notes=f"Not computed: {reason}",
-        expected_behavior=test.expected_behavior,
-        canonical_matches=matches,
-        detail=detail or {},
-        rules_resolved=all(m.matched for m in matches),
-        status="blocked",
-        blocked_reason=reason,
-    )
-
-
 async def run_test(
     session: AsyncSession,
     test: ChangeTest,
@@ -337,7 +347,7 @@ async def run_test(
         rules_by_canonical[canonical_id] = rules
 
     def blocked(reason: str, detail: dict | None = None) -> ChangeTestResult:
-        return _blocked(test, as_of, matches, reason, detail=detail)
+        return blocked_result(test, reason, as_of=as_of, matches=matches, detail=detail)
 
     if test.type not in _TEST_TYPES:
         return blocked(f"Unsupported test type {test.type!r}.")

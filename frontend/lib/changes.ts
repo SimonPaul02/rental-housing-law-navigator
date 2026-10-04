@@ -8,9 +8,9 @@
 
 import type { ChangeStatus, ChangeTestResult } from "@/lib/types";
 
-/** An API that predates per-case status only ever served complete cases. */
+/** An API that predates `status` marks a blocked case only by its reason. */
 export function statusOf(result: ChangeTestResult): ChangeStatus {
-  return result.status ?? "complete";
+  return result.status ?? (result.blocked_reason ? "blocked" : "complete");
 }
 
 /** The cases whose sets are an answer. */

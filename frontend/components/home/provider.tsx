@@ -13,7 +13,6 @@ import {
 } from "@/components/ui";
 import { MapPanel } from "@/components/map/map-panel";
 import { tryApi } from "@/lib/api";
-import { answered, blocked } from "@/lib/changes";
 import { placePoint, unplaced } from "@/lib/points";
 import {
   blockingFacts,
@@ -131,9 +130,12 @@ export async function ProviderHome({ places, health }: { places: Place[]; health
     ),
   ).size;
 
-  // A blocked case's empty set is not "it moves none of yours"; it is no answer.
-  const notComputed = blocked(changeResults);
-  const moved = answered(changeResults)
+  // A case that could not be replayed has an empty affected set for want of a
+  // computation, not because it misses this portfolio - so it is held apart
+  // and counted rather than quietly joining the cases that found nothing.
+  const unanswerable = (changeResults ?? []).filter((result) => result.blocked_reason);
+  const moved = (changeResults ?? [])
+    .filter((result) => !result.blocked_reason)
     .map((result) => ({
       result,
       hit: result.affected_address_ids.filter((id) => byAddress.has(id)),
@@ -473,9 +475,8 @@ export async function ProviderHome({ places, health }: { places: Place[]; health
         />
         {moved.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--faint)" }}>
-            None of the change cases
-            {notComputed.length > 0 ? " that could be computed" : ""} moves an answer
-            at any of your buildings.
+            No change case that could be answered moves an answer at any of
+            your buildings.
           </p>
         ) : (
           <ul className="space-y-3">
@@ -498,6 +499,16 @@ export async function ProviderHome({ places, health }: { places: Place[]; health
               </Card>
             ))}
           </ul>
+        )}
+        {unanswerable.length > 0 && (
+          <p className="text-sm" style={{ color: "var(--warn)" }}>
+            {unanswerable.length} of the cases cannot be answered from the
+            records we hold yet, so they are not counted above.{" "}
+            <Link href="/changes" className="underline">
+              The change cases page
+            </Link>{" "}
+            says which rule each one is waiting on.
+          </p>
         )}
       </section>
     </div>

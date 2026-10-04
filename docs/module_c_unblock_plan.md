@@ -65,9 +65,9 @@ Add `check_changes(payload, address_ids) -> ChangeCheck(invalid, incomplete)`. K
 
 **`router.py`:**
 - `/run`, `/results`, `/stats` call `run_tests` and always return 200 with per-test status. `/stats` counts only non-blocked results and adds `blocked: [test_id, ...]`.
-- `/export` takes `strict: bool = Query(False)`:
-  - **strict:** today's behaviour (409 unless all five are complete and valid).
-  - **lenient:** leave out any blocked or invalid test, and set response headers `X-Changes-Complete: true|false` and `X-Changes-Omitted: T2,...`.
+- `/export` takes `strict: bool = Query(True)`. *(Decided with Simon after the plan was written: the default stays strict, because a submission file may not be partial; lenient is opt-in.)*
+  - **strict (default):** today's behaviour (409 unless all five are complete and valid).
+  - **lenient (`?strict=false`):** leave out any blocked or invalid test, and set response headers `X-Changes-Complete: true|false` and `X-Changes-Omitted: T2,...`.
   - **Why omit rather than export `[]`:** the official template itself lists only some test IDs, so a missing key is a supported shape. An empty list would claim "no address is affected", and for a blocked T5 it would even score as correct while hiding a real failure.
 
 **`scripts/freeze_submission.py`:** default stays strict. `--allow-incomplete` writes the lenient payload and prints which tests were left out and which are partial, next to the SHA-256 hashes.
@@ -91,7 +91,7 @@ The frontend and backend deploy separately: Vercel on every push, Fly only when 
 - `check_changes` separates invalid from incomplete.
 - The date preflight blocks a fixture whose rule date is unresolved.
 
-**Done when:** `/changes` and the four dashboards render with whatever tests can run, and `GET /api/change-tracking/export` returns a file containing every non-blocked test.
+**Done when:** `/changes` and the four dashboards render with whatever tests can run, and `GET /api/change-tracking/export?strict=false` returns a file containing every non-blocked test.
 
 ---
 
@@ -242,7 +242,7 @@ Verified at review time, generalising `ab325_date_evidence`:
 2. In the environment holding the shared database:
    - `GET /api/change-tracking/results` shows T1 complete (~250), T2 blocked naming D088/D093, T3 partial (140, no flags), T4 complete (110), T5 partial (`[]`).
    - `GET /api/change-tracking/canonical-rules` shows MA-ALG-P1 and MA-ALG-P2 as distinct `pending` rules.
-3. A lenient `GET /api/change-tracking/export` returns T1, T3, T4 and T5 with `X-Changes-Omitted: T2`. With `?strict=true` it returns 409 naming T2 and T3.
+3. `GET /api/change-tracking/export?strict=false` returns T1, T3, T4 and T5 with `X-Changes-Omitted: T2`. The default (strict) returns 409 naming T2, T3 and T5.
 4. `scripts/freeze_submission.py --allow-incomplete` writes the three files and prints what was left out.
 5. `/changes` in the browser:
    - each blocked or partial card states why;

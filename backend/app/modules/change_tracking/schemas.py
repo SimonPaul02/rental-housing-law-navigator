@@ -54,7 +54,15 @@ class ChangeTestResult(BaseModel):
     # True when every canonical id in the test resolved to a real rule.
     rules_resolved: bool = True
     status: ChangeStatus = "complete"
+    # Why this case could not be replayed at all, when it could not be.
+    #
+    # Set exactly when `status` is "blocked" (by `service.blocked_result`), and
+    # it changes how every other field here must be read: the affected set is
+    # empty because nothing was computed, not because the answer is nobody.
+    # Anything counting addresses has to skip these rows rather than add their
+    # zeroes in.
     blocked_reason: str | None = None
+    # What a `partial` case could not also deliver, e.g. T3's conflict check.
     warnings: list[str] = Field(default_factory=list)
 
 

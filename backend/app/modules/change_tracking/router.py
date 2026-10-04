@@ -100,9 +100,17 @@ async def list_results(
 ) -> list[ChangeTestResult]:
     """Current results only; stored rows may describe older rule versions.
 
-    Always one entry per case. A case that cannot be answered is `blocked`
-    with its reason - read its empty sets as "not computed", never as
-    "nothing moved".
+    One case that cannot be replayed does not withhold the other four. A case
+    whose rules are missing comes back `blocked`, carrying the reason in place
+    of an answer, because "no verified rule for HOB-ALG-01 yet" belongs in that
+    case's own place on the page - where it names the thing to go and fix.
+    Failing the whole list instead blanks four answers that are perfectly
+    good, which is what used to happen on any checkout whose corpus had not
+    been through a full extraction pass.
+
+    `/export` still refuses by default when any case is not complete: a
+    submission file may not be partial, and that gate is the reason this one
+    can afford not to be.
     """
     return await service.run_tests(session, service.load_tests())
 
@@ -111,18 +119,21 @@ async def list_results(
 async def export_changes(
     session: AsyncSession = Depends(get_session),
     strict: bool = Query(
-        False,
+        True,
         description=(
-            "Refuse unless all five cases are complete - the bar for the frozen "
-            "submission. Otherwise blocked cases are left out and named in "
-            "X-Changes-Omitted."
+            "Refuse unless all five cases are complete (the default): a submission "
+            "file may not be partial. strict=false is a working copy that leaves "
+            "blocked cases out and names them in X-Changes-Omitted."
         ),
     ),
 ) -> Response:
     """Build every case from current inputs; never mix persisted partial runs.
 
-    A case that cannot be answered is left out of the file rather than written
-    as an empty list, because an empty list would claim no address is affected.
+    By default this refuses unless all five cases are complete, because a
+    submission file may not be partial. `strict=false` is for looking at what
+    exists so far: a case that cannot be answered is then left out of the file
+    rather than written as an empty list, because an empty list would claim no
+    address is affected.
     """
     tests = service.load_tests()
     if strict and {t.test_id for t in tests} != set(REQUIRED_TEST_IDS):

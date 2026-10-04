@@ -20,6 +20,15 @@ dependencies = [
     "python-multipart>=0.0.20",
     # Verifying WorkOS access tokens: RS256 means the crypto extra.
     "pyjwt[crypto]>=2.10",
+    # The assistant's agent loop. Only the graph runtime - the model is called
+    # through the Anthropic SDK directly, so there is no provider adapter here
+    # and no second place where a request body gets built.
+    #
+    # Note: langgraph-sdk pins websockets<17, which downgrades the one
+    # uvicorn[standard] would otherwise install. Harmless here - this API
+    # serves server-sent events and has no WebSocket route - but it is the
+    # reason `uv pip install` reports a downgrade.
+    "langgraph>=1.2",
 ]
 
 [build-system]

@@ -19,6 +19,7 @@ MIT AI Hackathon entry. The challenge brief is in
 | Database | Postgres | Supabase |
 | Accounts | WorkOS AuthKit (email + password, Google) | WorkOS |
 | Extraction | Anthropic API, `claude-opus-5` | Module A only |
+| Assistant | LangGraph + Anthropic API, `claude-sonnet-5-5` | the overview page |
 
 The browser only ever talks to one origin. Next.js rewrites `/api/*` to the
 Fly backend, so there is no CORS and no cookie juggling.
@@ -128,6 +129,100 @@ need an account. The API refuses to serve without it when
 `ENVIRONMENT=production`, so a forgotten client id turns everyone away rather
 than publishing the data. `/api/health` reports `auth_required`, so the two
 sides can never disagree about who has to sign in.
+
+## The overview page is an agent
+
+`/home` opens on a conversation for all four roles. Ask it something and it
+answers from this deployment's own data — which rules reach an address, which
+field is blocking the rest, what the five change cases move — quoting the span
+every answer was read from. It knows no housing law that is not in this corpus
+and is told to say so rather than fill the gap.
+
+**What it cannot read, it asks for, and the asking is a control in the chat.**
+With nothing saved, "what applies to my home?" renders a search box that saves
+the building; a lease is a file picker; a term or a rent is a small form. The
+turn stops there and resumes when the control is used. So the answer and the
+thing blocking the answer are in the same place, and nobody is sent to another
+page to unblock a sentence.
+
+Those controls are not forms the model invented. They post to the endpoints
+that already exist — the same `POST /accounts/me/places` the buildings page
+uses, the same multipart contracts route — so there is still exactly one write
+path for a building and one for a document. And what comes back is a *claim*:
+every resolution is re-read from the database through `accounts.service`,
+which filters on the token's `sub`, and the sentence the model is then told is
+written from the row. It is never told what the browser said happened.
+
+The agent **proposes and the server decides** everywhere this matters. An ask
+naming a building that is not the caller's comes back as a tool error it can
+correct from, not as a file picker aimed at somebody else's building. A link
+is checked against an allowlist of this app's own paths. Neither check is in
+the browser, because neither could be.
+
+### Four roles, four different agents
+
+Not four tones of voice: the brief and the **roster of tools** differ, so what
+each role can even be offered differs. An agency holds no addresses and has
+nowhere in this app to keep one, so they have no tool that could propose
+saving or uploading anything — the assistant cannot suggest it because it has
+no way to. A renter gets no cross-building work queue, because with one home a
+ranking is a sentence. Nothing here depends on a prompt politely declining.
+
+### Spending as little as it can
+
+The figure in the corner of the panel — `3,421 in · 3,413 cached · 197 out ·
+$0.01` — is in the interface rather than a log because it is the only way to
+see the caching working. Four things keep it there:
+
+- **The prefix is frozen.** Tools render at position 0 of a request and the
+  system prompt right after, so those bytes are the cache prefix and nothing
+  that moves may appear in them — no name, no date, no building list, and no
+  figure a tool also reports. `prompts.py` is all constants for that reason,
+  and `test_system_prompt_is_identical_for_two_people` fails if that changes.
+  Dynamic context goes into a user turn, where it invalidates nothing before
+  it, and is re-sent only when it has actually changed.
+- **The conversation caches too.** A second breakpoint moves to the newest turn
+  on every request, so a long chat reads its own history back at a tenth of
+  the price instead of re-paying for it.
+- **Sonnet 5.5 at low effort.** A chat turn here reasons over results a tool
+  has already computed; the careful statutory reading is Module A's job, at
+  `extraction_model`. Raise `ASSISTANT_EFFORT` before reaching for a bigger
+  model.
+- **Results are cut to size.** A tool result is input tokens on every later
+  turn, forever — so lists are capped and overflow is reported as a count, and
+  `rules_for_building` deliberately omits the quoted spans. `rule_source`
+  fetches one, for the one rule the assistant is about to quote.
+
+### How little LangGraph it is
+
+Two nodes. `think` calls the model and streams what it writes; `act` runs the
+read tools and loops back — unless one of the calls is an ask, in which case it
+renders the control and the turn ends with that `tool_use` block
+**unanswered**. The next request supplies it as the `tool_result`, so the
+transcript is a legal one at every point in between, which is the only reason
+the pause works: the API refuses an assistant turn that follows an unanswered
+call.
+
+The model is called through the Anthropic SDK directly. LangGraph supplies the
+graph and the checkpointer and nothing else — no provider adapter, so there is
+no second place where a request body is built, and `cache_control` lands on the
+exact content block it was meant for.
+
+Transcripts live in the process, keyed by the token's `sub` and the browser's
+thread id, so **the browser never sends history** — one message and an id. A
+guessed id opens an empty conversation of its own. A deploy ends them, which is
+honest for what this is: a conversation about a page, not a record of advice.
+
+Without `ANTHROPIC_API_KEY` the panel says so and the rest of the page is
+unaffected — it is read out of the database and needs no model. `/api/health`
+reports `assistant_available` alongside `extraction_available`, because in
+practice the two fail separately: a deployment can have imported its rules and
+hold no key at all.
+
+> Below the conversation, every role's dashboard is still there under **The
+> record behind it** — the same data and the same figures, none of it produced
+> by a model. An agent is a good way to ask and a poor way to scan five hundred
+> rows.
 
 ## The map, and the table beside it
 
@@ -322,8 +417,9 @@ corpus views keep working — a confusing state to debug, and one setting away.
 
 `make help` lists the rest. API docs at `/api/docs`.
 
-Module A needs `ANTHROPIC_API_KEY`; without it those endpoints return 503 and
-everything else works normally.
+Module A and the assistant both need `ANTHROPIC_API_KEY`; without it those
+endpoints return 503, the overview page says the assistant is not configured,
+and everything else works normally.
 
 ## Submission exports
 
@@ -341,11 +437,13 @@ five reportable results, exactly as before.
 
 Each change case is answered on its own and reports a `status`: `complete`,
 `partial` (the affected set stands, but e.g. T3's conflict check could not run),
-or `blocked` with a `blocked_reason`. `/export` leaves a blocked case out of
-`changes.json` rather than writing an empty list — which would claim nothing
-moved — and names it in the `X-Changes-Omitted` header; `?strict=true` refuses
-unless all five are complete, which is the bar `scripts/freeze_submission.py`
-applies unless given `--allow-incomplete`.
+or `blocked` with a `blocked_reason`. `/results` always lists all five, so one
+case that cannot be answered does not blank the others. `/export` still refuses
+unless all five are complete, because a submission file may not be partial;
+`?strict=false` gives a working copy that leaves a blocked case out — rather
+than writing an empty list, which would claim nothing moved — and names it in
+the `X-Changes-Omitted` header. `scripts/freeze_submission.py` is strict the
+same way unless given `--allow-incomplete`.
 
 ## Layout
 
@@ -353,13 +451,15 @@ applies unless given `--allow-incomplete`.
 backend/     FastAPI app, Dockerfile, fly.toml, migrations, tests
   app/core/auth.py           WorkOS token verification (public keys only)
   app/modules/accounts/      the person, their buildings, their agreements
+  app/modules/assistant/     the agent: frozen prompt, tools, two-node graph
 frontend/    Next.js app
   middleware.ts              AuthKit session upkeep
   app/sign-in|sign-up/       the hosted flow, and the Google shortcut
   app/auth/                  the in-page sign-in, token handout, registration
   lib/roles.ts               the four roles: cardinality, menu, vocabulary
   lib/jurisdictions.ts       where a rule's jurisdiction sits, and why
-  components/home/           dashboard.tsx dispatches to the four apps
+  components/home/           dashboard.tsx mounts the agent, then dispatches
+  components/assistant/      the chat, the in-chat controls, the SSE reader
   components/map/            MapLibre, the palette, and the hull
   components/explorer/       filters + map/table for addresses, rules, changes
   components/contracts.tsx   filing a tenancy agreement

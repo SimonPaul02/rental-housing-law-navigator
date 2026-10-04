@@ -218,6 +218,16 @@
   font-weight: 550;
 }
 
+/* The one filled control in the bar, on the front door only. */
+.nav-item.nav-cta {
+  color: #f2f7f5;
+  background: linear-gradient(150deg, #44706a, #294c45);
+  border-color: transparent;
+  font-weight: 550;
+  box-shadow: 0 8px 20px -12px #22443f9e, inset 0 1px 0 #ffffff33;
+}
+.nav-item.nav-cta:hover { background: linear-gradient(150deg, #53817a, #2f564e); }
+
 main.app-main {
   max-width: 1200px;
   margin: 0 auto;
@@ -634,209 +644,465 @@ select.field::-ms-expand { display: none; }
 }
 
 /* ---------------------------------------------------------------------------
-   The front door.
+   The front door, and the page that lets you in.
 
-   The one page with nothing signed in behind it, so the only one that has to
-   introduce the thing. Three movements and no more: what the navigator
-   answers, the way in, and the four apps it can let you into.
+   These two are the marketing side of the app, and they are deliberately
+   *crisper* than the glass inside it: hairline borders instead of a bright
+   white rim, 12-14px radii instead of 26, flat fills instead of a 30px blur,
+   and a shadow that is a contact edge rather than a glow. The palette is
+   unchanged - this is plua's green on plua's mesh - but a product page that
+   reads as a tool sells a tool, and the soft-focus version read as a brochure.
 
-   It is also the only page that uses --step-4. Every other heading in the app
-   sits at --step-3 or below, which is what makes one oversized line read as
-   the front of the product rather than as a page that shouts.
+   All of the motion here is decoration and all of it stops under
+   `prefers-reduced-motion`, including the entrance: an element that animates
+   in from `opacity: 0` has to be visible without the animation, or a reader
+   who asked for stillness gets a blank page.
 --------------------------------------------------------------------------- */
-.front { display: grid; gap: 74px; padding-top: 14px; }
+:root {
+  --edge: #22424a1c;         /* the hairline every marketing surface uses */
+  --edge-strong: #22424a2e;
+  --lift: 0 1px 2px #1f3a4d14, 0 12px 28px -20px #1f3a4d3d;
+  --lift-high: 0 1px 2px #1f3a4d1a, 0 28px 54px -30px #1f3a4d4d;
+}
 
+.front {
+  display: grid;
+  gap: 92px;
+  padding-top: 8px;
+}
+
+/* ------------------------------------------------------------- atmosphere */
+/* Two slow lights under the surfaces. Fewer and fainter than the app's own
+   mesh, because a crisp surface needs something quiet behind it to stay
+   crisp. */
+.front-aurora {
+  position: fixed;
+  inset: -25vmax;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.front-aurora span {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  filter: blur(100px);
+  will-change: transform;
+}
+.front-aurora span:nth-child(1) {
+  width: 44vmax; height: 44vmax; top: 8%; left: 10%;
+  background: #a7d3c85c;
+  animation: drift-a 46s ease-in-out infinite;
+}
+.front-aurora span:nth-child(2) {
+  width: 50vmax; height: 50vmax; top: 0%; right: 6%;
+  background: #ced0eb6b;
+  animation: drift-b 59s ease-in-out infinite;
+}
+@keyframes drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(6vw, 5vh, 0) scale(1.16); }
+}
+@keyframes drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.06); }
+  50%      { transform: translate3d(-5vw, 6vh, 0) scale(0.94); }
+}
+
+/* A hair of grain over the lot. Surfaces this clean read as a render; the
+   noise is what makes them read as a screen. Generated rather than fetched,
+   because a request for 2kB of static would be a request too many. */
+.front-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0.03;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ------------------------------------------------------------- the opening */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(16px); filter: blur(10px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+.rise { animation: rise 0.85s cubic-bezier(0.22, 0.85, 0.26, 1) both; }
+.rise-1 { animation-delay: 0.03s; }
+.rise-2 { animation-delay: 0.10s; }
+.rise-3 { animation-delay: 0.19s; }
+.rise-4 { animation-delay: 0.27s; }
+/* Deliberately not scroll-driven: `animation-timeline: view()` parks an
+   element at zero opacity until something scrolls it in, so a deep link, a
+   print or a headless capture gets a blank page - and an element permanently
+   mid-animation never settles for a test runner either. */
+.rise-5 { animation-delay: 0.36s; }
+.rise-6 { animation-delay: 0.46s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .front-aurora span { animation: none; }
+  .rise { animation: none; opacity: 1; filter: none; transform: none; }
+}
+
+/* ------------------------------------------------------------------- hero */
 .front-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.18fr) minmax(320px, 392px);
-  gap: 68px;
-  align-items: start;
+  justify-items: center;
+  text-align: center;
+  padding: 34px 0 0;
 }
+
+/* The pill above the headline: what this is, and a light that says it is on. */
+.front-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 15px 6px 12px;
+  border: 1px solid var(--edge);
+  border-radius: 100px;
+  background: #ffffff8c;
+  box-shadow: 0 1px 2px #1f3a4d0f;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--slate);
+}
+.front-pulse {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 0 0 #5fb39e8c;
+  animation: pulse 2.8s ease-out infinite;
+}
+@keyframes pulse {
+  0%        { box-shadow: 0 0 0 0 #5fb39e8c; }
+  70%, 100% { box-shadow: 0 0 0 8px #5fb39e00; }
+}
+@media (prefers-reduced-motion: reduce) { .front-pulse { animation: none; } }
 
 .front-title {
+  margin-top: 26px;
   font-family: var(--display);
-  font-size: var(--step-4);
-  font-weight: 450;
-  line-height: 1.04;
-  letter-spacing: -0.035em;
+  font-size: clamp(2.4rem, 6.2vw, 4.5rem);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
   color: var(--deep);
+  text-wrap: balance;
 }
-/* The two clauses that are the whole question - which building, and when.
-   Not italic: Manrope ships no italic here, and a colour shift says the same
-   thing without the browser synthesising a slant. */
-.front-title em { font-style: normal; color: var(--evergreen); }
+/* The clause that is the whole question. Not italic: Manrope ships no italic
+   here, so the browser would synthesise a slant. A gradient that stays inside
+   the dark half of the palette says the same thing and keeps its contrast -
+   the mint in the brand book is for highlights and never carries text. */
+.front-title em {
+  font-style: normal;
+  background: linear-gradient(104deg, #24413c 4%, #35635c 46%, #477f87 96%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 
 .front-lede {
-  margin-top: 22px;
+  margin-top: 20px;
   max-width: 46ch;
-  font-size: var(--step-1);
+  font-size: 1.0625rem;
   line-height: 1.5;
   color: var(--slate);
 }
 
-.front-scope { margin-top: 38px; }
-.front-scope-label {
-  font-family: var(--display);
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ai);
-  margin-bottom: 12px;
-}
-
-/* The obligation categories, as the API lists them. Not controls - nothing
-   here filters anything - so they are deliberately not `.chip`, which carries
-   a pressed state and an affordance these must not borrow. */
-.front-chips {
+.front-cta {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.front-chips li {
-  padding: 6px 13px;
-  border: 1px solid var(--glass-edge);
-  border-radius: 100px;
-  background: #ffffff5c;
-  font-size: 12.5px;
-  color: var(--accent-ink);
-  box-shadow: 0 7px 18px -14px #243e5673;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 30px;
 }
 
-.front-note {
-  margin-top: 20px;
-  max-width: 54ch;
-  font-size: var(--step--1);
-  line-height: 1.6;
+/* The two buttons on the marketing side. Squarer and tighter than the app's
+   own pill controls - a call to action is not a toolbar button. */
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 11px;
+  font-size: 14px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease,
+    box-shadow 160ms ease;
+}
+.cta:active { transform: translateY(1px); }
+.cta-primary {
+  background: linear-gradient(180deg, #3c6a62, #27483f);
+  color: #f2f8f5;
+  box-shadow: 0 1px 2px #1f3a4d33, inset 0 1px 0 #ffffff2b;
+}
+.cta-primary:hover { background: linear-gradient(180deg, #477a71, #2d544a); }
+.cta-primary svg { transition: transform 160ms ease; }
+.cta-primary:hover svg { transform: translateX(3px); }
+.cta-ghost {
+  border: 1px solid var(--edge-strong);
+  background: #ffffff8c;
+  color: var(--deep);
+}
+.cta-ghost:hover { background: #ffffffd1; border-color: #22424a47; }
+
+.front-scope {
+  margin-top: 22px;
+  font-size: 12.5px;
   color: var(--faint);
 }
 
-.front-auth { padding: 26px 28px 28px; }
-.front-auth h2 { font-size: var(--step-1); font-weight: 600; letter-spacing: -0.02em; }
-.front-auth-lede {
-  margin-top: 5px;
-  margin-bottom: 20px;
-  font-size: var(--step--1);
-  color: var(--slate);
+/* ---------------------------------------------------- one address, answered */
+/* The product, shown doing the thing the headline claims. Six rows and one
+   quotation; everything else is a click past the door. */
+.spec {
+  max-width: 880px;
+  margin: 0 auto;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: #ffffffd1;
+  box-shadow: var(--lift-high);
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  overflow: hidden;
 }
 
-.front-section-head { margin-bottom: 22px; }
-.front-section-head h2 {
+.spec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 18px 13px;
+  border-bottom: 1px solid var(--edge);
+  background: #ffffff8c;
+}
+.spec-address {
   font-family: var(--display);
-  font-size: var(--step-2);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--deep);
+}
+.spec-address span { font-weight: 450; color: var(--slate); }
+.spec-asof { flex: none; font-size: 12px; color: var(--faint); }
+.spec-asof strong { color: var(--accent-ink); font-weight: 500; font-size: 11.5px; }
+
+/* One row per obligation: what it is, what the answer is, whether there is
+   one. Three columns, so the eye runs straight down the answers. */
+.spec-rows { list-style: none; margin: 0; padding: 0; }
+.spec-rows li {
+  display: grid;
+  grid-template-columns: minmax(0, 200px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 9px 18px;
+  border-bottom: 1px solid var(--edge);
+}
+.spec-rows li:last-child { border-bottom: 0; }
+.spec-cat { font-size: 13px; color: var(--faint); }
+.spec-answer {
+  font-size: 13.5px;
   font-weight: 500;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.005em;
+  color: var(--deep);
+}
+.spec-result {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  min-width: 66px;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+.spec-dot { width: 5px; height: 5px; border-radius: 50%; flex: none; }
+
+/* The span the first answer rests on. One quotation, because one is the
+   proof - the rest of them are behind the door. */
+.spec-foot {
+  padding: 13px 18px 14px;
+  border-top: 1px solid var(--edge);
+  background: #f4f8f666;
+}
+.spec-foot blockquote {
+  margin: 0;
+  padding-left: 11px;
+  border-left: 2px solid var(--glass-mint);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.spec-foot p {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 8px;
+  padding-left: 13px;
+  font-size: 11px;
+  color: var(--faint);
+}
+.spec-foot a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.spec-foot a:hover { color: var(--accent-ink); }
+
+@media (max-width: 620px) {
+  .spec-rows li { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; }
+  .spec-cat, .spec-answer { grid-column: 1; }
+  .spec-result { grid-column: 2; grid-row: 1 / span 2; }
+  .spec-foot p { flex-direction: column; gap: 3px; }
+}
+
+/* -------------------------------------------------------- the four, and in */
+.front-apps { width: 100%; max-width: 1040px; margin-inline: auto; }
+.front-section-head { margin-bottom: 26px; text-align: center; }
+.front-eyebrow {
+  font-family: var(--display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ai);
+  margin-bottom: 13px;
+}
+.front-section-head h2 {
+  max-width: 24ch;
+  margin-inline: auto;
+  font-family: var(--display);
+  font-size: clamp(1.5rem, 2.8vw, 2.125rem);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
   color: var(--deep);
 }
 .front-section-head p {
-  margin-top: 11px;
-  max-width: 76ch;
-  font-size: var(--step--1);
-  line-height: 1.65;
+  margin: 12px auto 0;
+  max-width: 54ch;
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--slate);
+  text-wrap: pretty;
 }
 
 .front-fine {
-  margin-top: 24px;
-  max-width: 82ch;
-  font-size: var(--step--1);
-  line-height: 1.65;
+  margin: 26px auto 0;
+  max-width: 68ch;
+  text-align: center;
+  font-size: 12.5px;
+  line-height: 1.6;
   color: var(--faint);
+  text-wrap: pretty;
 }
 
-.front-notices { display: grid; gap: 12px; }
+.front-notices { display: grid; gap: 12px; max-width: 880px; margin-inline: auto; }
 
-@media (max-width: 1000px) {
-  .front { gap: 58px; }
-  .front-hero { grid-template-columns: minmax(0, 1fr); gap: 34px; }
+@media (max-width: 760px) {
+  .front { gap: 62px; padding-top: 6px; }
+  .front-hero { padding: 12px 0 0; }
+  .cta { flex: 1 1 auto; }
+  .spec-head, .spec-rows li, .spec-foot { padding-left: 15px; padding-right: 15px; }
 }
 
 /* ------------------------------------------- the four apps, and the way in */
-/* One tile per role: it names the app, says how many addresses that app is
-   about, and is the button that signs in as it. Four surfaces on the mesh
-   rather than four panels inside one card, because the four are the subject
-   of this section and not a list within something else. */
+/* One card per role, carrying a plate of the view behind it. On the front
+   door they link to /login; on /login they are the buttons that sign in. */
 .role-grid {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
-@media (max-width: 1080px) {
-  .role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 560px) {
-  .role-grid { grid-template-columns: minmax(0, 1fr); }
-}
+@media (max-width: 1080px) { .role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px)  { .role-grid { grid-template-columns: minmax(0, 1fr); } }
 
 .role-tile {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   text-align: left;
-  padding: 15px 17px 17px;
-  border: 1px solid var(--glass-edge);
-  border-radius: 20px;
-  background: var(--glass);
-  box-shadow: var(--panel-shadow);
-  backdrop-filter: blur(24px) saturate(142%);
-  -webkit-backdrop-filter: blur(24px) saturate(142%);
-  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  padding: 13px 15px 15px;
+  border: 1px solid var(--edge);
+  border-radius: 13px;
+  background: #ffffffa3;
+  box-shadow: var(--lift);
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  overflow: hidden;
+  transition: transform 200ms cubic-bezier(0.22, 0.85, 0.26, 1),
+    box-shadow 200ms ease, background 200ms ease, border-color 200ms ease;
 }
-button.role-tile { cursor: pointer; }
-button.role-tile:hover:not(:disabled) {
+/* The light that follows the cursor. Behind the contents, so it lifts the
+   surface without washing the words out. */
+.role-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 240ms ease;
+  background: radial-gradient(
+    240px circle at var(--mx, 50%) var(--my, 0%),
+    #ffffffeb,
+    #ffffff33 44%,
+    transparent 70%
+  );
+}
+.role-tile > * { position: relative; z-index: 1; }
+a.role-tile, button.role-tile { cursor: pointer; }
+:is(a, button).role-tile:hover:not(:disabled)::before { opacity: 1; }
+:is(a, button).role-tile:hover:not(:disabled) {
   transform: translateY(-3px);
-  background: var(--glass-strong);
-  box-shadow:
-    0 30px 56px -28px #243e5661,
-    inset 0 1px 0 #ffffffed,
-    inset 0 -1px 0 #ffffff9c;
+  background: #fffffff0;
+  border-color: var(--edge-strong);
+  box-shadow: var(--lift-high);
 }
-button.role-tile:not(:disabled):active { transform: translateY(-1px); }
+:is(a, button).role-tile:not(:disabled):active { transform: translateY(-1px); }
 /* While one is signing in the other three step back, and the one being signed
    in as does not - it is the only tile still saying anything. */
 button.role-tile:disabled { cursor: default; opacity: 0.45; }
 button.role-tile.busy:disabled { opacity: 1; }
 .role-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-/* The plate of the view this tile leads to. Full bleed inside the padding and
-   4:1, so four of them stack without pushing the credentials out of sight;
-   the drop shadow lifts with the tile rather than the art moving on its own. */
+/* The plate of the view this card leads to. Full bleed inside the padding and
+   4:1, so four of them stack without pushing anything out of sight. */
 .role-art {
   display: block;
   width: 100%;
   height: auto;
-  margin-bottom: 13px;
-  filter: drop-shadow(0 4px 10px #243e5614);
-  transition: filter 180ms ease;
+  margin-bottom: 12px;
+  border-radius: 9px;
+  filter: drop-shadow(0 2px 6px #1f3a4d12);
+  transition: filter 200ms ease;
 }
-button.role-tile:hover:not(:disabled) .role-art {
-  filter: drop-shadow(0 8px 18px #243e5629);
+:is(a, button).role-tile:hover:not(:disabled) .role-art {
+  filter: drop-shadow(0 8px 16px #1f3a4d26);
 }
 
 .role-kind {
   font-family: var(--display);
   font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ai);
 }
 .role-name {
-  margin-top: 6px;
+  margin-top: 5px;
   font-family: var(--display);
-  font-size: 1.0625rem;
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--deep);
 }
 .role-line {
-  margin-top: 7px;
-  margin-bottom: 16px;
+  margin-top: 6px;
   font-size: 12.5px;
-  line-height: 1.5;
+  line-height: 1.45;
   color: var(--slate);
 }
 
@@ -845,9 +1111,9 @@ button.role-tile:hover:not(:disabled) .role-art {
   align-items: flex-end;
   justify-content: space-between;
   gap: 10px;
-  margin-top: auto;
-  padding-top: 13px;
-  border-top: 1px solid #65808722;
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px solid var(--edge);
 }
 .role-creds { display: grid; gap: 2px; min-width: 0; }
 .role-creds span {
@@ -861,19 +1127,105 @@ button.role-tile:hover:not(:disabled) .role-art {
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 29px;
-  height: 29px;
-  border-radius: 50%;
-  border: 1px solid #6580873d;
-  background: #ffffff5e;
+  width: 27px;
+  height: 27px;
+  border-radius: 8px;
+  border: 1px solid var(--edge-strong);
+  background: #ffffff8c;
   color: var(--accent);
-  transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
+  transition: background 200ms ease, color 200ms ease, border-color 200ms ease,
+    transform 200ms cubic-bezier(0.22, 0.85, 0.26, 1);
 }
 button.role-tile:hover:not(:disabled) .role-go {
-  background: linear-gradient(150deg, #44706a, #294c45);
+  background: linear-gradient(180deg, #3c6a62, #27483f);
   border-color: transparent;
   color: #fff;
+  transform: translateX(2px);
 }
+/* The link version has no credentials to show, so the whole card is the
+   affordance and the tile keeps an even foot. */
+a.role-tile .role-line { margin-bottom: 2px; }
+
+/* ------------------------------------------------------------- /login ---- */
+/* Narrow, centred, and nothing else on it. Someone arriving here has already
+   decided. */
+.login {
+  width: min(100%, 1040px);
+  margin: 0 auto;
+  padding-top: 26px;
+  display: grid;
+  justify-items: center;
+}
+.login-head { text-align: center; margin-bottom: 26px; }
+.login-head h1 {
+  font-family: var(--display);
+  font-size: clamp(1.75rem, 3.6vw, 2.5rem);
+  font-weight: 500;
+  letter-spacing: -0.038em;
+  color: var(--deep);
+}
+.login-head p {
+  margin: 11px auto 0;
+  max-width: 44ch;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--slate);
+}
+
+.login-card {
+  width: min(100%, 392px);
+  padding: 24px 26px 26px;
+  border: 1px solid var(--edge);
+  border-radius: 16px;
+  background: #ffffffd6;
+  box-shadow: var(--lift-high);
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+}
+
+/* The shared form controls are the app's pill-shaped ones. Inside this card
+   they are squared off to match the marketing side's geometry - scoped here
+   rather than changed at source, because the app's own forms still want the
+   pills. */
+.login-card .field { border-radius: 10px; min-height: 42px; }
+.login-card .btn { border-radius: 10px; min-height: 42px; box-shadow: none; }
+.login-card .btn-primary {
+  background: linear-gradient(180deg, #3c6a62, #27483f);
+  box-shadow: 0 1px 2px #1f3a4d33, inset 0 1px 0 #ffffff2b;
+}
+.login-card .btn-primary:hover { background: linear-gradient(180deg, #477a71, #2d544a); }
+.login-card .btn:not(.btn-primary) {
+  border-color: var(--edge-strong);
+  background: #ffffffb5;
+  color: var(--deep);
+}
+.login-card .btn:not(.btn-primary):hover { background: #fff; }
+
+.login-demo { width: 100%; margin-top: 44px; }
+.login-rule {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  font-size: 12px;
+  color: var(--faint);
+}
+.login-rule::before, .login-rule::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--edge-strong);
+}
+.login-note {
+  margin: 16px auto 0;
+  max-width: 60ch;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--faint);
+}
+.login-back { margin-top: 36px; font-size: 13px; color: var(--faint); }
+.login-back a:hover { color: var(--accent); }
 
 /* ---------------------------------------------------------------------------
    Map, filters and the view toggle.
@@ -1102,6 +1454,284 @@ table.data tbody tr.clickable { cursor: pointer; }
 }
 .map-label:hover { background: #fff; border-color: #5c8a7c8c; }
 
+/* ------------------------------------------------------- the change cases */
+/* Five findings to compare, so all five headlines are readable at once and
+   opening one adds its working rather than its answer. A list of disclosures
+   rather than chips over a shared panel: a chip hides the answer until it is
+   clicked, which is the wrong trade when there are only five and each one is
+   a different kind of claim. */
+.case-list {
+  display: grid;
+  gap: 11px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.case {
+  border: 1px solid var(--glass-edge);
+  border-radius: 22px;
+  background: var(--glass);
+  box-shadow: 0 10px 28px -20px #29474e33, inset 0 1px 0 #fff;
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  overflow: hidden;
+  transition: border-color 160ms, box-shadow 160ms;
+}
+.case.open {
+  border-color: #5c8a7c6b;
+  box-shadow: 0 18px 44px -26px #29474e4d, inset 0 1px 0 #fff;
+}
+.case > h3 { font: inherit; margin: 0; }
+
+.case-head {
+  position: relative;
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  padding: 16px 46px 16px 20px;
+  text-align: left;
+  cursor: pointer;
+}
+.case-head:hover { background: #ffffff4d; }
+/* The disclosure marker, parked in reserved space at the right rather than set
+   beside the title, where it would compete with the case id for the eye. The
+   whole header is the target, so the caret only has to say which way it goes. */
+.case-head::after {
+  content: "\203A";
+  position: absolute;
+  top: 17px;
+  right: 21px;
+  font-size: 17px;
+  line-height: 1;
+  color: var(--faint);
+  transition: transform 160ms;
+}
+.case.open .case-head::after { transform: rotate(90deg); color: var(--accent); }
+
+.case-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px 10px;
+}
+.case-id { font-size: 12px; font-weight: 600; color: var(--accent-ink); }
+.case-title {
+  font-family: var(--display);
+  font-size: var(--step-1);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--deep);
+}
+/* The case's kind, in words. The backend's own vocabulary for this is four
+   terms from its source, which say nothing to a reader of the page. */
+.case-kind {
+  padding: 3px 10px;
+  border: 1px solid #5a7a8526;
+  border-radius: 100px;
+  background: #ffffff7a;
+  font-size: 11px;
+  font-weight: 500;
+  color: #46666e;
+  white-space: nowrap;
+}
+
+.case-answer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px 12px;
+  font-size: var(--step--1);
+  line-height: 1.5;
+  color: var(--ink);
+}
+.case-answer.blocked { color: var(--faint); }
+.case-flagged { font-size: 12px; color: var(--warn); }
+
+.case-body {
+  display: grid;
+  gap: 15px;
+  padding: 4px 20px 22px;
+  border-top: 1px solid #6580871f;
+  padding-top: 18px;
+}
+/* How to read this kind of case. Set apart from the finding itself, because it
+   is true of every case of the kind and the finding is true of this one. */
+.case-blurb {
+  font-size: var(--step--1);
+  line-height: 1.6;
+  color: var(--slate);
+  max-width: 76ch;
+}
+.case-note {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--faint);
+  max-width: 76ch;
+}
+.case-note.warn { color: var(--warn); }
+.case-note + .case-note { margin-top: 5px; }
+.case-absent { color: var(--faint); font-size: 0.75rem; }
+
+/* The two dates the case turns on. A change case is a question asked twice,
+   so the dates are the subject and not a footnote in a corner. */
+.case-dates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 12px;
+}
+.case-dates > div {
+  display: grid;
+  gap: 2px;
+  flex: 1 1 190px;
+  padding: 11px 15px;
+  border: 1px solid #ffffffcf;
+  border-radius: 16px;
+  background: #ffffff5e;
+}
+.case-dates.one > div { flex: 0 1 auto; }
+.case-dates span {
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ai);
+}
+.case-dates strong {
+  font-size: var(--step-1);
+  font-weight: 550;
+  color: var(--accent-ink);
+}
+.case-dates em { font-size: 0.75rem; font-style: normal; color: var(--faint); }
+.case-arrow { align-self: center; color: var(--faint); font-size: 18px; }
+
+/* What was asked of the case, beside what came back. Two statements rather
+   than a verdict: the expectation is prose written for a person, so a pass or
+   fail printed here would be the page asserting something it cannot check. */
+.case-check {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1px;
+  border: 1px solid #ffffffbd;
+  border-radius: 16px;
+  background: #6580871f;
+  overflow: hidden;
+}
+.case-check > div { padding: 13px 16px; background: #ffffff7a; }
+.case-check span {
+  display: block;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ai);
+  margin-bottom: 5px;
+}
+.case-check p { font-size: var(--step--1); line-height: 1.55; color: var(--ink); }
+
+.case-rules {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.case-rules li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 9px;
+  font-size: var(--step--1);
+  color: var(--slate);
+}
+.case-rules .mono { font-size: 12px; color: var(--accent-ink); }
+
+.case-mapbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.case-mapbar p { font-size: var(--step--1); color: var(--slate); }
+
+/* One building, before and after. The page's most specific claim, and the one
+   that used to be printed as two lines of JSON. */
+.case-one { border-radius: 20px; padding: 18px 20px; }
+.case-one-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.case-one-head .mono { font-size: 12px; color: var(--accent-ink); }
+.case-one-head strong {
+  font-family: var(--display);
+  font-size: var(--step-1);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--deep);
+}
+.case-one-head > span:last-child { font-size: var(--step--1); color: var(--slate); }
+.case-one-verdict {
+  margin: 7px 0 13px;
+  font-size: var(--step--1);
+  line-height: 1.55;
+  color: var(--slate);
+  max-width: 76ch;
+}
+.case-moved {
+  margin-left: 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.case-sources > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--accent);
+  list-style: none;
+}
+.case-sources > summary::-webkit-details-marker { display: none; }
+.case-sources > summary::before {
+  content: "›";
+  font-size: 15px;
+  line-height: 1;
+  transition: transform 150ms;
+}
+.case-sources[open] > summary::before { transform: rotate(90deg); }
+.case-sources > div { display: grid; gap: 14px; padding: 13px 0 2px; }
+.case-source-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 9px;
+  font-size: var(--step--1);
+  color: var(--slate);
+}
+.case-source-head .mono { font-size: 12px; font-weight: 600; color: var(--accent-ink); }
+.case-quote { margin-top: 8px; }
+.case-quote blockquote {
+  padding-left: 13px;
+  border-left: 2px solid #5c8a7c6b;
+  font-size: var(--step--1);
+  line-height: 1.6;
+  color: var(--ink);
+}
+.case-quote p { margin-top: 6px; font-size: 0.75rem; color: var(--faint); }
+
+@media (max-width: 640px) {
+  .case-head { padding: 14px 16px; }
+  .case-body { padding: 16px 16px 18px; }
+  .case-arrow { display: none; }
+}
+
 /* ------------------------------------------------------- filed agreements */
 .contract-row {
   border: 1px solid var(--line);
@@ -1284,3 +1914,251 @@ table.data tbody tr.clickable { cursor: pointer; }
   .account { margin-left: 0; }
   .account-menu { right: auto; left: 0; width: min(258px, calc(100vw - 48px)); }
 }
+
+/* ------------------------------------------------- the assistant on /home */
+/* The overview page's primary surface, so it is a `.card` in everything but
+   name: same glass, same rim, same cast shadow. What it adds is a log that
+   scrolls inside a page that does not, and a composer pinned under it — a
+   conversation whose own height grew the page would move the composer away
+   from the hand that is typing in it. */
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-edge);
+  border-radius: 26px;
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(28px) saturate(145%);
+  -webkit-backdrop-filter: blur(28px) saturate(145%);
+  padding: 22px 24px;
+}
+
+.chat-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.chat-head h2 { font-size: var(--step-1); margin-top: 2px; }
+
+/* Tokens, and what they cost. In the interface rather than a log because the
+   cached figure is the only way to see the prompt cache working — several
+   turns in and still zero means the prefix is moving and the bill is a
+   multiple of what it should be. */
+.chat-spend {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--faint);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 210px;
+  max-height: clamp(300px, 54vh, 620px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  /* Room for the rim of a bubble and for a focus ring, which would otherwise
+     be clipped by the scroll container. */
+  padding: 2px 4px;
+}
+
+.chat-greeting {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: var(--step--1);
+  color: var(--slate);
+  max-width: 62ch;
+}
+
+.chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.chat-suggestion {
+  padding: 8px 14px;
+  border-radius: 100px;
+  border: 1px solid #ffffffbd;
+  background: #ffffff55;
+  box-shadow: inset 0 1px 0 white;
+  font-size: var(--step--1);
+  color: var(--accent-ink);
+  text-align: left;
+  transition: background 150ms, box-shadow 150ms;
+}
+.chat-suggestion:hover { background: #ffffffa8; box-shadow: 0 4px 13px #355c6112, inset 0 1px 0 white; }
+
+/* ------------------------------------------------------------- the turns */
+.chat-turn { display: flex; }
+.chat-turn.user { justify-content: flex-end; }
+
+.chat-bubble {
+  max-width: min(60ch, 86%);
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: var(--step--1);
+  line-height: 1.6;
+}
+.chat-bubble p + p { margin-top: 9px; }
+
+.chat-turn.assistant .chat-bubble {
+  background: var(--surface);
+  border: 1px solid #ffffffbd;
+  box-shadow: inset 0 1px 0 white;
+  color: var(--ink);
+  border-bottom-left-radius: 7px;
+}
+/* The person's own words in the accent, which is the one place in this app
+   where a tone says "you" rather than naming a status. */
+.chat-turn.user .chat-bubble {
+  background: linear-gradient(150deg, #466360e8, #1e3a36f2);
+  border: 1px solid #44635c8f;
+  box-shadow: inset 0 1px 1px #b9e4d982, 0 5px 14px #1c514127;
+  color: #f6fffc;
+  border-bottom-right-radius: 7px;
+}
+
+/* What it is doing while it is doing it. A pause with no account of itself
+   reads as a hang; naming the lookup makes the wait legible. */
+.chat-doing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--faint);
+  font-style: italic;
+}
+
+/* ------------------------------------------------ the controls it renders */
+/* A card is the agent asking for something, so it is marked as a request
+   rather than drawn as another bubble: the accent edge is what separates "it
+   needs something from you" from "it said something to you". */
+.chat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid #ffffffbd;
+  border-left: 3px solid var(--accent);
+  background: #ffffff6b;
+  box-shadow: 0 8px 25px #3b556808, inset 0 1px 0 white;
+}
+.chat-card-ask { font-size: var(--step--1); color: var(--deep); font-weight: 500; }
+.chat-card-note { font-size: 0.75rem; color: var(--slate); line-height: 1.55; max-width: 62ch; }
+.chat-card-error { font-size: var(--step--1); color: var(--critical); }
+
+.chat-row { display: flex; gap: 9px; align-items: center; }
+.chat-row .field { flex: 1; }
+
+.chat-form { display: flex; flex-direction: column; gap: 11px; align-items: flex-start; }
+.chat-form .field { width: 100%; }
+.chat-form input[type="file"] { padding: 8px 11px; cursor: pointer; }
+
+.chat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+.chat-grid label { display: block; }
+.chat-grid span {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--slate);
+  margin-bottom: 4px;
+}
+
+.chat-options { display: flex; flex-direction: column; gap: 7px; list-style: none; padding: 0; margin: 0; }
+.chat-option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid #ffffffbd;
+  background: #ffffff66;
+  box-shadow: inset 0 1px 0 white;
+  transition: background 150ms, box-shadow 150ms;
+}
+.chat-option:hover:not(:disabled) {
+  background: #ffffffb0;
+  box-shadow: 0 4px 13px #355c6112, inset 0 1px 0 white;
+}
+.chat-option-main { font-size: var(--step--1); font-weight: 500; color: var(--deep); }
+.chat-option-sub { font-size: 0.6875rem; color: var(--slate); }
+
+/* ---------------------------------------------------------- the composer */
+.chat-composer {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+}
+.chat-composer .field { flex: 1; min-height: 43px; border-radius: 100px; padding-inline: 17px; }
+
+.chat-footnote { font-size: 0.6875rem; color: var(--faint); max-width: 70ch; }
+
+/* The seam between the conversation and the data it answers from. Labelled,
+   because "the assistant said" and "the database says" are different kinds of
+   claim and the page should not blur them. */
+.record-divider { padding-top: 6px; }
+.record-divider h2 { font-size: var(--step-1); }
+.record-divider p {
+  font-size: var(--step--1);
+  color: var(--slate);
+  margin-top: 7px;
+  max-width: 64ch;
+}
+
+@media (max-width: 680px) {
+  .chat { padding: 18px 16px; border-radius: 22px; }
+  .chat-bubble { max-width: 94%; }
+  .chat-head { flex-direction: column; gap: 8px; }
+  .chat-spend { text-align: left; }
+}
+
+/* The small amount of markdown the assistant actually writes. See
+   components/assistant/prose.tsx for why it is rendered rather than printed,
+   and why none of it goes near innerHTML. */
+.chat-bubble .chat-list {
+  list-style: disc;
+  padding-left: 19px;
+  margin: 9px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.chat-bubble .chat-list li::marker { color: var(--faint); }
+.chat-turn.user .chat-bubble .chat-list li::marker { color: #ffffff85; }
+.chat-bubble .chat-list + p { margin-top: 9px; }
+/* A line the model meant as a heading, weighted rather than sized: a real
+   heading here would outrank the page's own. */
+.chat-bubble .chat-lead { font-weight: 600; color: var(--deep); }
+.chat-turn.user .chat-bubble .chat-lead { color: inherit; }
+.chat-bubble code { font-size: 0.9em; }
+/* A narrower search to try, offered rather than run: the split that produced
+   it is a guess, and guessing on somebody's behalf is how a search quietly
+   answers a question they did not ask. */
+.chat-retry {
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.chat-retry:hover { color: var(--deep); }
