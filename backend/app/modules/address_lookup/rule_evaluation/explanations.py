@@ -28,6 +28,7 @@ _DECISIVE_UNKNOWN = (
     Reason.legal_city_unresolved,
     Reason.rule_clause_unmapped,
     Reason.governing_rule_unknown,
+    Reason.relation_qualification_unknown,
     Reason.fact_never_supplied,
     Reason.fact_conflicted,
     Reason.fact_invalid,

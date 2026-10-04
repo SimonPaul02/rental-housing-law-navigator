@@ -254,6 +254,9 @@ function Building({
 }) {
   const applies = lookup?.outcomes.filter((o) => o.result === "applies") ?? [];
   const unknown = lookup?.outcomes.filter((o) => o.result === "unknown") ?? [];
+  const pending = lookup?.outcomes.filter((o) => o.result === "pending") ?? [];
+  const future = lookup?.outcomes.filter((o) => o.result === "not_yet_effective") ?? [];
+  const superseded = lookup?.outcomes.filter((o) => o.result === "superseded") ?? [];
 
   return (
     <div className="space-y-4">
@@ -308,7 +311,7 @@ function Building({
               tone={applies.length ? "good" : undefined}
             />
             <Stat
-              label="Blocked by a missing fact"
+              label="Unresolved rule checks"
               value={unknown.length}
               sub="not a guess either way"
               tone={unknown.length ? "warning" : undefined}
@@ -317,7 +320,11 @@ function Building({
 
           <Outcomes
             outcomes={applies}
-            empty="No rule in the corpus covers this building on this date."
+            empty={
+              unknown.length + pending.length + future.length + superseded.length > 0
+                ? "No rule is confirmed to apply on this date; see the other outcomes below."
+                : "No rule in the corpus covers this building on this date."
+            }
           />
 
           {unknown.length > 0 && (
@@ -326,13 +333,27 @@ function Building({
                 className="cursor-pointer text-sm"
                 style={{ color: "var(--muted)" }}
               >
-                {unknown.length} cannot be answered yet — each names the fact
-                that would settle it
+                {unknown.length} cannot be answered yet — each names the missing
+                evidence or review
               </summary>
               <div className="mt-3">
                 <Outcomes outcomes={unknown} empty="" />
               </div>
             </details>
+          )}
+          {[
+            { label: "Pending proposals", outcomes: pending },
+            { label: "Not yet effective", outcomes: future },
+            { label: "Superseded here", outcomes: superseded },
+          ].map(({ label, outcomes }) =>
+            outcomes.length ? (
+              <details key={label}>
+                <summary className="cursor-pointer text-sm" style={{ color: "var(--muted)" }}>
+                  {label} ({outcomes.length})
+                </summary>
+                <div className="mt-3"><Outcomes outcomes={outcomes} empty="" /></div>
+              </details>
+            ) : null,
           )}
         </>
       )}

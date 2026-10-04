@@ -1,102 +1,70 @@
 #!/usr/bin/env python
-"""The review step: approve compiled relations whose evidence is explicit.
+"""Inspect relations or record an explicit, source-backed decision.
 
-An unreviewed relation supersedes nothing, so without this step the evaluator
-reports a state and a city rule as both applying even where the state rule
-itself says it steps aside. Approval is recorded per relation with the span
-that evidences it, and it is recorded in the store rather than in code, so a
-later reviewer can read what was approved and overturn it.
-
-Only these evidence forms are accepted. Each is a sentence the rule itself
-states about its own reach - not an inference about which level of government
-ought to win:
-
-  yields_to    "does not apply to property subject to a local ..."  (AB 1482)
-               "housing under a local rent control ..."
-               "preempts" / "preempted by"
-  both_apply   "in addition to"
-
-    python scripts/review_rules.py            # show what would be approved
-    python scripts/review_rules.py --approve  # record the approvals
+Decision JSON: left_rule_id, right_rule_id, issue_key, reviewer, rationale,
+qualification (confirmed/excluded/unresolved), left_evidence_span,
+right_evidence_span, and optionally valid_from (YYYY-MM-DD).
 """
 
 from __future__ import annotations
 
 import argparse
-import re
+import asyncio
+import datetime as dt
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from sqlalchemy import select  # noqa: E402
+
+from app.core.db import SessionLocal  # noqa: E402
+from app.db.models import Document, Rule  # noqa: E402
 from app.modules.address_lookup.rule_adapter import adapters  # noqa: E402
-
-#: Evidence form -> why it settles the question, recorded with the approval.
-ACCEPTED: list[tuple[re.Pattern[str], str, str]] = [
-    (
-        re.compile(r"does not apply (?:to|where)[^.;]{0,90}?\b(?:local|municipal|city)\b", re.I),
-        "yields_to",
-        "the rule states it does not reach property a local ordinance already covers",
-    ),
-    (
-        re.compile(r"(?:housing|units?|property) (?:under|subject to) (?:a |any )?local", re.I),
-        "yields_to",
-        "the rule carves out housing already under local regulation of the same issue",
-    ),
-    (
-        re.compile(r"\bpreempt(?:s|ed)?\b", re.I),
-        "yields_to",
-        "the rule states that the other level of government preempts it",
-    ),
-    (
-        re.compile(r"in addition to", re.I),
-        "both_apply",
-        "the rule states its requirements are cumulative with the other level's",
-    ),
-]
+from app.modules.address_lookup.rule_adapter.models import Qualification  # noqa: E402
 
 
-def judge(relation: dict) -> tuple[bool, str]:
-    span = relation.get("source_span") or ""
-    condition = relation.get("condition") or ""
-    haystack = f"{span} {condition}"
-    for pattern, kind, why in ACCEPTED:
-        if relation["relation"] == kind and pattern.search(haystack):
-            return True, why
-    return False, "no accepted evidence form in the cited span"
-
-
-def main() -> None:
+async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--approve", action="store_true", help="record the approvals")
+    parser.add_argument("--decision", type=Path)
     args = parser.parse_args()
 
+    async with SessionLocal() as session:
+        records = list((await session.execute(select(Rule))).scalars())
+        docs = await session.execute(select(Document.doc_id, Document.body))
+        sources = {doc_id: body for doc_id, body in docs if body}
     store = adapters.store()
-    approved = held = 0
+    adapters.compile_all(records, review_store=store, sources=sources, persist=False)
 
-    for relation in store.relations:
-        if relation.get("review_state") == "approved":
-            approved += 1
-            continue
-        ok, why = judge(relation)
-        arrow = f"{relation['left_rule_id']} -> {relation['right_rule_id']}"
-        if ok:
-            approved += 1
-            print(f"  approve  {relation['relation']:11} {arrow}  ({why})")
-            if args.approve:
-                relation["review_state"] = "approved"
-                relation["review_note"] = why
-        else:
-            held += 1
-            print(f"  hold     {relation['relation']:11} {arrow}  ({why})")
+    if not args.decision:
+        print(json.dumps(store.relations, indent=2, ensure_ascii=False))
+        return
 
-    print(f"\n{approved} approved, {held} held for a human")
-    if args.approve:
-        store.save()
-        print("recorded in", adapters.STORE_PATH)
-    else:
-        print("dry run - pass --approve to record")
+    decision = json.loads(args.decision.read_text(encoding="utf-8"))
+    by_id = {r.team_rule_id: r for r in records}
+    left = by_id[decision["left_rule_id"]]
+    right = by_id[decision["right_rule_id"]]
+    ok = store.review_relation(
+        left.team_rule_id,
+        right.team_rule_id,
+        decision["issue_key"],
+        left_source_text=sources[left.source_doc_id],
+        right_source_text=sources[right.source_doc_id],
+        reviewer=decision["reviewer"],
+        rationale=decision["rationale"],
+        qualification=Qualification(decision["qualification"]),
+        left_evidence_span=decision["left_evidence_span"],
+        right_evidence_span=decision["right_evidence_span"],
+        valid_from=dt.date.fromisoformat(decision["valid_from"])
+        if decision.get("valid_from")
+        else None,
+    )
+    if not ok:
+        parser.error("relationship is not in the current compilation")
+    store.save()
+    print("recorded source-backed relationship decision")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

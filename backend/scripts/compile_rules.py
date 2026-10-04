@@ -53,7 +53,7 @@ def proposal_key(record: Rule, source_text: str | None = None) -> str:
 def cached_suggestion(
     proposals: dict[str, dict], record: Rule, source_text: str | None
 ) -> dict | None:
-    """Old model output is only a suggestion; the v2 compiler revalidates it."""
+    """Old model output is only a suggestion; the current compiler revalidates it."""
     current = proposals.get(proposal_key(record, source_text))
     if current is not None:
         return current

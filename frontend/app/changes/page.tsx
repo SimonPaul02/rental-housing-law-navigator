@@ -142,7 +142,7 @@ export default async function ChangesPage({
                       as of {result.as_of}
                     </span>
                   </div>
-                  {result.detail.per_rule && (
+                  {Boolean(result.detail.per_rule) && (
                     <p className="text-xs" style={{ color: "var(--muted)" }}>
                       Per rule: {Object.entries(result.detail.per_rule as Record<string, string[]>)
                         .map(([id, ids]) => `${id}: ${ids.length}`)

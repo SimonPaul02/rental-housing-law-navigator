@@ -198,7 +198,7 @@ def test_a_note_that_only_flips_review_state_does_not_approve(tmp_path):
 
 
 def test_human_clearance_is_bound_to_current_rule_source_and_compiler(tmp_path):
-    source = "Units subject to the Los Angeles RSO"
+    source = "Rental dwelling units offered by a housing provider"
     record = Rule(coverage_conditions=source)
     compiled, _ = compile_rule(record, source_text=source)
     store = ReviewStore(tmp_path / "reviews.json")
@@ -209,7 +209,17 @@ def test_human_clearance_is_bound_to_current_rule_source_and_compiler(tmp_path):
         rationale="Reviewed the program scope",
         resolved_clause_ids=["c1"],
         coverage_basis="explicit_unconditional",
+        scope_evidence_span=source,
     )
+    with pytest.raises(InvalidCompilation, match="current source passage"):
+        store.review_coverage(
+            compiled,
+            source_text=source,
+            reviewer="Alex",
+            rationale="No source passage supplied",
+            resolved_clause_ids=["c1"],
+            coverage_basis="explicit_unconditional",
+        )
     accepted = store.apply_reviews(compiled)
     assert accepted.review_state is ReviewState.human_approved
     assert accepted.coverage_basis is CoverageBasis.explicit_unconditional
@@ -225,6 +235,21 @@ def test_human_clearance_is_bound_to_current_rule_source_and_compiler(tmp_path):
             source_text="changed source",
             reviewer="Alex",
             rationale="reason",
+            resolved_clause_ids=["c1"],
+            coverage_basis="explicit_unconditional",
+        )
+
+
+def test_rso_scope_cannot_be_reviewed_as_unconditional(tmp_path):
+    source = "Units subject to the Los Angeles RSO"
+    compiled, _ = compile_rule(Rule(coverage_conditions=source), source_text=source)
+    store = ReviewStore(tmp_path / "reviews.json")
+    with pytest.raises(InvalidCompilation, match="RSO scope"):
+        store.review_coverage(
+            compiled,
+            source_text=source,
+            reviewer="Alex",
+            rationale="Incorrectly treating Los Angeles as proof of membership",
             resolved_clause_ids=["c1"],
             coverage_basis="explicit_unconditional",
         )

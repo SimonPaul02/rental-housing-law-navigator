@@ -15,7 +15,12 @@ and a city rule can perfectly well both apply.
 
 from __future__ import annotations
 
-from app.modules.address_lookup.rule_adapter.models import Relation, RelationType, ReviewState
+from app.modules.address_lookup.rule_adapter.models import (
+    Qualification,
+    Relation,
+    RelationType,
+    ReviewState,
+)
 from app.modules.address_lookup.rule_evaluation.decisions import (
     BaseDecision,
     BaseResult,
@@ -24,10 +29,6 @@ from app.modules.address_lookup.rule_evaluation.decisions import (
     Reason,
     Ternary,
 )
-
-
-def _approved(relations: list[Relation]) -> list[Relation]:
-    return [r for r in relations if r.review_state is ReviewState.approved]
 
 
 def find_cycles(relations: list[Relation]) -> list[tuple[str, ...]]:
@@ -60,8 +61,7 @@ def find_cycles(relations: list[Relation]) -> list[tuple[str, ...]]:
 def resolve_interactions(
     decisions: list[BaseDecision], relations: list[Relation]
 ) -> list[Decision]:
-    """Apply reviewed relations to one address' base decisions."""
-    approved = _approved(relations)
+    """Apply current relations, leaving uncertain qualifications explicit."""
     by_id = {d.team_rule_id: d for d in decisions}
     out: list[Decision] = []
 
@@ -80,14 +80,21 @@ def resolve_interactions(
             out.append(final)
             continue
 
-        for rel in approved:
+        for rel in relations:
             if rel.left_rule_id != base.team_rule_id or rel.issue_key != base.issue_key:
                 continue
             other = by_id.get(rel.right_rule_id)
             if other is None or other.issue_key != base.issue_key:
                 continue
 
+            confirmed = (
+                rel.review_state is ReviewState.approved
+                and rel.qualification is Qualification.confirmed
+                and (rel.valid_from is None or base.as_of >= rel.valid_from)
+            )
             if rel.relation is RelationType.both_apply:
+                if not confirmed:
+                    continue
                 final.interaction_checks.append(
                     CheckTrace(
                         check="interaction",
@@ -103,6 +110,8 @@ def resolve_interactions(
                 continue
 
             if rel.relation is RelationType.possible_conflict:
+                if not confirmed:
+                    continue
                 final.conflict_flag = True
                 final.conflict_reason = (
                     f"Possible conflict with {rel.right_rule_id} on {rel.issue_key}: "
@@ -120,7 +129,38 @@ def resolve_interactions(
                 continue
 
             # yields_to / bars_local: the other rule may govern this issue.
+            if (
+                rel.review_state is ReviewState.approved
+                and rel.qualification is Qualification.excluded
+            ):
+                continue
+            if (
+                rel.review_state is ReviewState.approved
+                and rel.qualification is Qualification.confirmed
+                and rel.valid_from
+                and base.as_of < rel.valid_from
+            ):
+                continue
             if other.result is BaseResult.applies:
+                if not confirmed:
+                    final.result = BaseResult.unknown
+                    final.conflict_flag = True
+                    final.conflict_reason = (
+                        f"Whether {rel.right_rule_id} displaces this rule is unverified: "
+                        f"{rel.condition or 'the relationship needs source review'}."
+                    )
+                    final.interaction_checks.append(
+                        CheckTrace(
+                            check="interaction",
+                            value=Ternary.unknown,
+                            reason=Reason.relation_qualification_unknown,
+                            detail=final.conflict_reason,
+                            source_span=rel.anchor.source_span if rel.anchor else None,
+                        )
+                    )
+                    continue
+                if base.result is BaseResult.unknown:
+                    continue
                 final.result = BaseResult.superseded
                 final.superseded_by = other.team_rule_id
                 final.interaction_checks.append(

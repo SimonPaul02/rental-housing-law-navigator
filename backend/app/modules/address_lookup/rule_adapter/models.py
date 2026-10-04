@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Literal
 
-COMPILER_VERSION = "2"
+COMPILER_VERSION = "3"
 
 
 class Field(StrEnum):
@@ -56,6 +56,7 @@ class Field(StrEnum):
     seasonal_rental = "seasonal_rental"
     building_is_subsidised = "building_is_subsidised"
     los_angeles_rso_membership = "los_angeles_rso_membership"
+    san_francisco_rent_ordinance_membership = "san_francisco_rent_ordinance_membership"
 
 
 class Op(StrEnum):
@@ -79,6 +80,7 @@ BOOLEAN_FIELDS = {
     Field.seasonal_rental,
     Field.building_is_subsidised,
     Field.los_angeles_rso_membership,
+    Field.san_francisco_rent_ordinance_membership,
 }
 #: Facts this corpus cannot supply for any address. Kept explicit so an
 #: explanation can say *why* something is unknown rather than only that it is.
@@ -89,6 +91,7 @@ NEVER_SUPPLIED = {
     Field.seasonal_rental,
     Field.building_is_subsidised,
     Field.los_angeles_rso_membership,
+    Field.san_francisco_rent_ordinance_membership,
 }
 
 _ORDERED = {Op.lt, Op.lte, Op.gt, Op.gte}
@@ -228,6 +231,12 @@ class RelationType(StrEnum):
     possible_conflict = "possible_conflict"
 
 
+class Qualification(StrEnum):
+    confirmed = "confirmed"
+    excluded = "excluded"
+    unresolved = "unresolved"
+
+
 @dataclass(frozen=True, slots=True)
 class Relation:
     """A reviewed, directed statement that one rule governs an issue another
@@ -245,6 +254,15 @@ class Relation:
     anchor: SourceAnchor | None = None
     condition: str | None = None
     review_state: ReviewState = ReviewState.needs_review
+    qualification: Qualification = Qualification.unresolved
+    valid_from: dt.date | None = None
+    left_version_hash: str | None = None
+    right_version_hash: str | None = None
+    left_source_hash: str | None = None
+    right_source_hash: str | None = None
+    reviewer: str | None = None
+    reviewed_at: str | None = None
+    review_note: str | None = None
 
     def to_json(self) -> dict[str, Any]:
         out = {
@@ -254,6 +272,15 @@ class Relation:
             "relation": str(self.relation),
             "review_state": str(self.review_state),
             "condition": self.condition,
+            "qualification": str(self.qualification),
+            "valid_from": self.valid_from.isoformat() if self.valid_from else None,
+            "left_version_hash": self.left_version_hash,
+            "right_version_hash": self.right_version_hash,
+            "left_source_hash": self.left_source_hash,
+            "right_source_hash": self.right_source_hash,
+            "reviewer": self.reviewer,
+            "reviewed_at": self.reviewed_at,
+            "review_note": self.review_note,
         }
         if self.anchor:
             out.update(self.anchor.to_json())
@@ -287,6 +314,22 @@ class EffectiveDate:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class ValuePeriod:
+    """Dates during which a quoted numerical value is current, not law dates."""
+
+    start: dt.date
+    end: dt.date
+    anchor: SourceAnchor
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "start": self.start.isoformat(),
+            "end": self.end.isoformat(),
+            "anchor": self.anchor.to_json(),
+        }
+
+
 @dataclass(slots=True)
 class CompiledRule:
     """One rule version, translated and reviewable."""
@@ -305,6 +348,8 @@ class CompiledRule:
     jurisdiction: str = ""
     status: str = "in_force"
     effective_dates: tuple[EffectiveDate, ...] = ()
+    effective_date_unresolved: bool = False
+    key_value_period: ValuePeriod | None = None
     coverage: Expr = EMPTY_ALL
     exemptions: Expr = EMPTY_ANY
     unmapped_text: tuple[UnmappedClause, ...] = ()
@@ -338,6 +383,8 @@ class CompiledRule:
             "status": self.status,
             "issue_key": self.issue_key,
             "effective_dates": [d.to_json() for d in self.effective_dates],
+            "effective_date_unresolved": self.effective_date_unresolved,
+            "key_value_period": self.key_value_period.to_json() if self.key_value_period else None,
             "coverage": self.coverage.to_json(),
             "exemptions": self.exemptions.to_json(),
             "unmapped_text": [u.to_json() for u in self.unmapped_text],

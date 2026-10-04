@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -22,14 +23,14 @@ from app.modules.address_lookup.rule_adapter.models import (
     ReviewState,
     rule_version_hash,
 )
-from app.modules.address_lookup.rule_adapter.review import ReviewStore
+from app.modules.address_lookup.rule_adapter.review import ReviewStore, relation_from_json
 
 log = logging.getLogger(__name__)
 
 #: Where compiled revisions and review decisions live for the demo.
 STORE_PATH = settings.data_root / "data" / "compiled_rules.json"
 
-PROMPT_VERSION = "2"
+PROMPT_VERSION = "3"
 
 
 def store() -> ReviewStore:
@@ -79,7 +80,21 @@ def compile_all(
         fresh.append(rule_id)
         store_.put(rule)
 
-    store_.put_relations(relations)
+    current_relations: list[Relation] = []
+    for rel in relations:
+        left, right = compiled[rel.left_rule_id], compiled[rel.right_rule_id]
+        anchor = replace(rel.anchor, source_hash=left.source_hash) if rel.anchor else None
+        current_relations.append(
+            replace(
+                rel,
+                anchor=anchor,
+                left_version_hash=left.rule_version_hash,
+                right_version_hash=right.rule_version_hash,
+                left_source_hash=left.source_hash,
+                right_source_hash=right.source_hash,
+            )
+        )
+    store_.put_relations(current_relations)
     if persist:
         store_.save()
         from app.modules.address_lookup import service
@@ -116,7 +131,8 @@ Allowed fields and the values they take:
   units (integer), year_built (integer), owner_unit_count (integer)
   certificate_of_occupancy_date (full date, YYYY-MM-DD)
   owner_occupied, owner_is_natural_person, seasonal_rental,
-  building_is_subsidised, los_angeles_rso_membership (no value - use op is_true or is_false)
+  building_is_subsidised, los_angeles_rso_membership,
+  san_francisco_rent_ordinance_membership (no value - use op is_true or is_false)
 
 Allowed operators: eq, ne, lt, lte, gt, gte on valued fields; is_true, is_false \
 on boolean fields.
@@ -280,7 +296,15 @@ def unreviewed_summary(review_store: ReviewStore) -> dict[str, int]:
         "pending_clauses": sum(len(r.get("unmapped_text", [])) for r in revisions),
         "with_unmapped_text": sum(1 for r in revisions if r.get("unmapped_text")),
         "relations": len(review_store.relations),
+        "date_reviews_needed": sum(
+            bool(r.get("effective_date_unresolved"))
+            and not review_store.date_review_for(
+                r.get("team_rule_id", ""), r.get("rule_version_hash", ""), r.get("source_hash")
+            )
+            for r in revisions
+        ),
         "relations_approved": sum(
-            1 for r in review_store.relations if r.get("review_state") == str(ReviewState.approved)
+            relation_from_json(r).review_state is ReviewState.approved
+            for r in review_store.relations
         ),
     }

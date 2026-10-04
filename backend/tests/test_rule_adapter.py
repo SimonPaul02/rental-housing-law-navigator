@@ -155,11 +155,53 @@ def test_a_day_is_a_point_and_a_month_is_an_interval():
 
 
 def test_a_second_date_in_prose_becomes_a_second_candidate():
-    rule, _ = compile_one(
+    record = FakeRule(
         effective_date="2027-07-01", interaction="Operative from 2027-09-01 in some counties."
+    )
+    rule, _ = compiler.compile_rule(
+        record,
+        source_text="The law is effective 2027-07-01. Operative from 2027-09-01 in some counties.",
     )
     assert len(rule.effective_dates) == 2
     assert any("more than one candidate" in n for n in rule.notes)
+
+
+def test_annual_rate_period_is_not_a_rule_effective_date():
+    record = FakeRule(
+        effective_date="2025-07-01",
+        key_value="3%",
+        interaction="Annual rate from 2025-07-01 through 2026-06-30.",
+    )
+    source = (
+        "Annual rent increases for rental units subject to the RSO, effective "
+        "July 1, 2025, through June 30, 2026 is 3%."
+    )
+    compiled, _ = compiler.compile_rule(record, source_text=source)
+    assert compiled.effective_dates == ()
+    assert not compiled.effective_date_unresolved
+    assert compiled.key_value_period.start == dt.date(2025, 7, 1)
+    assert compiled.key_value_period.end == dt.date(2026, 6, 30)
+
+
+def test_rate_value_before_period_is_separate_from_law_effective_date():
+    record = FakeRule(effective_date="2026-03-01", key_value="1.6%")
+    source = (
+        "For March 1, 2026 - February 28, 2027\n"
+        "Allowable Rent Increase:\n1.6% for March 1, 2026 – February 28, 2027\n"
+        "Security Deposit Interest:\n4.2% for March 1, 2026 – February 28, 2027"
+    )
+    compiled, _ = compiler.compile_rule(record, source_text=source)
+    assert compiled.effective_dates == ()
+    assert not compiled.effective_date_unresolved
+    assert compiled.key_value_period.start == dt.date(2026, 3, 1)
+    assert compiled.key_value_period.end == dt.date(2027, 2, 28)
+
+
+def test_unanchored_record_date_needs_review():
+    record = FakeRule(effective_date="2027-07-01")
+    compiled, _ = compiler.compile_rule(record, source_text="The rule covers rental units.")
+    assert compiled.effective_date_unresolved
+    assert not compiled.effective_dates
 
 
 # -- versioning -------------------------------------------------------------
