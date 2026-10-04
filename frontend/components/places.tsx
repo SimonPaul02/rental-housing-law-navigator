@@ -15,16 +15,19 @@ import { JurisdictionBadge, ZipDiscrepancyBadge } from "./ui";
  * Private to whoever is signed in, with nothing here that could name another
  * account: there is no sharing in this app, so the list is only ever your own.
  *
- * The same table backs all four roles and the list reads differently in each,
- * because a renter's home, a provider's building, an advocate's case and an
- * agency's spot check are four different kinds of thing. What changes with the
- * role is the vocabulary, whether a name and a note are worth asking for, and
- * above all how many rows the page expects:
+ * The same table backs three roles and the list reads differently in each,
+ * because a renter's home, a provider's building and an advocate's case are
+ * three different kinds of thing. What changes with the role is the
+ * vocabulary, whether a name and a note are worth asking for, and above all
+ * how many rows the page expects:
  *
  * - a renter has one, so the first is promoted and the rest are a footnote;
  * - a provider has a portfolio, so the list is flat and every row is equal;
- * - an advocate has independent cases, so they are numbered rather than summed;
- * - an agency has none by rights, so the list says plainly that it is optional.
+ * - an advocate has independent cases, so they are numbered rather than summed.
+ *
+ * A housing agency never reaches this component. They hold no addresses of
+ * their own — the whole sample is their subject — so `/places` sends them to
+ * the map that already covers it.
  *
  * Addresses are picked from the sample rather than typed free-hand, and that
  * is a real limit rather than a shortcut: an answer needs the year built and

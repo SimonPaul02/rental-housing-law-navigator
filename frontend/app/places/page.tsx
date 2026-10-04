@@ -1,6 +1,7 @@
+import { redirect } from "next/navigation";
 import { gate } from "@/lib/auth";
 import { tryApi } from "@/lib/api";
-import { CONTRACTS, PLACES, ROLES } from "@/lib/roles";
+import { ROLES, contractsFor, placesFor } from "@/lib/roles";
 import { Places } from "@/components/places";
 import { SignInNotConfigured, Unavailable } from "@/components/gate-notice";
 import type { Contract, Place } from "@/lib/types";
@@ -9,18 +10,29 @@ export const dynamic = "force-dynamic";
 
 /** The addresses this person watches, named for what they are to them.
  *
- * One route, four pages. A renter has a home, a provider has buildings, an
- * advocate has cases and an agency has a shortlist it does not strictly need —
- * so the title, the explanation, the empty state and whether a name and note
- * are even asked for all come from the role's vocabulary rather than from a
- * shared noun that would have to fit all four badly.
+ * One route, three pages — and for the fourth role, none. A renter has a home,
+ * a provider has buildings and an advocate has cases, so the title, the
+ * explanation, the empty state and whether a name and a note are even asked
+ * for all come from the role's vocabulary rather than from a shared noun that
+ * would have to fit them all badly.
+ *
+ * A housing agency has no vocabulary here because they hold no addresses of
+ * their own: the whole sample is their subject, and the map on their overview
+ * already carries every row a shortlist could have held. So they are sent
+ * there rather than shown an empty list they have no reason to fill.
  */
 export default async function PlacesPage() {
   const g = await gate();
   if (g.mode === "unavailable") return <Unavailable detail={g.detail} />;
   if (g.mode === "open") return <SignInNotConfigured what="A saved address" />;
 
-  const vocab = PLACES[g.role];
+  const vocab = placesFor(g.role);
+  const contractVocab = contractsFor(g.role);
+  // Not a permission — there is nothing here this role may not read. There is
+  // simply nothing here for them, so the redirect is the honest answer rather
+  // than a page explaining its own emptiness.
+  if (!vocab || !contractVocab) redirect("/home");
+
   // Every agreement in one request and grouped in the browser, rather than one
   // request per building: a provider with eleven of them should not pay eleven
   // round trips to find out which have a lease on file.
@@ -45,7 +57,7 @@ export default async function PlacesPage() {
         initial={places ?? []}
         vocab={vocab}
         cardinality={ROLES[g.role].cardinality}
-        contractVocab={CONTRACTS[g.role]}
+        contractVocab={contractVocab}
         contracts={contracts ?? []}
       />
     </div>

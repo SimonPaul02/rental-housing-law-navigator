@@ -2,6 +2,7 @@ import { gate } from "@/lib/auth";
 import { Unavailable } from "@/components/gate-notice";
 import { tryApi } from "@/lib/api";
 import { AddressExplorer } from "@/components/explorer/address-explorer";
+import { placesFor } from "@/lib/roles";
 import { Notice, PageHeading, Stat, StatStrip } from "@/components/ui";
 import type { AddressRecord, AddressStats } from "@/lib/types";
 
@@ -70,7 +71,14 @@ export default async function AddressesPage() {
         </Notice>
       )}
 
-      <AddressExplorer addresses={addresses} stats={stats} canSave />
+      {/* Saving is offered only to the roles that have somewhere to save to.
+          An agency keeps no addresses of their own, and a button that filed a
+          row into a list they can never open would be worse than no button. */}
+      <AddressExplorer
+        addresses={addresses}
+        stats={stats}
+        canSave={g.mode === "account" && Boolean(placesFor(g.role))}
+      />
     </div>
   );
 }

@@ -33,9 +33,11 @@ export type NavItem = { href: string; label: string };
  * - `caseload` An advocate also has many, but they do not add up — each is a
  *              different person's situation, so a count across them would mean
  *              nothing. Each case stands alone, with its evidence attached.
- * - `stock`    An agency has none. Their subject is the whole sample, every
- *              address in it, whether or not anybody saved it; a saved address
- *              is at most a spot check they want to keep an eye on.
+ * - `stock`    An agency has none at all, and is the reason this is a property
+ *              of the person rather than a setting. Their subject is the whole
+ *              sample — every address in it, whether or not anybody saved it —
+ *              so there is nothing for them to save and no page to save it on.
+ *              One map of the stock already answers what a shortlist would.
  */
 export type Cardinality = "one" | "portfolio" | "caseload" | "stock";
 
@@ -76,7 +78,7 @@ export const ROLES: Record<Role, RoleSpec> = {
       "Coverage across the whole sample: which addresses resolve to which legal jurisdiction, where the records are incomplete, and how many buildings each change case moves.",
     cardinality: "stock",
     cardinalityNote:
-      "Your subject is the whole sample rather than any address of your own, so nothing here waits for you to save one. Spot checks are a convenience on top.",
+      "Your subject is the whole sample rather than any address of your own, so there is nothing here to save and nothing waiting for you to save it. One map carries the lot.",
   },
   advocate: {
     label: "Housing advocate",
@@ -91,9 +93,15 @@ export const ROLES: Record<Role, RoleSpec> = {
 
 /** What a saved address is called, and what the list of them is for.
  *
- * The noun is not a synonym exercise: a renter's home, a provider's building,
- * an advocate's case and an agency's spot check are four different kinds of
- * thing stored in one table, and the words are what say so.
+ * The noun is not a synonym exercise: a renter's home, a provider's building
+ * and an advocate's case are three different kinds of thing stored in one
+ * table, and the words are what say so.
+ *
+ * An agency has no entry, and that absence is the statement: they hold no
+ * addresses of their own, so there is no page for them here and `/places`
+ * sends them back to the map that already covers the whole stock. Making this
+ * a `Partial` rather than giving them an unused vocabulary means the type
+ * system carries the fact, instead of a page existing that nothing links to.
  */
 export interface PlaceVocabulary {
   /** The page title, and the nav label. */
@@ -112,7 +120,7 @@ export interface PlaceVocabulary {
   note: string | null;
 }
 
-export const PLACES: Record<Role, PlaceVocabulary> = {
+export const PLACES = {
   renter: {
     title: "Your home",
     one: "home",
@@ -137,18 +145,6 @@ export const PLACES: Record<Role, PlaceVocabulary> = {
     label: "A name you use for it internally",
     note: "Anything you need to remember about it",
   },
-  agency: {
-    title: "Spot checks",
-    one: "spot check",
-    many: "spot checks",
-    lede:
-      "Addresses you want to keep an eye on. Your actual subject is the whole sample, which needs none of these — this is a shortlist, not a caseload.",
-    empty:
-      "Nothing pinned. The overview already covers all 500 sample addresses; pin one here when you want to watch a particular record rather than the aggregate.",
-    search: "Pin an address — street or city",
-    label: "Why you are watching it",
-    note: "What you are waiting on",
-  },
   advocate: {
     title: "Cases",
     one: "case",
@@ -161,7 +157,19 @@ export const PLACES: Record<Role, PlaceVocabulary> = {
     label: "Matter name or reference",
     note: "What the question is",
   },
-};
+} satisfies Partial<Record<Role, PlaceVocabulary>>;
+
+/** The vocabulary for a role resolved at run time, or `undefined`.
+ *
+ * `PLACES.renter` is known to exist because it is a literal above, so the
+ * three views that have a page need no check. A role arriving from an account
+ * might be the agency, so this is where the absence has to be handled — and
+ * the two cases are deliberately different shapes so that neither can be
+ * mistaken for the other.
+ */
+export function placesFor(role: Role): PlaceVocabulary | undefined {
+  return (PLACES as Partial<Record<Role, PlaceVocabulary>>)[role];
+}
 
 /** What a tenancy agreement is called, and whether a unit has to be named.
  *
@@ -171,6 +179,9 @@ export const PLACES: Record<Role, PlaceVocabulary> = {
  * as it has let units, and the unit is the only thing that tells them apart —
  * so for them the field is not optional furniture, it is the key.
  */
+/** An agency has no entry here for the same reason it has none in `PLACES`:
+ *  an agreement is filed against a building somebody saved, and they save
+ *  none. */
 export interface ContractVocabulary {
   title: string;
   one: string;
@@ -180,7 +191,7 @@ export interface ContractVocabulary {
   perUnit: boolean;
 }
 
-export const CONTRACTS: Record<Role, ContractVocabulary> = {
+export const CONTRACTS = {
   renter: {
     title: "Your lease",
     one: "lease",
@@ -199,15 +210,6 @@ export const CONTRACTS: Record<Role, ContractVocabulary> = {
     add: "Add an agreement",
     perUnit: true,
   },
-  agency: {
-    title: "Agreements on file",
-    one: "agreement",
-    many: "agreements",
-    lede:
-      "Any agreement you hold for this record. Private to your account; nothing here is published and nothing is read by the evaluator.",
-    add: "Attach an agreement",
-    perUnit: true,
-  },
   advocate: {
     title: "Agreements in this matter",
     one: "agreement",
@@ -217,7 +219,11 @@ export const CONTRACTS: Record<Role, ContractVocabulary> = {
     add: "Attach an agreement",
     perUnit: true,
   },
-};
+} satisfies Partial<Record<Role, ContractVocabulary>>;
+
+export function contractsFor(role: Role): ContractVocabulary | undefined {
+  return (CONTRACTS as Partial<Record<Role, ContractVocabulary>>)[role];
+}
 
 /** The menu, per role.
  *
@@ -225,30 +231,36 @@ export const CONTRACTS: Record<Role, ContractVocabulary> = {
  * by typing its path, and the API would serve it either way. What a shorter
  * menu says is that a renter has no use for a 500-row jurisdiction audit, and
  * leaving it out of their way is the whole point of asking for the role.
+ *
+ * An agency's missing saved-address entry is the one exception, and it is not
+ * tailoring: they have no such page at all, and `/places` sends them to the
+ * map instead.
  */
 const OVERVIEW: NavItem = { href: "/home", label: "Overview" };
 const RULES: NavItem = { href: "/rules", label: "Rules" };
 const ADDRESSES: NavItem = { href: "/addresses", label: "Addresses" };
 const CHANGES: NavItem = { href: "/changes", label: "Changes" };
 
+/** The saved-address entry, for the roles that have one. */
+function placesItem(role: Role): NavItem[] {
+  const vocab = placesFor(role);
+  return vocab ? [{ href: "/places", label: vocab.title }] : [];
+}
+
 const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   // One building, in plain words. The sample-wide address audit is somebody
   // else's job and would only be noise here.
-  renter: [OVERVIEW, { href: "/places", label: PLACES.renter.title }, RULES, CHANGES],
+  renter: [OVERVIEW, ...placesItem("renter"), RULES, CHANGES],
   // The portfolio, then the law it is measured against.
-  provider: [OVERVIEW, { href: "/places", label: PLACES.provider.title }, RULES, CHANGES],
+  provider: [OVERVIEW, ...placesItem("provider"), RULES, CHANGES],
   // Coverage of the stock is the job, so the address table is a first-class
-  // destination rather than a curiosity.
-  agency: [OVERVIEW, ADDRESSES, RULES, CHANGES, { href: "/places", label: PLACES.agency.title }],
+  // destination rather than a curiosity. There is no saved-address entry:
+  // the whole sample is already the subject, and one map of it answers what a
+  // shortlist would have.
+  agency: [OVERVIEW, ADDRESSES, RULES, CHANGES],
   // Cases first, then the record behind them — including the raw addresses,
   // which is where a new matter starts.
-  advocate: [
-    OVERVIEW,
-    { href: "/places", label: PLACES.advocate.title },
-    RULES,
-    ADDRESSES,
-    CHANGES,
-  ],
+  advocate: [OVERVIEW, ...placesItem("advocate"), RULES, ADDRESSES, CHANGES],
 };
 
 export function navFor(role: Role): NavItem[] {

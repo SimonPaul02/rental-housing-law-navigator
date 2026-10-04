@@ -55,13 +55,19 @@ neither.
 |---|---|---|
 | `renter` | **One.** The home they live in. A second is the flat they are considering or the one they just left — never a set to add up. | One building rendered deeply, in plain words: what applies today, what each rule entitles them to, what is still unsettled and which missing fact would settle it. Their lease sits beside the rule that governs their rent. No corpus statistic appears anywhere on it. |
 | `provider` | **Many, and answerable for all at once.** | The portfolio *is* the page: a building × obligation matrix, a missing-fact queue ordered by how many answers each field would unblock, and the local rules that were tested and still do not bind. One building is the drill-down. |
-| `agency` | **None of their own.** Their subject is the whole sample. | The only view whose headline number is a denominator — how much of the stock can be answered, and what is stopping the rest. Complete before they have saved anything. |
+| `agency` | **None at all**, and nowhere to keep one. Their subject is the whole sample. | The only view whose headline number is a denominator — how much of the stock can be answered, and what is stopping the rest. The only one complete on first sign-in, and the only role with no saved-address page: one map of the stock answers what a shortlist would, so `/places` sends them to it. |
 | `advocate` | **Many, but they never add up** — each is a different person's situation. | Cases listed, never summed, each with the checks the evaluator ran to reach its answer. Flags raised while answering are kept separate from conflicts in the record, because they are different problems. |
 
 The seam the four opened along is exactly where it was always going to be:
 `navFor()` and `PLACES` in `frontend/lib/roles.ts`, and
 `frontend/components/home/dashboard.tsx`, which is now a dispatcher over
 `renter.tsx`, `provider.tsx`, `agency.tsx` and `advocate.tsx`.
+
+`PLACES` and `CONTRACTS` are `Partial` records for that reason, and the absent
+agency key is the statement: `PLACES.renter` is proven to exist by the type
+system so the three views that have a page need no check, while `placesFor()`
+returns `undefined` for a role resolved at run time, so the one page that has
+to handle the absence cannot forget to.
 
 A role is never a permission. Every row this API serves is either public corpus
 material or the caller's own, which is why switching role is self-service —

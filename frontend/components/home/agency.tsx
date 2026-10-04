@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   Card,
   Distribution,
-  JurisdictionBadge,
   Notice,
   SectionTitle,
   Stat,
@@ -29,10 +28,13 @@ import { ManageLink } from "./shared";
 
 /** The agency's app: coverage, and where the record fails.
  *
- * An agency has no address of its own. Their subject is the whole stock —
- * every one of the 500 sample rows, whether or not anybody saved it — so this
- * is the one dashboard that is complete before the person has done anything,
- * and the one where a saved address is a footnote rather than the point.
+ * An agency has no address of its own, and no way to acquire one: their
+ * subject is the whole stock — every one of the 500 sample rows, whether or
+ * not anybody saved it — so this is the one dashboard that is complete before
+ * the person has done anything, and the only one with no saved-address page
+ * behind it. A shortlist would answer nothing the map below does not, and an
+ * empty list on first sign-in would ask them to do work that buys them
+ * nothing.
  *
  * It is also the only view whose headline number is a *denominator*. The
  * question an agency brings is not "what applies here" but "how much of the
@@ -48,7 +50,7 @@ interface DefectRow {
   href?: string;
 }
 
-export async function AgencyHome({ places, health }: { places: Place[]; health: Health }) {
+export async function AgencyHome({ health }: { places: Place[]; health: Health }) {
   const [addresses, addressStats, ruleStats, changeStats, changeResults, zipCases, compilation] =
     await Promise.all([
       tryApi<AddressRecord[]>("/api/address-lookup/addresses?limit=500"),
@@ -150,7 +152,6 @@ export async function AgencyHome({ places, health }: { places: Place[]; health: 
         <AddressExplorer
           addresses={addresses ?? []}
           stats={addressStats}
-          canSave
           heading="The stock, address by address"
           hint="Every row in the sample. Filter it, highlight a jurisdiction to see where it sits relative to the rest, and read the same selection as a table — which is also the version that prints and that a screen reader can follow."
         />
@@ -394,46 +395,6 @@ export async function AgencyHome({ places, health }: { places: Place[]; health: 
         )}
       </section>
 
-      {/* ------------------------------------------------------ spot checks */}
-      <section className="space-y-3">
-        <SectionTitle
-          title="Your spot checks"
-          hint="A shortlist, not a caseload — nothing above waits for it."
-          right={<ManageLink label="Edit spot checks" />}
-        />
-        {places.length === 0 ? (
-          <p className="text-sm" style={{ color: "var(--faint)" }}>
-            Nothing pinned. Pin an address when you want to watch one particular
-            record rather than the aggregate.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {places.map((place) => (
-              <li
-                key={place.id}
-                className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border p-3 text-sm"
-                style={{ borderColor: "var(--line)", background: "var(--surface)" }}
-              >
-                <span className="min-w-48 flex-1">
-                  <span className="font-medium">{place.street_address}</span>
-                  <span className="ml-2" style={{ color: "var(--muted)" }}>
-                    {place.legal_city ?? place.postal_city}, {place.state}
-                  </span>
-                  {place.label && (
-                    <span className="ml-2" style={{ color: "var(--faint)" }}>
-                      — {place.label}
-                    </span>
-                  )}
-                </span>
-                <span className="mono text-xs" style={{ color: "var(--faint)" }}>
-                  {place.address_id}
-                </span>
-                <JurisdictionBadge status={place.jurisdiction_status} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
     </div>
   );
 }
