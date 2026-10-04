@@ -586,3 +586,97 @@ def test_a_review_whose_clause_text_has_moved_no_longer_applies(tmp_path):
     drifted = store.apply_reviews(compile_rule(record, source_text=source)[0])
     assert drifted.review_state is ReviewState.needs_review
     assert any("no longer matches" in n for n in drifted.notes)
+
+
+# -- precedence ----------------------------------------------------------------
+def _brief_rules():
+    """AB 1482 and San Francisco's rent cap, shaped as Module A records them."""
+    state_cap = make_rule(
+        "r-ab1482",
+        category="rent_increase_limits",
+        title="California Tenant Protection Act annual rent cap",
+        key_value="Lesser of 5% + CPI or 10%",
+        coverage_conditions="Buildings older than 15 years, applied on a rolling basis",
+        exemptions="Units constructed within the last 15 years; "
+        "Units subject to the City's RSO are also not covered",
+    )
+    local_cap = make_rule(
+        "r-sf-cap",
+        jurisdiction="San Francisco, CA",
+        level="city",
+        category="rent_increase_limits",
+        title="San Francisco annual allowable rent increase",
+        key_value="1.6%",
+        coverage_conditions="Rent-controlled units in San Francisco",
+    )
+    return [state_cap, local_cap]
+
+
+def _decide_with_relations(rules: list[Rule], address: Address, tmp_path):
+    from app.modules.address_lookup.rule_adapter import adapters
+
+    store = ReviewStore(tmp_path / "compiled.json")
+    compiled, relations, _ = adapters.compile_all(
+        rules,
+        review_store=store,
+        sources={r.source_doc_id: r.document.body for r in rules},
+        persist=False,
+    )
+    decisions = decide_for_address(rules, compiled, relations, evidence_for(address), AS_OF)
+    return relations, {d.team_rule_id: d for d in decisions}
+
+
+def sf(year: int) -> Address:
+    return make_address(
+        postal_city="San Francisco",
+        year_built=year,
+        units=20,
+        use_description="Apartment 15 Units or more",
+    )
+
+
+def test_the_briefs_san_francisco_example_supersedes_the_state_cap(tmp_path):
+    relations, decisions = _decide_with_relations(_brief_rules(), sf(1962), tmp_path)
+    assert any(r.basis == "local_deference" for r in relations)
+
+    local, state = decisions["r-sf-cap"], decisions["r-ab1482"]
+    assert local.result is BaseResult.applies and local.confidence is Confidence.low
+    assert state.result is BaseResult.superseded and state.superseded_by == "r-sf-cap"
+    assert state.confidence is Confidence.low and not state.conflict_flag
+    assert "defers to local law" in state.explanation
+
+
+def test_in_the_cutoff_year_both_caps_stay_unknown(tmp_path):
+    _, decisions = _decide_with_relations(_brief_rules(), sf(1979), tmp_path)
+    assert decisions["r-sf-cap"].result is BaseResult.unknown
+    assert decisions["r-ab1482"].result is BaseResult.unknown
+
+
+def test_after_the_cutoff_the_state_cap_governs(tmp_path):
+    _, decisions = _decide_with_relations(_brief_rules(), sf(1995), tmp_path)
+    assert decisions["r-sf-cap"].result is BaseResult.does_not_apply
+    assert decisions["r-ab1482"].result is BaseResult.applies
+
+
+def test_an_unreviewed_preemption_claim_does_not_supersede(tmp_path):
+    """Only a state rule's own deference supersedes unreviewed. A city rule
+    claiming to preempt state law is left for a reviewer."""
+    city = make_rule(
+        "r-city",
+        jurisdiction="Boston, MA",
+        level="city",
+        category="screening_restrictions",
+        coverage_conditions="Rental housing in the City of Boston",
+        interaction="This ordinance preempts conflicting state screening rules.",
+    )
+    state = make_rule(
+        "r-state",
+        jurisdiction="MA",
+        category="screening_restrictions",
+        coverage_conditions="Applies to any person furnishing rental accommodations",
+    )
+    boston = make_address(postal_city="Boston", state="MA", use_description="APT 7-30 UNITS")
+    relations, decisions = _decide_with_relations([city, state], boston, tmp_path)
+    assert relations and all(r.basis is None for r in relations)
+    assert decisions["r-city"].result is BaseResult.unknown
+    assert decisions["r-city"].conflict_flag

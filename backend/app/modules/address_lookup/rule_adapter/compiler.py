@@ -31,7 +31,12 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from app.modules.address_lookup.rule_adapter.classify import SCOPE, STRUCTURED_COVERAGE, classify
+from app.modules.address_lookup.rule_adapter.classify import (
+    DEFERENCE,
+    SCOPE,
+    STRUCTURED_COVERAGE,
+    classify,
+)
 from app.modules.address_lookup.rule_adapter.models import (
     COMPILER_VERSION,
     Atom,
@@ -798,10 +803,14 @@ def compile_relations(
     named = [rid for rid in known_ids if rid != rule_id and rid in text]
     kind: RelationType | None = None
     span = text
+    deference = False
     if m := _BARS_LOCAL.search(text):
         kind, span = RelationType.bars_local, m.group(0)
     elif m := _YIELDS.search(text):
         kind, span = RelationType.yields_to, m.group(0)
+        # A state rule saying it does not reach property under local law is
+        # the one shape of precedence allowed to supersede before review.
+        deference = level == "state"
     elif m := _GOVERNS.search(text):
         kind, span = RelationType.yields_to, m.group(0)
     elif m := _BOTH.search(text):
@@ -813,6 +822,7 @@ def compile_relations(
     # Who the sentence is about. A state rule that defers to local law means the
     # city rules on the same issue in its state; a city rule that adds to state
     # law means the state rule on that issue.
+    by_id = {getattr(p, "team_rule_id", ""): p for p in peers or []}
     if named:
         counterparts = named
     elif peers is not None:
@@ -854,10 +864,58 @@ def compile_relations(
                 relation=kind,
                 anchor=_anchor(span, record),
                 condition=text[:300],
+                basis=DEFERENCE
+                if deference and getattr(by_id.get(other), "level", "") == "city"
+                else None,
             )
         )
 
     return relations, unmapped
+
+
+def deference_relations(
+    record: Any, classified: list[ClassifiedClause], peers: list[Any] | None
+) -> list:
+    """Precedence links from a state rule's own exemption list.
+
+    AB 1482 states its deference to local rent control as an exemption -
+    "units subject to the City's RSO are also not covered" - not in its
+    interaction text, so without this no rent-cap relation exists at all and
+    the state cap can never be reported superseded. Each such clause links
+    the state rule to every city rule on the same issue in the same state.
+    Unreviewed, so whatever it supersedes is low confidence.
+    """
+    from app.modules.address_lookup.rule_adapter.models import Relation
+
+    if getattr(record, "level", "") != "state" or not peers:
+        return []
+    rule_id, issue, state = (
+        getattr(record, "team_rule_id", ""),
+        issue_key_for(record),
+        _state_of(record),
+    )
+    out = []
+    for clause in classified:
+        if clause.kind != DEFERENCE:
+            continue
+        for peer in peers:
+            if (
+                getattr(peer, "level", "") == "city"
+                and _state_of(peer) == state
+                and issue_key_for(peer) == issue
+            ):
+                out.append(
+                    Relation(
+                        left_rule_id=rule_id,
+                        right_rule_id=getattr(peer, "team_rule_id", ""),
+                        issue_key=issue,
+                        relation=RelationType.yields_to,
+                        anchor=_anchor(clause.text, record),
+                        condition=clause.text[:300],
+                        basis=DEFERENCE,
+                    )
+                )
+    return out
 
 
 def issue_key_for(record: Any) -> str:
@@ -874,7 +932,13 @@ def issue_key_for(record: Any) -> str:
     if category == "rent_increase_limits":
         if re.search(r"notice|days'? notice", text):
             return "rent_increase_notice"
-        if re.search(r"frequenc|twice|number of increases|per (?:12|twelve)", text):
+        # A percentage, CPI formula or allowable increase makes it a cap, even
+        # when the text also says "in any 12-month period".
+        headline = " ".join(
+            str(getattr(record, f, "") or "") for f in ("title", "key_value")
+        ).lower()
+        is_cap = re.search(r"%|\bcpi\b|cost[- ]of[- ]living|percent|allowable|\bcap\b", headline)
+        if not is_cap and re.search(r"frequenc|twice|number of increases|per (?:12|twelve)", text):
             return "rent_increase_frequency"
         return "rent_increase_cap"
     if category == "security_deposits":
@@ -905,6 +969,12 @@ def compile_rule(
     )
     exemptions = Expr("any", (*exemptions.children, *moved))
     relations, relation_unmapped = compile_relations(record, known, peers)
+    linked = {(r.right_rule_id, r.issue_key) for r in relations}
+    relations.extend(
+        r
+        for r in deference_relations(record, [*cover_classified, *exempt_classified], peers)
+        if (r.right_rule_id, r.issue_key) not in linked
+    )
     # An interaction naming no rule that exists in this run has nothing to
     # displace or be displaced by, so it cannot change an answer: noted, not
     # left blocking the rule.

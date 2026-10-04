@@ -63,7 +63,18 @@ def explain(decision: Decision) -> str:
             parts.insert(0, geo[0].detail)
 
     elif decision.result is BaseResult.does_not_apply:
-        parts += [c.detail for c in _pick(checks, Ternary.false)][:2]
+        if base.exemption is Ternary.true:
+            # The exemption that held is the reason, not the ones that failed.
+            held = [
+                c
+                for c in base.checks
+                if c.value is Ternary.true and (c.condition_id or "").startswith("x")
+            ]
+            parts += [c.detail for c in held][:1] + [
+                c.detail for c in base.checks if c.check == "exemption"
+            ][:1]
+        else:
+            parts += [c.detail for c in _pick(checks, Ternary.false)][:2]
 
     elif decision.result is BaseResult.failed:
         parts += [c.detail for c in checks if c.reason is Reason.status_failed][:1]

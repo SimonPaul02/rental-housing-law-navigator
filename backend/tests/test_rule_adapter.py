@@ -308,12 +308,24 @@ def test_issue_key_is_narrower_than_category():
     cap = compiler.issue_key_for(FakeRule(title="Annual allowable increase", key_value="5%"))
     freq = compiler.issue_key_for(
         FakeRule(
-            title="Number of increases", requirement="No more than twice in any 12-month period"
+            title="Number of increases",
+            requirement="No more than twice in any 12-month period",
+            key_value="max 2 increments per 12 months",
         )
     )
     assert cap == "rent_increase_cap"
     assert freq == "rent_increase_frequency"
     assert cap != freq
+    # A percentage cap that also says "in any 12-month period" is still a cap -
+    # otherwise the state cap could never yield to a local one.
+    statewide = compiler.issue_key_for(
+        FakeRule(
+            title="Statewide annual rent increase cap",
+            requirement="No more than 5% plus CPI over any 12-month period",
+            key_value="lesser of (5% + local CPI change) or 10%",
+        )
+    )
+    assert statewide == "rent_increase_cap"
 
 
 def test_a_scope_only_clause_can_be_cleared_but_only_with_a_real_span():

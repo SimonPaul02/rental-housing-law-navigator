@@ -15,7 +15,9 @@ and a city rule can perfectly well both apply.
 
 from __future__ import annotations
 
+from app.modules.address_lookup.rule_adapter.classify import DEFERENCE
 from app.modules.address_lookup.rule_adapter.models import (
+    Basis,
     Qualification,
     Relation,
     RelationType,
@@ -61,7 +63,16 @@ def find_cycles(relations: list[Relation]) -> list[tuple[str, ...]]:
 def resolve_interactions(
     decisions: list[BaseDecision], relations: list[Relation]
 ) -> list[Decision]:
-    """Apply current relations, leaving uncertain qualifications explicit."""
+    """Apply current relations, leaving uncertain qualifications explicit.
+
+    A rule another rule may govern is checked against every such governor at
+    once. If one that definitely applies here is linked by a confirmed
+    relation, or by the state rule's own deference to local law, this rule is
+    superseded - also when its own coverage is unknown, since it is displaced
+    either way. Deference nobody has reviewed is low confidence, and says so.
+    Otherwise an unknown governor leaves this rule unknown, and a governor
+    that does not apply leaves it as it was.
+    """
     by_id = {d.team_rule_id: d for d in decisions}
     out: list[Decision] = []
 
@@ -80,6 +91,7 @@ def resolve_interactions(
             out.append(final)
             continue
 
+        governors: list[tuple[Relation, BaseDecision, bool]] = []
         for rel in relations:
             if rel.left_rule_id != base.team_rule_id or rel.issue_key != base.issue_key:
                 continue
@@ -93,39 +105,37 @@ def resolve_interactions(
                 and (rel.valid_from is None or base.as_of >= rel.valid_from)
             )
             if rel.relation is RelationType.both_apply:
-                if not confirmed:
-                    continue
-                final.interaction_checks.append(
-                    CheckTrace(
-                        check="interaction",
-                        value=Ternary.true,
-                        reason=Reason.both_apply,
-                        detail=(
-                            f"{rel.right_rule_id} governs the same issue and the sources say "
-                            "both apply, so neither displaces the other."
-                        ),
-                        source_span=rel.anchor.source_span if rel.anchor else None,
+                if confirmed:
+                    final.interaction_checks.append(
+                        CheckTrace(
+                            check="interaction",
+                            value=Ternary.true,
+                            reason=Reason.both_apply,
+                            detail=(
+                                f"{rel.right_rule_id} governs the same issue and the sources "
+                                "say both apply, so neither displaces the other."
+                            ),
+                            source_span=rel.anchor.source_span if rel.anchor else None,
+                        )
                     )
-                )
                 continue
 
             if rel.relation is RelationType.possible_conflict:
-                if not confirmed:
-                    continue
-                final.conflict_flag = True
-                final.conflict_reason = (
-                    f"Possible conflict with {rel.right_rule_id} on {rel.issue_key}: "
-                    f"{rel.condition or 'the sources do not settle which governs'}."
-                )
-                final.interaction_checks.append(
-                    CheckTrace(
-                        check="interaction",
-                        value=Ternary.unknown,
-                        reason=Reason.possible_conflict,
-                        detail=final.conflict_reason,
-                        source_span=rel.anchor.source_span if rel.anchor else None,
+                if confirmed:
+                    final.conflict_flag = True
+                    final.conflict_reason = (
+                        f"Possible conflict with {rel.right_rule_id} on {rel.issue_key}: "
+                        f"{rel.condition or 'the sources do not settle which governs'}."
                     )
-                )
+                    final.interaction_checks.append(
+                        CheckTrace(
+                            check="interaction",
+                            value=Ternary.unknown,
+                            reason=Reason.possible_conflict,
+                            detail=final.conflict_reason,
+                            source_span=rel.anchor.source_span if rel.anchor else None,
+                        )
+                    )
                 continue
 
             # yields_to / bars_local: the other rule may govern this issue.
@@ -140,39 +150,58 @@ def resolve_interactions(
                 and rel.valid_from
                 and base.as_of < rel.valid_from
             ):
-                continue
-            if other.result is BaseResult.applies:
-                if not confirmed:
-                    final.result = BaseResult.unknown
-                    final.conflict_flag = True
-                    final.conflict_reason = (
-                        f"Whether {rel.right_rule_id} displaces this rule is unverified: "
-                        f"{rel.condition or 'the relationship needs source review'}."
-                    )
-                    final.interaction_checks.append(
-                        CheckTrace(
-                            check="interaction",
-                            value=Ternary.unknown,
-                            reason=Reason.relation_qualification_unknown,
-                            detail=final.conflict_reason,
-                            source_span=rel.anchor.source_span if rel.anchor else None,
+                continue  # confirmed, but the precedence starts later
+            governors.append((rel, other, confirmed))
+
+        displacing = [
+            (rel, other, confirmed)
+            for rel, other, confirmed in governors
+            if other.result is BaseResult.applies and (confirmed or rel.basis == DEFERENCE)
+        ]
+        if displacing:
+            # A confirmed link outranks an inferred one as the reported reason.
+            rel, other, confirmed = sorted(displacing, key=lambda g: not g[2])[0]
+            final.result = BaseResult.superseded
+            final.superseded_by = other.team_rule_id
+            hold = f" A reviewer noted: {rel.review_note}" if rel.review_note else ""
+            final.interaction_checks.append(
+                CheckTrace(
+                    check="interaction",
+                    value=Ternary.true,
+                    reason=Reason.superseded_by,
+                    detail=(
+                        f"{other.team_rule_id} also applies to this address and governs "
+                        f"{rel.issue_key}"
+                        + (
+                            " under a reviewed relation, so this rule is superseded here."
+                            if confirmed
+                            else ", and this rule's own text defers to local law there, so it "
+                            "is superseded here." + hold
                         )
-                    )
-                    continue
-                if base.result is BaseResult.unknown:
-                    continue
-                final.result = BaseResult.superseded
-                final.superseded_by = other.team_rule_id
+                    ),
+                    source_span=rel.anchor.source_span if rel.anchor else None,
+                    basis=None if confirmed else str(Basis.inferred),
+                )
+            )
+            out.append(final)
+            continue
+
+        for rel, other, confirmed in governors:
+            if other.result is BaseResult.applies and not confirmed:
+                # Unreviewed, and not deference: whether it displaces this rule
+                # is a question for a reviewer, not something to infer.
+                final.result = BaseResult.unknown
+                final.conflict_flag = True
+                final.conflict_reason = (
+                    f"Whether {rel.right_rule_id} displaces this rule is unverified: "
+                    f"{rel.condition or 'the relationship needs source review'}."
+                )
                 final.interaction_checks.append(
                     CheckTrace(
                         check="interaction",
-                        value=Ternary.true,
-                        reason=Reason.superseded_by,
-                        detail=(
-                            f"{other.team_rule_id} also applies to this address and governs "
-                            f"{rel.issue_key} under a reviewed relation, so this rule is "
-                            "superseded here."
-                        ),
+                        value=Ternary.unknown,
+                        reason=Reason.relation_qualification_unknown,
+                        detail=final.conflict_reason,
                         source_span=rel.anchor.source_span if rel.anchor else None,
                     )
                 )
@@ -191,6 +220,7 @@ def resolve_interactions(
                         source_span=rel.anchor.source_span if rel.anchor else None,
                     )
                 )
+                break
             # other.result does not apply -> this rule keeps its base result.
 
         out.append(final)
