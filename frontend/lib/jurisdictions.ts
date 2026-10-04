@@ -7,11 +7,11 @@
  * it.
  *
  * That has to be said out loud wherever it is drawn, because a reader will
- * otherwise take the bubble for the city. It is the centre of our sample in
+ * otherwise take the bubble for the city. It is the centre of our rows in
  * that jurisdiction and nothing more: a city where we hold three addresses is
  * marked at the middle of those three, not at its town hall, and a
  * jurisdiction we hold no address in cannot be drawn at all. Santa Ana has
- * rules in this corpus and no sample address, and the rules view counts those
+ * rules in this corpus and no address on file, and the rules view counts those
  * off to one side rather than dropping them.
  *
  * Each jurisdiction carries every name it goes by, because the two sides spell
@@ -23,7 +23,7 @@
 
 import type { AddressRecord } from "./types";
 
-/** The states in the sample, by the name somebody might write out in full.
+/** The states on file, by the name somebody might write out in full.
  *
  * The corpus uses the two-letter code, which needs no table — this is only
  * here so a filter or a link spelled out still resolves.
@@ -41,7 +41,7 @@ export interface Anchor {
   aliases: string[];
   lon: number;
   lat: number;
-  /** How many sample addresses the point was averaged over. */
+  /** How many addresses on file the point was averaged over. */
   addresses: number;
   level: "state" | "city";
 }
@@ -59,7 +59,7 @@ function mean(rows: { latitude: number | null; longitude: number | null }[]) {
   };
 }
 
-/** One anchor per jurisdiction in the sample, at both levels.
+/** One anchor per jurisdiction on file, at both levels.
  *
  * A list rather than a map, because this crosses to a client component and a
  * `Map` does not survive serialisation. `indexBy` turns it back into one.
@@ -126,7 +126,7 @@ export function indexBy(list: Anchor[]): Map<string, Anchor> {
 /** The anchor for one rule's jurisdiction, or null if we hold no address in it.
  *
  * Null is a real answer and the view says so: the corpus covers jurisdictions
- * the address sample does not reach, and silently dropping those rules off a
+ * the address book does not reach, and silently dropping those rules off a
  * map would make coverage look better than it is.
  */
 export function anchorFor(jurisdiction: string, index: Map<string, Anchor>): Anchor | null {

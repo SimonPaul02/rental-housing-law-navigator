@@ -1,6 +1,6 @@
 # Rental Housing Law Navigator
 
-For any apartment address in the sample, answer: **which housing rules apply
+For any apartment address on file, answer: **which housing rules apply
 here on the query date, and how do the supplied change cases affect that
 answer?** Every answer cites the source text it came from.
 
@@ -17,6 +17,7 @@ MIT AI Hackathon entry. The challenge brief is in
 | Maps | MapLibre GL over CARTO Positron (no API key) | in the browser |
 | Backend | FastAPI + SQLAlchemy 2 (async) in Docker | Fly.io, always-on |
 | Database | Postgres | Supabase |
+| Addresses | 500 imported from county assessor extracts, plus any a renter types | Postgres |
 | Accounts | WorkOS AuthKit (email + password, Google) | WorkOS |
 | Extraction | Anthropic API, `claude-opus-5` | Module A only |
 | Assistant | LangGraph + Anthropic API, `claude-sonnet-5-5` | the overview page |
@@ -56,7 +57,7 @@ neither.
 |---|---|---|
 | `renter` | **One.** The home they live in. A second is the flat they are considering or the one they just left — never a set to add up. | One building rendered deeply, in plain words: what applies today, what each rule entitles them to, what is still unsettled and which missing fact would settle it. Their lease sits beside the rule that governs their rent. No corpus statistic appears anywhere on it. |
 | `provider` | **Many, and answerable for all at once.** | The portfolio *is* the page: a building × obligation matrix, a missing-fact queue ordered by how many answers each field would unblock, and the local rules that were tested and still do not bind. One building is the drill-down. |
-| `agency` | **None at all**, and nowhere to keep one. Their subject is the whole sample. | The only view whose headline number is a denominator — how much of the stock can be answered, and what is stopping the rest. The only one complete on first sign-in, and the only role with no saved-address page: one map of the stock answers what a shortlist would, so `/places` sends them to it. |
+| `agency` | **None at all**, and nowhere to keep one. Their subject is the whole stock on file. | The only view whose headline number is a denominator — how much of the stock can be answered, and what is stopping the rest. The only one complete on first sign-in, and the only role with no saved-address page: one map of the stock answers what a shortlist would, so `/places` sends them to it. |
 | `advocate` | **Many, but they never add up** — each is a different person's situation. | Cases listed, never summed, each with the checks the evaluator ran to reach its answer. Flags raised while answering are kept separate from conflicts in the record, because they are different problems. |
 
 The seam the four opened along is exactly where it was always going to be:
@@ -130,6 +131,54 @@ need an account. The API refuses to serve without it when
 than publishing the data. `/api/health` reports `auth_required`, so the two
 sides can never disagree about who has to sign in.
 
+## The address book, and an address that is not in it
+
+An account arrives holding the buildings it is answerable for — 500 of them,
+imported from county assessor extracts with a year built, a unit count and a
+use code each. Those two facts are what most coverage conditions turn on, and
+they are why the book is the thing everything here is measured against: it is
+the agency's denominator, the extent of `lookups.json`, and the set each change
+case scans.
+
+**A housing provider holds that book from the moment the account exists.** They
+do not arrive at an empty page and type in the buildings they already own —
+`register()` hands it over, once, on creation. The other three roles do not get
+it, and that is not a shorter version of the same list: a renter has one home
+and it is wherever they actually live, an advocate's cases are each a different
+person's situation, and an agency holds no addresses at all. `ADOPTS_THE_IMPORT`
+in `accounts/service.py` is that single fact; accounts created before it existed
+are caught up by `backend/scripts/adopt_import.py`.
+
+**A renter's home is wherever they actually live**, which may not be in it. So
+a renter can type one — `415 Mission St, San Francisco, CA` — and keep it. It
+is geocoded by the same resolver the import ran, with the same candidate
+validation and the same ZIP assessment, so it gets a verified legal city and a
+coordinate. It gets no year built and no unit count, and none is invented: the
+rules that turn on those answer *unknown* and name the field, which is the
+honest result rather than a degraded one.
+
+The other three roles are not offered that, and the reason is not permission —
+the endpoint serves any signed-in caller, because every row it writes is the
+caller's own. It is what each list is *for*. A provider's is the buildings they
+are answerable for and an advocate's is the matters they hold; a row typed into
+either is a building nobody imported and nobody is answerable for. An agency
+holds no addresses at all.
+
+**All four can ask about any address without keeping it.** `rules_for_any_address`
+geocodes it, answers it, and stores nothing — so "what applies at 415 Mission
+St?" never requires saving anything to find out.
+
+A typed row lives in the same table and is marked `imported = false`, and that
+one column is load-bearing. Every roll-up filters on it; the two per-address
+lookups deliberately do not, because a renter's own home has to be answerable
+exactly as an imported row is. The failure mode is silent — a new query that
+forgets would move a denominator, and the agency's page would report 501 of 501
+one day and 503 the next — so two tests stand over it: one compiles what the
+stats actually ask for, and one walks the router's AST and fails on any route
+that queries `addresses` without deciding. Typed ids are `U` + 12 hex rather
+than sequential, because `/lookup/{id}` answers for them and a countable id
+would let somebody walk the list of places people live.
+
 ## The overview page is an agent
 
 `/home` opens on a conversation for all four roles. Ask it something and it
@@ -144,6 +193,12 @@ the building; a lease is a file picker; a term or a rent is a small form. The
 turn stops there and resumes when the control is used. So the answer and the
 thing blocking the answer are in the same place, and nobody is sent to another
 page to unblock a sentence.
+
+Paste a whole address into that box and it does both at once: the book is
+searched on its street, and — for a renter — keeping the address itself is
+offered beside whatever that found. Somebody who types where they live sees
+the neighbours already on file *and* a way forward, rather than two wrong
+buildings and a dead end.
 
 Those controls are not forms the model invented. They post to the endpoints
 that already exist — the same `POST /accounts/me/places` the buildings page
@@ -224,6 +279,42 @@ hold no key at all.
 > by a model. An agent is a good way to ask and a poor way to scan five hundred
 > rows.
 
+## A portfolio is counted on the server
+
+Handing a provider the whole book broke the page that answers it, and the
+numbers are worth writing down because they are the reason the code is shaped
+the way it is. The overview used to fetch every outcome for every building and
+do the arithmetic in the browser — fine for nine buildings, impossible for five
+hundred:
+
+| Buildings | Compute | Payload | Renders |
+|---|---|---|---|
+| 9 | 0.2 s | 1.3 MB | yes |
+| 100 | 2.1 s | 15 MB | slowly |
+| 500 | 10.6 s | **75 MB** | never |
+
+Those are 57,500 outcomes, each carrying its checks, its explanation and its
+quoted span. Dropping the audit trail only reaches 17 MB, so the fix was not a
+thinner outcome — it was to send the roll-up instead of the thing it was rolled
+up from. `GET /api/accounts/me/portfolio` returns the same answer in **204 KB**:
+counts per building per obligation, the blocking-fact queue, and the rules that
+miss **aggregated by rule rather than by building**. That last one is the better
+answer and not merely the cheaper one — "this rent cap was tested against 312 of
+your buildings and misses all of them on the unit count" is the compliance fact,
+and the same thing one building at a time is thousands of rows nobody reads.
+
+What it gives up is evidence, deliberately: a reader checking one answer wants
+every check behind it, and `GET /lookup/{address_id}` is where that lives. A
+reader looking at a portfolio wants none of them.
+
+The first render still costs ten seconds of arithmetic, so two things carry it.
+The result is cached in process, keyed by the set of addresses and the date —
+so adding a building cannot read a stale answer, there being nothing to
+invalidate, while `clear_compiled_cache()` drops the roll-ups too, because a
+portfolio is an answer about a set of rules as much as a set of buildings. And
+the record streams in behind its own Suspense boundary, so the assistant paints
+in 0.7 s and asking a question never waits on a roll-up.
+
 ## The map, and the table beside it
 
 Every view that can be drawn geographically offers both, and **the toggle is a
@@ -240,18 +331,18 @@ legend says so; a borrowed canvas failing should not take the page with it.
 Three honesty constraints shape it, and each is stated in the interface rather
 than buried here:
 
-- **A pin is the geocoder's own coordinate.** 474 of the 500 sample addresses
+- **A pin is the geocoder's own coordinate.** 474 of the 500 imported addresses
   have one. An unresolved address has none — and so does one a human resolved
   by override — so the map always places fewer rows than the table lists and
   reports the difference. Nothing is ever approximated onto the map.
-- **A shaded jurisdiction is the extent of our sample, not a boundary.** We
+- **A shaded jurisdiction is the extent of what we hold, not a boundary.** We
   hold no city geometry. Highlighting Los Angeles draws the convex hull of the
   addresses we have there, labelled as exactly that. A city with fewer than
   three placed addresses is not shaded at all, and is left out of the legend
   rather than promising a shape that is not on the map.
 - **A rule has a jurisdiction, not a coordinate.** The rules map draws one
   bubble per jurisdiction, area proportional to its rule count, at the mean of
-  that jurisdiction's sample addresses. Rules in jurisdictions the sample does
+  that jurisdiction's addresses on file. Rules in jurisdictions the book does
   not reach — Santa Ana's five — are counted off to one side instead of being
   dropped, because a map that hides what it cannot draw makes coverage look
   better than it is.
@@ -347,7 +438,7 @@ submission vocabulary stays the five results it has words for.
 Resolves each address to its **legal** jurisdiction, then tests every rule's
 coverage conditions against the building.
 
-The mailing city is not the legal city. 37 rows in the sample are Boston
+The mailing city is not the legal city. 37 rows on file are Boston
 neighbourhoods (Dorchester, Roxbury, Allston, …) and one is San Ysidro, which
 is the City of San Diego. The independent `address_resolution` package validates
 Census incorporated-place candidates and preserves unresolved results for review.
@@ -509,7 +600,7 @@ frontend/    Next.js app
   components/explorer/       filters + map/table for addresses, rules, changes
   components/contracts.tsx   filing a tenancy agreement
 corpus/      87 source documents (54 with supplied text)
-data/        500 sample addresses
+data/        the 500 imported addresses
 schema/      rule_record.schema.json
 dev/         change_tests.json (T1-T5)
 docs/        the challenge brief

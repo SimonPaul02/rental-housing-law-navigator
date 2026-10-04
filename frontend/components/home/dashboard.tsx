@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { tryApi } from "@/lib/api";
 import type { Health, Place } from "@/lib/types";
 import type { Role } from "@/lib/roles";
@@ -52,9 +53,11 @@ export async function Dashboard({ places, role }: { places: Place[]; role: Role 
   const View = DASHBOARDS[role];
   return (
     <div className="space-y-10">
-      {/* The agent is a client component and streams; the record below is
-          server-rendered from the same database it reads. Neither waits on the
-          other. */}
+      {/* The agent is a client component and paints at once. The record below
+          is server-rendered, and for a portfolio of five hundred buildings it
+          is ten seconds of arithmetic the first time — so it streams in behind
+          its own boundary rather than holding the page. Asking a question is
+          the thing somebody came to do; it should never wait on a roll-up. */}
       <Assistant role={role} />
       <div className="record-divider">
         <h2>The record behind it</h2>
@@ -63,7 +66,17 @@ export async function Dashboard({ places, role }: { places: Place[]; role: Role 
           and the same figures — nothing on this page is produced by a model.
         </p>
       </div>
-      <View places={places} health={health} />
+      <Suspense fallback={<RecordLoading />}>
+        <View places={places} health={health} />
+      </Suspense>
     </div>
+  );
+}
+
+function RecordLoading() {
+  return (
+    <p className="text-sm" style={{ color: "var(--faint)" }}>
+      Working through the buildings on this account…
+    </p>
   );
 }

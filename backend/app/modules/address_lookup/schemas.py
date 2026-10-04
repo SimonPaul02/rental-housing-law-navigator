@@ -201,3 +201,102 @@ class AddressStats(BaseModel):
     # How many rows a map can actually place. Lower than `resolved`, because a human
     # override settles the legal city without producing a coordinate.
     with_coordinates: int = 0
+
+
+# --------------------------------------------------------------- portfolio ---
+# A roll-up over a set of buildings, computed here rather than in the browser.
+#
+# The page it feeds used to fetch every outcome for every building and do this
+# arithmetic itself, which is fine for the nine buildings somebody types in and
+# impossible for the five hundred an account is set up with: 57,500 outcomes,
+# each carrying its checks, its explanation and its quoted span, is 75 MB of
+# JSON and a page that never renders. Stripping the audit trail only reaches
+# 17 MB, so the answer is not a thinner outcome - it is to send the roll-up
+# instead of the thing it was rolled up from.
+#
+# What that costs is the drill-down: these shapes carry counts and ids, not
+# evidence. A building's full record is one `GET /lookup/{address_id}` away,
+# and that is the right place for it - a reader checking one answer wants every
+# check behind it, and a reader looking at a portfolio wants none of them.
+
+
+class CategoryCell(BaseModel):
+    """One cell of the building x obligation matrix."""
+
+    binding: int
+    unsettled: int
+
+
+class PortfolioBuilding(BaseModel):
+    address_id: str
+    #: False when the address could not be evaluated at all.
+    evaluated: bool = True
+    applies: int = 0
+    unknown: int = 0
+    #: In-jurisdiction rules tested against this building that do not reach it.
+    not_binding: int = 0
+    #: The fields that would settle this building's unknowns, named.
+    blocked_by: list[str] = Field(default_factory=list)
+    #: Only the categories with something in them, so a wide matrix stays small.
+    by_category: dict[str, CategoryCell] = Field(default_factory=dict)
+
+
+class PortfolioRule(BaseModel):
+    """A rule that misses, counted over the buildings it was tested against.
+
+    Aggregated by rule rather than listed per building, and that is a better
+    answer rather than a cheaper one: "this rent cap was tested against 312 of
+    your buildings and misses every one of them on the unit count" is the
+    compliance fact. Thirty-five thousand rows saying it one building at a time
+    is the same fact, unreadable.
+    """
+
+    rule: str
+    title: str | None = None
+    jurisdiction: str | None = None
+    category: str | None = None
+    citation: str | None = None
+    #: How many buildings it was tested against and missed.
+    buildings: int
+    #: The first few, so a reader can go and look at one.
+    address_ids: list[str] = Field(default_factory=list)
+    #: Why it missed, in the evaluator's own words. The same for every building
+    #: it missed on unless they differ, in which case this is one of them.
+    why: str | None = None
+    #: True when an exemption is what let the buildings off, rather than the
+    #: rule simply not reaching them. The two are different compliance facts.
+    exemption: bool = False
+
+
+class BlockingFact(BaseModel):
+    field: str
+    #: How many answers supplying this one field would settle.
+    answers: int
+    buildings: int
+    address_ids: list[str] = Field(default_factory=list)
+
+
+class PortfolioTotals(BaseModel):
+    buildings: int
+    evaluated: int
+    #: Buildings with no answer blocked by a missing fact.
+    fully_answered: int
+    #: In-jurisdiction rules tested and missed, across the portfolio.
+    not_binding: int
+    #: Rules reaching these buildings that still carry prose no condition was
+    #: made from. Such a rule cannot be tested, so neither its coverage nor its
+    #: exemptions can be ruled out.
+    untranslated_rules: int
+
+
+class Portfolio(BaseModel):
+    as_of: dt.date
+    totals: PortfolioTotals
+    #: In a stable order, so the matrix's columns do not move between renders.
+    categories: list[str]
+    buildings: list[PortfolioBuilding]
+    blocking: list[BlockingFact]
+    #: Rules an exemption let these buildings off.
+    exemptions: list[PortfolioRule]
+    #: Rules that missed on a building fact rather than an exemption.
+    missed: list[PortfolioRule]

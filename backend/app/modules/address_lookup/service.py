@@ -5,8 +5,12 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import logging
+import re
+import secrets
+from collections import Counter
 from dataclasses import asdict
 from threading import Lock
+from time import monotonic
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,7 +45,16 @@ from app.modules.address_lookup.rule_evaluation.export import (
     validate_submission,
 )
 from app.modules.address_lookup.rule_evaluation.interactions import resolve_interactions
-from app.modules.address_lookup.schemas import LookupResponse, RuleOutcome
+from app.modules.address_lookup.schemas import (
+    BlockingFact,
+    CategoryCell,
+    LookupResponse,
+    Portfolio,
+    PortfolioBuilding,
+    PortfolioRule,
+    PortfolioTotals,
+    RuleOutcome,
+)
 from app.modules.address_lookup.status import VERIFIED_METHODS
 
 log = logging.getLogger(__name__)
@@ -151,6 +164,14 @@ def compiled_for(record: Rule) -> CompiledRule:
 
 
 def clear_compiled_cache() -> None:
+    """Drop the compiled rules - and the roll-ups computed from them.
+
+    A portfolio is an answer about a set of buildings *and* a set of rules, so
+    a re-import that changes the rules has to take the roll-ups with it. The
+    TTL would get there eventually; five minutes of a page insisting the old
+    answer is current is five minutes too many.
+    """
+    clear_portfolio_cache()
     with _COMPILED_LOCK:
         _COMPILED.clear()
 
@@ -274,6 +295,97 @@ def _resolve_batch(addresses: list[AddressInput]) -> list[ResolvedAddress]:
         return results
 
 
+# ------------------------------------------------- an address somebody typed ---
+#: Comma parts of a typed address that name neither a street nor a city.
+_COUNTRY = re.compile(r"^(?:usa|u\.s\.a\.|united states)$", re.IGNORECASE)
+#: "CA", "CA 94105" or "94105" - the state and postcode part, in either order.
+_STATE_ZIP = re.compile(r"^([A-Za-z]{2})?\s*(\d{5}(?:-\d{4})?)?$")
+
+
+class TypedAddressError(ValueError):
+    """What was typed is not an address this can resolve."""
+
+
+def parse_typed(address: str) -> tuple[str, str, str, str | None]:
+    """Split "415 Mission St, San Francisco, CA 94105, USA" into its parts.
+
+    Commas, because that is how every autofill, map app and letterhead writes
+    an address, and guessing where a street ends without them is a worse bet
+    than asking. The country is dropped; the state is required, because the
+    resolver needs it and city names repeat across states.
+    """
+    parts = [p.strip() for p in address.split(",") if p.strip()]
+    parts = [p for p in parts if not _COUNTRY.match(p)]
+    if len(parts) < 3:
+        raise TypedAddressError(
+            "Write it as street, city, state - for example '415 Mission St, San Francisco, CA'."
+        )
+    tail = _STATE_ZIP.match(parts[-1])
+    if tail is None or not tail.group(1):
+        raise TypedAddressError(
+            f"{parts[-1]!r} is not a state. End with the two-letter state, "
+            "for example 'San Francisco, CA'."
+        )
+    return (parts[0].upper(), parts[1].title(), tail.group(1).upper(), tail.group(2))
+
+
+async def resolve_typed(address: str) -> Address:
+    """An address somebody typed, resolved but not stored.
+
+    Returned transient on purpose, because the two callers want different
+    things from it: the assistant answers a question about a building nobody
+    is keeping, and `accounts.add_typed_place` adds the same object to a
+    session. Nothing here writes, so asking about an address never leaves a
+    row behind.
+
+    It carries no year built and no unit count, and none is invented. Every
+    rule that turns on one answers "unknown" naming the field, which is the
+    honest result rather than a degraded one - and in this corpus it costs
+    very little, because almost every unknown is waiting on rule review
+    instead.
+    """
+    street, city, state, postcode = parse_typed(address)
+    row = Address(
+        # Upper case so that normalising an id - which callers do, because a
+        # model writes `a0001` as readily as `A0001` - leaves it unchanged. Not
+        # sequential, because `/lookup/{id}` answers for these too and a
+        # countable id would let somebody walk the list of places people live.
+        address_id=f"U{secrets.token_hex(6).upper()}",
+        street_address=street,
+        postal_city=city,
+        state=state,
+        zip=postcode,
+        year_built=None,
+        units=None,
+        source_dataset="typed in by the person who saved it",
+        imported=False,
+        # Assigned so the relationships count as loaded: a new row has neither,
+        # and reading an unloaded one inside an async session raises rather
+        # than fetching.
+        jurisdiction=None,
+        zip_reviews=[],
+    )
+    [result] = await asyncio.to_thread(_resolve_batch, [input_from_db(row)])
+    row.jurisdiction = _jurisdiction(result, AddressJurisdiction(address_id=row.address_id))
+    return row
+
+
+def _jurisdiction(result: ResolvedAddress, row: AddressJurisdiction) -> AddressJurisdiction:
+    """Copy one resolver decision onto a jurisdiction row, stored or not."""
+    row.legal_city = result.legal_city
+    row.legal_state = result.legal_state
+    row.county = result.legal_county
+    row.method = result.resolution_method
+    row.matched_address = result.matched_address
+    row.latitude = result.latitude
+    row.longitude = result.longitude
+    row.place_geoid = result.city_geoid
+    row.confidence = None  # No calibrated probability is supplied by Census.
+    row.note = "; ".join(result.warnings) or None
+    row.resolution_evidence = asdict(result)
+    return row
+
+
 async def resolve_many(
     session: AsyncSession, addresses: list[Address]
 ) -> list[AddressJurisdiction]:
@@ -284,18 +396,9 @@ async def resolve_many(
     by_id = {address.address_id: address for address in addresses}
     for result in results:
         address = by_id[result.address_id]
-        row = address.jurisdiction or AddressJurisdiction(address_id=result.address_id)
-        row.legal_city = result.legal_city
-        row.legal_state = result.legal_state
-        row.county = result.legal_county
-        row.method = result.resolution_method
-        row.matched_address = result.matched_address
-        row.latitude = result.latitude
-        row.longitude = result.longitude
-        row.place_geoid = result.city_geoid
-        row.confidence = None  # No calibrated probability is supplied by Census.
-        row.note = "; ".join(result.warnings) or None
-        row.resolution_evidence = asdict(result)
+        row = _jurisdiction(
+            result, address.jurisdiction or AddressJurisdiction(address_id=result.address_id)
+        )
         session.add(row)
         rows.append(row)
     await session.flush()
@@ -434,6 +537,146 @@ async def _persist_lookups(
 
 
 # ----------------------------------------------------------- submission run ---
+# -------------------------------------------------------------- portfolio ---
+#: Roll-ups already computed, keyed by what went into them.
+#:
+#: Evaluating five hundred buildings against a hundred and fifteen rules is
+#: ten seconds of arithmetic that produces the same answer every time until a
+#: rule changes or a building is added - so the second render of a page is not
+#: worth paying for. In-process because this backend is a persistent container
+#: rather than a function; a deploy empties it, which is correct, because a
+#: deploy is also how the rules change.
+_PORTFOLIO_CACHE: dict[tuple, tuple[float, Portfolio]] = {}
+PORTFOLIO_TTL_SECONDS = 300
+#: How many buildings to name on a rule that misses, or on a missing fact.
+#: Enough to go and look at one; not a second copy of the portfolio.
+NAMED = 8
+
+
+def clear_portfolio_cache() -> None:
+    _PORTFOLIO_CACHE.clear()
+
+
+async def portfolio(session: AsyncSession, addresses: list[Address], as_of: dt.date) -> Portfolio:
+    """Everything a portfolio page shows, counted here instead of in the browser.
+
+    The caller gets counts and ids. The evidence behind any one of them -
+    the checks, the explanation, the quoted span - is a `GET /lookup/{id}`
+    away, which is where a reader checking a single answer should be anyway.
+    See `schemas.Portfolio` for why this exists at all.
+    """
+    key = (as_of, tuple(sorted(a.address_id for a in addresses)))
+    cached = _PORTFOLIO_CACHE.get(key)
+    if cached and monotonic() - cached[0] < PORTFOLIO_TTL_SECONDS:
+        return cached[1]
+
+    buildings: list[PortfolioBuilding] = []
+    categories: set[str] = set()
+    blocked_answers: Counter[str] = Counter()
+    blocked_where: dict[str, list[str]] = {}
+    misses: dict[str, dict] = {}
+    untranslated: set[str] = set()
+    not_binding_total = 0
+
+    for address in addresses:
+        answer = await lookup_address(
+            session, address, as_of, persist=False, include_not_applicable=True
+        )
+        row = PortfolioBuilding(address_id=address.address_id)
+        blocked: set[str] = set()
+
+        for outcome in answer.outcomes:
+            category = outcome.category or "uncategorised"
+            # `checks` is carried as plain dicts on the wire, so read it as one.
+            if outcome.in_jurisdiction and any(
+                check.get("reason") == "rule_clause_unmapped" for check in outcome.checks
+            ):
+                untranslated.add(outcome.team_rule_id)
+
+            if outcome.result == "applies":
+                row.applies += 1
+                categories.add(category)
+                row.by_category.setdefault(
+                    category, CategoryCell(binding=0, unsettled=0)
+                ).binding += 1
+            elif outcome.result == "unknown":
+                row.unknown += 1
+                categories.add(category)
+                row.by_category.setdefault(
+                    category, CategoryCell(binding=0, unsettled=0)
+                ).unsettled += 1
+                for field in outcome.unresolved_fields:
+                    blocked.add(field)
+                    blocked_answers[field] += 1
+                    blocked_where.setdefault(field, []).append(address.address_id)
+            elif outcome.result == "does_not_apply" and outcome.in_jurisdiction:
+                # Out-of-jurisdiction misses are dropped: "a Berkeley ordinance
+                # does not cover your Boston building" is a map, not compliance
+                # information, and there are eighty of them per address.
+                row.not_binding += 1
+                not_binding_total += 1
+                exemption = next(
+                    (
+                        c
+                        for c in outcome.checks
+                        if c.get("check") == "exemption" and c.get("value") == "true"
+                    ),
+                    None,
+                )
+                miss = misses.setdefault(
+                    outcome.team_rule_id,
+                    {
+                        "rule": outcome.team_rule_id,
+                        "title": outcome.title,
+                        "jurisdiction": outcome.jurisdiction,
+                        "category": outcome.category,
+                        "citation": outcome.citation,
+                        "buildings": 0,
+                        "address_ids": [],
+                        "why": (exemption.get("detail") if exemption else None)
+                        or outcome.explanation,
+                        "exemption": exemption is not None,
+                    },
+                )
+                miss["buildings"] += 1
+                if len(miss["address_ids"]) < NAMED:
+                    miss["address_ids"].append(address.address_id)
+
+        row.blocked_by = sorted(blocked)
+        buildings.append(row)
+
+    rolled = [PortfolioRule(**miss) for miss in misses.values()]
+    rolled.sort(key=lambda r: (-r.buildings, r.rule))
+
+    result = Portfolio(
+        as_of=as_of,
+        totals=PortfolioTotals(
+            buildings=len(addresses),
+            evaluated=sum(1 for b in buildings if b.evaluated),
+            fully_answered=sum(1 for b in buildings if b.evaluated and not b.blocked_by),
+            not_binding=not_binding_total,
+            untranslated_rules=len(untranslated),
+        ),
+        categories=sorted(categories),
+        buildings=buildings,
+        # Ordered by how many answers one field would settle, because that is
+        # the only ordering that says what to go and find first.
+        blocking=[
+            BlockingFact(
+                field=field,
+                answers=answers,
+                buildings=len(set(blocked_where[field])),
+                address_ids=sorted(set(blocked_where[field]))[:NAMED],
+            )
+            for field, answers in blocked_answers.most_common()
+        ],
+        exemptions=[r for r in rolled if r.exemption],
+        missed=[r for r in rolled if not r.exemption],
+    )
+    _PORTFOLIO_CACHE[key] = (monotonic(), result)
+    return result
+
+
 async def run_lookup_export(
     session: AsyncSession,
     as_of: dt.date,
@@ -459,7 +702,10 @@ async def run_lookup_export(
     addresses = (
         (
             await session.execute(
+                # The submission file is the sample. An address somebody typed
+                # in for themselves is their own data and belongs in no export.
                 select(Address)
+                .where(Address.imported)
                 .options(selectinload(Address.jurisdiction))
                 .order_by(Address.address_id)
             )

@@ -43,6 +43,22 @@ def _with_juris(stmt):
     return stmt.options(selectinload(Address.jurisdiction))
 
 
+def _book(stmt):
+    """Restrict to the address book the account was set up with.
+
+    Everything this module reports is *about that import*: it is the agency's
+    denominator, the extent of lookups.json, and the set the change cases scan.
+    An address a renter typed in for themselves lives in the same table and
+    must join none of those, so every roll-up here says so out loud.
+
+    The exceptions are the per-address lookups below, which have to answer for
+    somebody's own home as readily as for an imported row.
+    `test_no_route_queries_addresses_without_deciding_about_the_import` is what
+    keeps a new query from quietly forgetting this.
+    """
+    return stmt.where(Address.imported)
+
+
 def _latest_zip_review(address: Address) -> ZipReviewRecord | None:
     if not address.zip_reviews:
         return None
@@ -102,7 +118,7 @@ async def list_addresses(
     limit: int = Query(100, le=500),
     offset: int = 0,
 ) -> list[AddressRecord]:
-    stmt = _with_juris(select(Address).order_by(Address.address_id))
+    stmt = _book(_with_juris(select(Address).order_by(Address.address_id)))
     if q:
         # What somebody types looking for their own building: part of the street, or the
         # city, or both. Street and city are one field to the person searching, so they are
@@ -176,8 +192,10 @@ async def list_addresses(
 async def get_address(
     address_id: str, session: AsyncSession = Depends(get_session)
 ) -> AddressDetail:
-    stmt = _with_juris(select(Address).where(Address.address_id == address_id)).options(
-        selectinload(Address.zip_reviews)
+    stmt = _book(
+        _with_juris(select(Address).where(Address.address_id == address_id)).options(
+            selectinload(Address.zip_reviews)
+        )
     )
     address = (await session.execute(stmt)).scalar_one_or_none()
     if address is None:
@@ -202,7 +220,7 @@ async def list_zip_review_cases(
     status: str | None = None,
 ) -> list[ZipReviewCase]:
     """Show automatic ZIP discrepancies with any source-backed human finding."""
-    stmt = _with_juris(select(Address).order_by(Address.address_id)).options(
+    stmt = _book(_with_juris(select(Address).order_by(Address.address_id))).options(
         selectinload(Address.zip_reviews)
     )
     addresses = (await session.execute(stmt)).scalars().all()
@@ -240,7 +258,7 @@ async def resolve_jurisdictions(
     limit: int = Query(100, le=500, description="Cap per call; Census is public."),
 ) -> ResolveSummary:
     """Resolve mailing city -> legal city via the Census geocoder."""
-    stmt = _with_juris(select(Address).order_by(Address.address_id))
+    stmt = _book(_with_juris(select(Address).order_by(Address.address_id)))
     if payload.address_ids:
         stmt = stmt.where(Address.address_id.in_(payload.address_ids))
     elif not payload.force:
@@ -280,7 +298,7 @@ async def resolve_jurisdictions(
 async def resolve_single(
     address_id: str, session: AsyncSession = Depends(get_session)
 ) -> JurisdictionRecord:
-    stmt = _with_juris(select(Address).where(Address.address_id == address_id))
+    stmt = _book(_with_juris(select(Address).where(Address.address_id == address_id)))
     address = (await session.execute(stmt)).scalar_one_or_none()
     if address is None:
         raise HTTPException(404, f"No address {address_id}")
@@ -383,9 +401,15 @@ async def lookup_batch(
     affordable to render on a single page.
     """
     day = payload.as_of or _default_as_of()
+    # Naming ids means "answer for these buildings", and one of them may be a
+    # renter's own home. Naming none means the whole book, which is what the
+    # export and every sweep over the stock want - so the filter follows the
+    # question rather than being on or off for the endpoint.
     stmt = _with_juris(select(Address).order_by(Address.address_id))
     if payload.address_ids:
         stmt = stmt.where(Address.address_id.in_(payload.address_ids))
+    else:
+        stmt = _book(stmt)
     addresses = (await session.execute(stmt.limit(payload.limit))).scalars().all()
     return [
         await service.lookup_address(
@@ -429,61 +453,55 @@ async def lookup_one(
 
 @router.get("/stats", response_model=AddressStats)
 async def address_stats(session: AsyncSession = Depends(get_session)) -> AddressStats:
+    """Coverage of the imported address book, and nothing else.
+
+    Every figure here is a numerator or a denominator over the same rows -
+    which is the one thing on the agency's page that has to be exactly right.
+    So each query joins `addresses` and filters `imported`, including the ones
+    that count jurisdictions: a renter's own home has a jurisdiction row like
+    any other, and letting it through would move `resolved` and `total` by
+    different amounts and quietly change the percentage.
+    """
+    book = Address.imported
+
     async def group(column) -> dict[str, int]:
-        rows = await session.execute(select(column, func.count()).group_by(column))
+        stmt = select(column, func.count()).group_by(column)
+        if column.parent.class_ is not Address:
+            stmt = stmt.join(Address, Address.address_id == AddressJurisdiction.address_id)
+        rows = await session.execute(stmt.where(book))
         return {str(k): n for k, n in rows}
 
-    total = (await session.execute(select(func.count()).select_from(Address))).scalar_one()
-    resolved = (
-        await session.execute(
-            select(func.count())
-            .select_from(AddressJurisdiction)
-            .where(AddressJurisdiction.method.in_(service.VERIFIED_METHODS))
-        )
-    ).scalar_one()
-    no_year = (
-        await session.execute(
-            select(func.count()).select_from(Address).where(Address.year_built.is_(None))
-        )
-    ).scalar_one()
-    no_units = (
-        await session.execute(
-            select(func.count()).select_from(Address).where(Address.units.is_(None))
-        )
-    ).scalar_one()
-    corrections = (
-        await session.execute(
-            select(func.count())
-            .select_from(AddressJurisdiction)
-            .join(Address, Address.address_id == AddressJurisdiction.address_id)
-            .where(
-                AddressJurisdiction.legal_city.isnot(None),
-                func.lower(AddressJurisdiction.legal_city) != func.lower(Address.postal_city),
+    async def count(*where) -> int:
+        return (
+            await session.execute(select(func.count()).select_from(Address).where(book, *where))
+        ).scalar_one()
+
+    async def count_juris(*where) -> int:
+        return (
+            await session.execute(
+                select(func.count())
+                .select_from(AddressJurisdiction)
+                .join(Address, Address.address_id == AddressJurisdiction.address_id)
+                .where(book, *where)
             )
-        )
-    ).scalar_one()
+        ).scalar_one()
+
+    total = await count()
+    resolved = await count_juris(AddressJurisdiction.method.in_(service.VERIFIED_METHODS))
 
     legal_cities = {
         str(city): n
         for city, n in await session.execute(
             select(AddressJurisdiction.legal_city, func.count())
+            .join(Address, Address.address_id == AddressJurisdiction.address_id)
             .where(
+                book,
                 AddressJurisdiction.legal_city.isnot(None),
                 AddressJurisdiction.method.in_(service.VERIFIED_METHODS),
             )
             .group_by(AddressJurisdiction.legal_city)
         )
     }
-    mappable = (
-        await session.execute(
-            select(func.count())
-            .select_from(AddressJurisdiction)
-            .where(
-                AddressJurisdiction.latitude.isnot(None),
-                AddressJurisdiction.longitude.isnot(None),
-            )
-        )
-    ).scalar_one()
 
     return AddressStats(
         total=total,
@@ -493,8 +511,14 @@ async def address_stats(session: AsyncSession = Depends(get_session)) -> Address
         resolved=resolved,
         unresolved=total - resolved,
         by_method=await group(AddressJurisdiction.method),
-        city_corrections=corrections,
-        missing_year_built=no_year,
-        missing_units=no_units,
-        with_coordinates=mappable,
+        city_corrections=await count_juris(
+            AddressJurisdiction.legal_city.isnot(None),
+            func.lower(AddressJurisdiction.legal_city) != func.lower(Address.postal_city),
+        ),
+        missing_year_built=await count(Address.year_built.is_(None)),
+        missing_units=await count(Address.units.is_(None)),
+        with_coordinates=await count_juris(
+            AddressJurisdiction.latitude.isnot(None),
+            AddressJurisdiction.longitude.isnot(None),
+        ),
     )

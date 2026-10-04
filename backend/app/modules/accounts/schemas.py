@@ -71,6 +71,23 @@ class PlaceRequest(BaseModel):
     note: str | None = Field(default=None, max_length=2000)
 
 
+class TypedPlaceRequest(BaseModel):
+    """A building that is not in the address book this account was set up with.
+
+    Free text rather than fields, because that is how somebody has it: pasted
+    from a letter, a lease or a map. `street, city, state` is what the resolver
+    needs, and the error says so when it is not there.
+    """
+
+    address: str = Field(
+        min_length=6,
+        max_length=300,
+        description="street, city, state - e.g. '415 Mission St, San Francisco, CA'.",
+    )
+    label: str | None = Field(default=None, max_length=120)
+    note: str | None = Field(default=None, max_length=2000)
+
+
 class PlaceUpdate(BaseModel):
     label: str | None = Field(default=None, max_length=120)
     note: str | None = Field(default=None, max_length=2000)

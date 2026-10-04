@@ -2162,3 +2162,19 @@ table.data tbody tr.clickable { cursor: pointer; }
   text-underline-offset: 2px;
 }
 .chat-retry:hover { color: var(--deep); }
+
+/* "Keep the address you typed", offered only after a search of the book has
+   come back empty — ahead of that it would steer somebody past a building
+   they already hold, which carries facts a typed one cannot. */
+.chat-keep {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 13px 15px;
+  border-radius: 14px;
+  background: #ffffff7a;
+  border: 1px solid #ffffffbd;
+  box-shadow: inset 0 1px 0 white;
+}
+.chat-keep .chat-card-note { margin: 0; }

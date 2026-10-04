@@ -189,7 +189,7 @@ export interface ChangeTest {
   /** An as_of case's pair: not in force on the first date, in force on the second. */
   as_of_before?: string | null;
   as_of_after?: string | null;
-  /** The states the case scans. Empty means the whole sample. */
+  /** The states the case scans. Empty means the whole stock. */
   states?: string[];
   /** Rules already covering the same ground, which the new one may preempt. */
   conflict_with?: string[];
@@ -449,4 +449,88 @@ export interface ContractTypes {
   max_bytes: number;
   accept: string[];
   names: string[];
+}
+
+
+/* ---------------------------------------------------------------- portfolio */
+
+/** A roll-up over the buildings one account holds.
+ *
+ *  The provider overview used to fetch every outcome for every building and do
+ *  this arithmetic here. That is fine for the handful somebody types in and
+ *  impossible for the whole imported book: 500 buildings × 115 rules is 57,500
+ *  outcomes, each carrying its checks, its explanation and its quoted span —
+ *  75 MB of JSON and a page that never rendered. Stripping the audit trail only
+ *  reached 17 MB, so the fix was not a thinner outcome but sending the roll-up
+ *  instead of what it was rolled up from. 204 KB.
+ *
+ *  What it gives up is evidence, and deliberately: a reader checking one answer
+ *  wants every check behind it, and `/lookup/{address_id}` is where that lives.
+ *  A reader looking at a portfolio wants none of them. */
+export interface CategoryCell {
+  binding: number;
+  unsettled: number;
+}
+
+export interface PortfolioBuilding {
+  address_id: string;
+  evaluated: boolean;
+  applies: number;
+  unknown: number;
+  /** In-jurisdiction rules tested against it that do not reach it. */
+  not_binding: number;
+  /** The fields that would settle this building's unknowns. */
+  blocked_by: string[];
+  /** Only the categories with something in them. */
+  by_category: Record<string, CategoryCell>;
+}
+
+/** A rule that misses, counted over the buildings it was tested against.
+ *
+ *  Aggregated by rule rather than listed per building, which is the better
+ *  answer and not merely the cheaper one: "this rent cap was tested against 312
+ *  of your buildings and misses all of them on the unit count" is the
+ *  compliance fact. The same thing one building at a time is 35,000 rows. */
+export interface PortfolioRule {
+  rule: string;
+  title: string | null;
+  jurisdiction: string | null;
+  category: string | null;
+  citation: string | null;
+  buildings: number;
+  /** The first few, so a reader can go and look at one. */
+  address_ids: string[];
+  why: string | null;
+  /** True when an exemption let the buildings off, rather than the rule simply
+   *  not reaching them. Two different compliance facts. */
+  exemption: boolean;
+}
+
+export interface BlockingFact {
+  field: string;
+  /** How many answers supplying this one field would settle. */
+  answers: number;
+  buildings: number;
+  address_ids: string[];
+}
+
+export interface PortfolioTotals {
+  buildings: number;
+  evaluated: number;
+  fully_answered: number;
+  not_binding: number;
+  /** Rules reaching these buildings that still carry prose no condition was
+   *  made from — so neither their coverage nor their exemptions can be ruled
+   *  out here. */
+  untranslated_rules: number;
+}
+
+export interface Portfolio {
+  as_of: string;
+  totals: PortfolioTotals;
+  categories: string[];
+  buildings: PortfolioBuilding[];
+  blocking: BlockingFact[];
+  exemptions: PortfolioRule[];
+  missed: PortfolioRule[];
 }

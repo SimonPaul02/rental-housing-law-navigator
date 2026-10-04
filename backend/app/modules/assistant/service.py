@@ -209,7 +209,7 @@ async def _context(ctx: agent.Session) -> tuple[str, str]:
     """The dynamic context block, and a digest of it.
 
     An agency is given no building list because they hold no buildings - the
-    whole sample is their subject - so for them this is their name and nothing
+    whole stock is their subject - so for them this is their name and nothing
     else.
     """
     account = await accounts.read(ctx.session, ctx.principal)

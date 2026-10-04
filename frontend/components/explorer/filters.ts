@@ -1,7 +1,7 @@
 /** Narrowing five hundred addresses, in the browser.
  *
  * All of them are fetched once on the server and filtered here rather than
- * round-tripping per keystroke. That is a deliberate trade: the sample is five
+ * round-tripping per keystroke. That is a deliberate trade: the book is five
  * hundred rows and will not grow, the API already caps a page at exactly that,
  * and filtering locally is what lets the map and the table stay in step with a
  * slider as it moves. A dataset that could grow would have to do this
