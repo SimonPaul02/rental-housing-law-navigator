@@ -26,6 +26,8 @@ export interface Filters {
   missingYearBuilt: boolean;
   missingUnits: boolean;
   mappableOnly: boolean;
+  /** The other half of `mappableOnly`: only the rows with no coordinate. */
+  unplaceableOnly: boolean;
   builtFrom: string;
   builtTo: string;
   unitsFrom: string;
@@ -42,6 +44,7 @@ export const EMPTY: Filters = {
   missingYearBuilt: false,
   missingUnits: false,
   mappableOnly: false,
+  unplaceableOnly: false,
   builtFrom: "",
   builtTo: "",
   unitsFrom: "",
@@ -58,6 +61,7 @@ export function isActive(filters: Filters): boolean {
     filters.missingYearBuilt ||
     filters.missingUnits ||
     filters.mappableOnly ||
+    filters.unplaceableOnly ||
     filters.builtFrom !== "" ||
     filters.builtTo !== "" ||
     filters.unitsFrom !== "" ||
@@ -107,6 +111,7 @@ export function matches(address: AddressRecord, filters: Filters): boolean {
   if (filters.missingYearBuilt && address.year_built !== null) return false;
   if (filters.missingUnits && address.units !== null) return false;
   if (filters.mappableOnly && !placeable(address)) return false;
+  if (filters.unplaceableOnly && placeable(address)) return false;
 
   const builtFrom = number(filters.builtFrom);
   const builtTo = number(filters.builtTo);

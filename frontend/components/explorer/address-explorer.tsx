@@ -114,7 +114,8 @@ export function AddressExplorer({
     (filters.zipOnly ? 1 : 0) +
     (filters.missingYearBuilt ? 1 : 0) +
     (filters.missingUnits ? 1 : 0) +
-    (filters.mappableOnly ? 1 : 0);
+    (filters.mappableOnly ? 1 : 0) +
+    (filters.unplaceableOnly ? 1 : 0);
 
   function toggleCity(city: string) {
     setFilters((current) => ({
@@ -123,6 +124,32 @@ export function AddressExplorer({
         ? current.cities.filter((name) => name !== city)
         : [...current.cities, city],
     }));
+  }
+
+  /** The two coordinate filters are each other's opposite, so only one holds.
+   *
+   * Both on at once asks for the rows that have a coordinate and have none,
+   * which is always nothing — a filter state whose only possible answer is an
+   * empty table is a trap, not a choice. */
+  function setCoordinate(key: "mappableOnly" | "unplaceableOnly", on: boolean) {
+    setFilters((current) => ({
+      ...current,
+      mappableOnly: key === "mappableOnly" && on,
+      unplaceableOnly: key === "unplaceableOnly" && on,
+    }));
+  }
+
+  /** Jump from the warning count to the rows it is counting.
+   *
+   * A number somebody cannot click is a dead end: told that 26 addresses are
+   * missing from the map, the next question is always *which* 26, usually
+   * because somebody means to go and geocode them. The jump switches to the
+   * table as well as filtering, because these rows are defined by having no
+   * pin — narrowing the map to them would draw an empty map. */
+  function listUnplaceable() {
+    const on = !filters.unplaceableOnly;
+    setCoordinate("unplaceableOnly", on);
+    if (on) setView("table");
   }
 
   async function save(address: AddressRecord) {
@@ -341,10 +368,21 @@ export function AddressExplorer({
                   type="button"
                   className="chip"
                   aria-pressed={filters.mappableOnly}
-                  onClick={() => set("mappableOnly", !filters.mappableOnly)}
+                  onClick={() => setCoordinate("mappableOnly", !filters.mappableOnly)}
                 >
                   Has a coordinate{" "}
                   <span className="chip-count">{stats?.with_coordinates ?? "—"}</span>
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  aria-pressed={filters.unplaceableOnly}
+                  onClick={() => setCoordinate("unplaceableOnly", !filters.unplaceableOnly)}
+                >
+                  No coordinate{" "}
+                  <span className="chip-count">
+                    {stats ? stats.total - stats.with_coordinates : "—"}
+                  </span>
                 </button>
               </div>
             </div>
@@ -358,9 +396,14 @@ export function AddressExplorer({
           <strong className="tabular-nums">{shown.length}</strong> of {addresses.length} addresses
         </span>
         {unplaceable > 0 && (
-          <span style={{ color: "var(--warn)" }}>
-            {unplaceable} cannot be placed on the map — no verified coordinate
-          </span>
+          <>
+            <span style={{ color: "var(--warn)" }}>
+              {unplaceable} cannot be placed on the map — no verified coordinate
+            </span>
+            <button type="button" className="btn btn-quiet" onClick={listUnplaceable}>
+              {filters.unplaceableOnly ? "Show the placed ones too" : `List those ${unplaceable}`}
+            </button>
+          </>
         )}
         {filters.cities.length > 0 && (
           <span style={{ color: "var(--accent)" }}>
