@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DemoAccounts } from "@/components/demo-accounts";
 import { SignIn } from "@/components/sign-in";
 import { Card, Notice } from "@/components/ui";
 import { ROLES, ROLE_SLUGS } from "@/lib/roles";
@@ -77,6 +78,22 @@ export default async function FrontDoor() {
           <SignIn configured={signInConfigured} />
         </Card>
       </section>
+
+      {signInConfigured && (
+        <Card>
+          <h2 className="text-lg font-semibold tracking-tight">
+            Or sign in as one of the four roles
+          </h2>
+          <p className="mt-1 mb-5 max-w-2xl text-sm" style={{ color: "var(--muted)" }}>
+            Every role currently shares one interface, so seeing all four means being
+            four different people. These accounts exist so you can do that without
+            being issued anything — pick one, or type its credentials into the card
+            above. They are ordinary accounts with nothing withheld. Signing out
+            brings you back here to try the next one.
+          </p>
+          <DemoAccounts />
+        </Card>
+      )}
 
       {seen.state === "open" && (
         <Notice title="Running without accounts">

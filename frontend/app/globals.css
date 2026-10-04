@@ -546,3 +546,51 @@ code:not(pre code) {
 @media (max-width: 640px) {
   .fieldlist > div { grid-template-columns: minmax(0, 1fr); gap: 3px; }
 }
+
+/* ------------------------------------------------- published demo accounts */
+.demo-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 560px) {
+  .demo-grid { grid-template-columns: minmax(0, 1fr); }
+}
+.demo-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 13px 15px;
+  text-align: left;
+  border: 1px solid #7a98a733;
+  border-radius: 12px;
+  background: #ffffff5c;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+.demo-card:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: #ffffff9e;
+  transform: translateY(-1px);
+}
+.demo-card:disabled { opacity: 0.55; cursor: default; }
+.demo-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.demo-role {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+.demo-tagline {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.demo-cred {
+  font-size: 10.5px;
+  color: var(--faint);
+  overflow-wrap: anywhere;
+}
