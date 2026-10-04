@@ -114,8 +114,15 @@ export async function gate(): Promise<Gate> {
   }
 }
 
-/** The display name for a signed-in person, falling back to their address. */
+/** The display name for a signed-in person.
+ *
+ * Falling back to the part of the address before the `@` rather than the whole
+ * thing: a Google sign-up hands us a verified email and frequently no name, and
+ * "agency@rhln-demo.dev" in a fixed-width button is a string that can only be
+ * truncated into "agency@rhln-demo…". The local part reads as a name, and the
+ * full address is a line away in the account menu for anyone who wants it.
+ */
 export function displayName(user: User): string {
   const full = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
-  return user.name || full || user.email;
+  return user.name || full || user.email.split("@")[0] || user.email;
 }

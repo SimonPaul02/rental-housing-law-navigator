@@ -50,6 +50,7 @@ export default async function RootLayout({
                 {seen.state === "ready" ? (
                   <AccountMenu
                     name={displayName(seen.user)}
+                    email={seen.account.email}
                     roleLabel={seen.account.role_label}
                   />
                 ) : (

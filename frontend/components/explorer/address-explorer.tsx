@@ -67,6 +67,8 @@ export function AddressExplorer({
   hint?: string;
 }) {
   const [filters, setFilters] = useState<Filters>(EMPTY);
+  const [more, setMore] = useState(false);
+  const [allCities, setAllCities] = useState(false);
   const [view, setView] = useState<View>(initialView);
   const [selected, setSelected] = useState<string | null>(null);
   const [saved, setSaved] = useState<Set<string>>(new Set());
@@ -89,6 +91,7 @@ export function AddressExplorer({
   const picked = shown.find((address) => address.address_id === selected) ?? null;
 
   const cityChips = useMemo(() => {
+    if (allCities) return facets;
     const top = facets.slice(0, MAX_CITY_CHIPS);
     // A selected city always has a chip, even if it has dropped out of the top
     // few — otherwise deselecting it means hunting through the long list.
@@ -96,7 +99,22 @@ export function AddressExplorer({
       (f) => filters.cities.includes(f.city) && !top.some((t) => t.city === f.city),
     );
     return [...top, ...extra];
-  }, [facets, filters.cities]);
+  }, [facets, filters.cities, allCities]);
+
+  /** How much is set behind the disclosure, so the button can say so.
+   *
+   * A collapsed panel that is quietly filtering is the worst version of this
+   * pattern: somebody sees 48 of 500 rows and no reason why. The count is what
+   * keeps it honest. */
+  const advanced =
+    (filters.builtFrom ? 1 : 0) +
+    (filters.builtTo ? 1 : 0) +
+    (filters.unitsFrom ? 1 : 0) +
+    (filters.unitsTo ? 1 : 0) +
+    (filters.zipOnly ? 1 : 0) +
+    (filters.missingYearBuilt ? 1 : 0) +
+    (filters.missingUnits ? 1 : 0) +
+    (filters.mappableOnly ? 1 : 0);
 
   function toggleCity(city: string) {
     setFilters((current) => ({
@@ -146,9 +164,14 @@ export function AddressExplorer({
       />
 
       {/* ------------------------------------------------------- the filters */}
+      {/* Three controls at rest. Nine inputs laid out at once read as a form
+          to be filled in rather than a way to narrow a list, and eight of the
+          nine are things somebody wants occasionally. Search, state and
+          jurisdiction stay out; the rest is one click away and says how much
+          of it is in use. */}
       <div className="filters">
         <div className="filter-row">
-          <label className="filter-field" style={{ flex: "1 1 220px" }}>
+          <label className="filter-field" style={{ flex: "1 1 260px" }}>
             <span>Search</span>
             <input
               className="field"
@@ -189,88 +212,42 @@ export function AddressExplorer({
             </select>
           </label>
 
-          <label className="filter-field filter-narrow">
-            <span>Built from</span>
-            <input
-              className="field"
-              inputMode="numeric"
-              value={filters.builtFrom}
-              placeholder="1900"
-              onChange={(event) => set("builtFrom", event.target.value.replace(/\D/g, ""))}
-            />
-          </label>
-          <label className="filter-field filter-narrow">
-            <span>Built to</span>
-            <input
-              className="field"
-              inputMode="numeric"
-              value={filters.builtTo}
-              placeholder="1979"
-              onChange={(event) => set("builtTo", event.target.value.replace(/\D/g, ""))}
-            />
-          </label>
-          <label className="filter-field filter-narrow">
-            <span>Units from</span>
-            <input
-              className="field"
-              inputMode="numeric"
-              value={filters.unitsFrom}
-              placeholder="3"
-              onChange={(event) => set("unitsFrom", event.target.value.replace(/\D/g, ""))}
-            />
-          </label>
-          <label className="filter-field filter-narrow">
-            <span>Units to</span>
-            <input
-              className="field"
-              inputMode="numeric"
-              value={filters.unitsTo}
-              placeholder="32"
-              onChange={(event) => set("unitsTo", event.target.value.replace(/\D/g, ""))}
-            />
-          </label>
-        </div>
-
-        <div className="filter-row">
-          <div className="filter-field" style={{ flex: "1 1 100%" }}>
-            <span>Legal city — click to highlight on the map</span>
-            <div className="chips">
-              {cityChips.map(({ city, count }) => (
-                <button
-                  key={city}
-                  type="button"
-                  className="chip"
-                  aria-pressed={filters.cities.includes(city)}
-                  onClick={() => toggleCity(city)}
-                >
-                  {city} <span className="chip-count">{count}</span>
-                </button>
-              ))}
-              {facets.length > cityChips.length && (
-                <select
-                  className="field"
-                  style={{ maxWidth: 190, minHeight: 30, fontSize: 12, padding: "4px 10px" }}
-                  value=""
-                  onChange={(event) => event.target.value && toggleCity(event.target.value)}
-                >
-                  <option value="">
-                    {facets.length - cityChips.length} more…
-                  </option>
-                  {facets
-                    .filter((f) => !cityChips.some((c) => c.city === f.city))
-                    .map(({ city, count }) => (
-                      <option key={city} value={city}>
-                        {city} ({count})
-                      </option>
-                    ))}
-                </select>
-              )}
-            </div>
+          <div className="filter-field" style={{ minWidth: 0 }}>
+            <span aria-hidden>&nbsp;</span>
+            <button
+              type="button"
+              className="chip chip-more"
+              aria-expanded={more}
+              onClick={() => setMore(!more)}
+            >
+              {more ? "Fewer filters" : "More filters"}
+              {advanced > 0 && <span className="chip-count">{advanced}</span>}
+            </button>
           </div>
         </div>
 
-        <div className="filter-row">
+        <div className="filter-group">
+          <span>Legal city — click to highlight on the map</span>
           <div className="chips">
+            {cityChips.map(({ city, count }) => (
+              <button
+                key={city}
+                type="button"
+                className="chip"
+                aria-pressed={filters.cities.includes(city)}
+                onClick={() => toggleCity(city)}
+              >
+                {city} <span className="chip-count">{count}</span>
+              </button>
+            ))}
+            {facets.length > cityChips.length && (
+              // A chip, not a dropdown. The native menu that used to sit in
+              // this row drew its own stepper and its own grey, and read as a
+              // different kind of thing from the eight options beside it.
+              <button type="button" className="chip chip-more" onClick={() => setAllCities(true)}>
+                +{facets.length - cityChips.length} more
+              </button>
+            )}
             {filters.cities.length > 0 && (
               <button
                 type="button"
@@ -278,50 +255,101 @@ export function AddressExplorer({
                 aria-pressed={filters.citiesNarrow}
                 onClick={() => set("citiesNarrow", !filters.citiesNarrow)}
               >
-                Only show the highlighted {filters.cities.length === 1 ? "city" : "cities"}
-              </button>
-            )}
-            <button
-              type="button"
-              className="chip"
-              aria-pressed={filters.zipOnly}
-              onClick={() => set("zipOnly", !filters.zipOnly)}
-            >
-              ZIP disagrees <span className="chip-count">{countBy(addresses, (a) => a.zip_discrepancy)}</span>
-            </button>
-            <button
-              type="button"
-              className="chip"
-              aria-pressed={filters.missingYearBuilt}
-              onClick={() => set("missingYearBuilt", !filters.missingYearBuilt)}
-            >
-              No year built{" "}
-              <span className="chip-count">{stats?.missing_year_built ?? "—"}</span>
-            </button>
-            <button
-              type="button"
-              className="chip"
-              aria-pressed={filters.missingUnits}
-              onClick={() => set("missingUnits", !filters.missingUnits)}
-            >
-              No unit count <span className="chip-count">{stats?.missing_units ?? "—"}</span>
-            </button>
-            <button
-              type="button"
-              className="chip"
-              aria-pressed={filters.mappableOnly}
-              onClick={() => set("mappableOnly", !filters.mappableOnly)}
-            >
-              Has a coordinate{" "}
-              <span className="chip-count">{stats?.with_coordinates ?? "—"}</span>
-            </button>
-            {isActive(filters) && (
-              <button type="button" className="chip" onClick={() => setFilters(EMPTY)}>
-                Clear all
+                Only these
               </button>
             )}
           </div>
         </div>
+
+        {more && (
+          <div className="filter-more">
+            <div className="filter-row">
+              <label className="filter-field filter-narrow">
+                <span>Built from</span>
+                <input
+                  className="field"
+                  inputMode="numeric"
+                  value={filters.builtFrom}
+                  placeholder="1900"
+                  onChange={(event) => set("builtFrom", event.target.value.replace(/\D/g, ""))}
+                />
+              </label>
+              <label className="filter-field filter-narrow">
+                <span>Built to</span>
+                <input
+                  className="field"
+                  inputMode="numeric"
+                  value={filters.builtTo}
+                  placeholder="1979"
+                  onChange={(event) => set("builtTo", event.target.value.replace(/\D/g, ""))}
+                />
+              </label>
+              <label className="filter-field filter-narrow">
+                <span>Units from</span>
+                <input
+                  className="field"
+                  inputMode="numeric"
+                  value={filters.unitsFrom}
+                  placeholder="3"
+                  onChange={(event) => set("unitsFrom", event.target.value.replace(/\D/g, ""))}
+                />
+              </label>
+              <label className="filter-field filter-narrow">
+                <span>Units to</span>
+                <input
+                  className="field"
+                  inputMode="numeric"
+                  value={filters.unitsTo}
+                  placeholder="32"
+                  onChange={(event) => set("unitsTo", event.target.value.replace(/\D/g, ""))}
+                />
+              </label>
+            </div>
+
+            <div className="filter-group">
+              <span>Where the record is incomplete</span>
+              <div className="chips">
+                <button
+                  type="button"
+                  className="chip"
+                  aria-pressed={filters.zipOnly}
+                  onClick={() => set("zipOnly", !filters.zipOnly)}
+                >
+                  ZIP disagrees{" "}
+                  <span className="chip-count">
+                    {countBy(addresses, (a) => a.zip_discrepancy)}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  aria-pressed={filters.missingYearBuilt}
+                  onClick={() => set("missingYearBuilt", !filters.missingYearBuilt)}
+                >
+                  No year built{" "}
+                  <span className="chip-count">{stats?.missing_year_built ?? "—"}</span>
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  aria-pressed={filters.missingUnits}
+                  onClick={() => set("missingUnits", !filters.missingUnits)}
+                >
+                  No unit count <span className="chip-count">{stats?.missing_units ?? "—"}</span>
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  aria-pressed={filters.mappableOnly}
+                  onClick={() => set("mappableOnly", !filters.mappableOnly)}
+                >
+                  Has a coordinate{" "}
+                  <span className="chip-count">{stats?.with_coordinates ?? "—"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* --------------------------------------------------------- the count */}
@@ -342,6 +370,18 @@ export function AddressExplorer({
         <button type="button" className="btn btn-quiet" onClick={download}>
           Download these {shown.length} as CSV
         </button>
+        {isActive(filters) && (
+          <button
+            type="button"
+            className="btn btn-quiet"
+            onClick={() => {
+              setFilters(EMPTY);
+              setAllCities(false);
+            }}
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       {error && (
