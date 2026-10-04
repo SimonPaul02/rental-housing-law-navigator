@@ -1,30 +1,5 @@
 {
-  "date_reviews": {
-    "r-027144eb": {
-      "compiler_version": "3",
-      "effective_date_evidence": [
-        {
-          "raw": "2026-02-02",
-          "source_span": "Beginning February 2, 2026, a landlord can no longer include any additional percentage increase for utilities."
-        }
-      ],
-      "effective_dates": [
-        {
-          "earliest": "2026-02-02",
-          "latest": "2026-02-02",
-          "precision": "day",
-          "raw": "2026-02-02"
-        }
-      ],
-      "key_value_period": null,
-      "rationale": "The LAHD passage begins this utility-surcharge prohibition on February 2, 2026; this is the rule start date, not the adjacent annual rate period.",
-      "reviewed_at": "2026-10-04T08:43:49.502640+00:00",
-      "reviewer": "Paul",
-      "role_evidence_span": null,
-      "rule_version_hash": "sha256:602c58cba7e1cfed9fa3dd7499a265ff9f438f4a47cfa2f9d34d07809e84257a",
-      "source_hash": "sha256:21a8e44f111659923f120ad5543bf46611e1b2dd5af0087cc16f98de479cd262"
-    }
-  },
+  "date_reviews": {},
   "relations": [
     {
       "clause_id": null,
@@ -1021,9 +996,7 @@
       "legacy_priority": 1,
       "legacy_review_state": "approved",
       "level": "state",
-      "notes": [
-        "AI proposed no building-level condition in exemption: advertisements; awaiting review"
-      ],
+      "notes": [],
       "review_state": "needs_review",
       "rule_version_hash": "sha256:788e77cd1d6570a214003a22f511bfd37f87071b75fb6428f3f30e444a9b4e51",
       "source_doc_id": "D016",
@@ -1034,17 +1007,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D016",
-            "source_hash": "sha256:21d92128daede668d6f1a824528ead345982ddf043a32e4fb5d80dd8adbcdce9",
-            "source_span": "Housing providers covered by FEHA, including landlords, property managers and tenant screening companies, for most housing accommodations in California",
-            "text": "Housing providers covered by FEHA, including landlords, property managers and tenant screening companies, for most housing accommodations in California",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D016",
           "source_hash": "sha256:21d92128daede668d6f1a824528ead345982ddf043a32e4fb5d80dd8adbcdce9",
           "source_span": null,
@@ -1063,20 +1027,11 @@
         {
           "clause_id": "x2",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x2",
-            "origin": "exemption",
-            "source_doc_id": "D016",
-            "source_hash": "sha256:21d92128daede668d6f1a824528ead345982ddf043a32e4fb5d80dd8adbcdce9",
-            "source_span": "advertisements",
-            "text": "advertisements",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D016",
           "source_hash": "sha256:21d92128daede668d6f1a824528ead345982ddf043a32e4fb5d80dd8adbcdce9",
-          "source_span": "advertisements",
+          "source_span": "However, the owner still cannot make, print, or publish discriminatory statements, notices, or advertisements",
           "text": "advertisements"
         }
       ]
@@ -1099,15 +1054,8 @@
         ]
       },
       "coverage_basis": "conditions",
-      "effective_date_unresolved": false,
-      "effective_dates": [
-        {
-          "earliest": "2026-02-02",
-          "latest": "2026-02-02",
-          "precision": "day",
-          "raw": "2026-02-02"
-        }
-      ],
+      "effective_date_unresolved": true,
+      "effective_dates": [],
       "exemptions": {
         "any": []
       },
@@ -1120,7 +1068,6 @@
       "level": "city",
       "notes": [
         "effective-date meaning of 2026-02-02 needs source review",
-        "dates reviewed by Paul: The LAHD passage begins this utility-surcharge prohibition on February 2, 2026; this is the rule start date, not the adjacent annual rate period.",
         "coverage reviewed by Paul: The cited LAHD passage limits this duty to units subject to the RSO; address location alone does not prove membership."
       ],
       "review_state": "human_approved",
@@ -1160,17 +1107,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D053",
-            "source_hash": "sha256:5c418b18df23a00a8b6b056e68352f67b378b94321ee42867df8ce02ce36830a",
-            "source_span": "Any person or agent who threatens or takes reprisals against a tenant of residential premises",
-            "text": "Any person or agent who threatens or takes reprisals against a tenant of residential premises",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D053",
           "source_hash": "sha256:5c418b18df23a00a8b6b056e68352f67b378b94321ee42867df8ce02ce36830a",
           "source_span": null,
@@ -1259,17 +1197,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D085",
-            "source_hash": "sha256:de9d126675c8ee1ab2809c897c8c819bfe241dc95de31ace5004b6c7973607d8",
-            "source_span": "Tenancies covered by the Just Cause Eviction Ordinance that are terminated for no-fault reasons such as owner occupancy, withdrawal from the rental market, or demolition or substantial remodel",
-            "text": "Tenancies covered by the Just Cause Eviction Ordinance that are terminated for no-fault reasons such as owner occupancy, withdrawal from the rental market, or demolition or substantial remodel",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D085",
           "source_hash": "sha256:de9d126675c8ee1ab2809c897c8c819bfe241dc95de31ace5004b6c7973607d8",
           "source_span": null,
@@ -1278,17 +1207,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D085",
-            "source_hash": "sha256:de9d126675c8ee1ab2809c897c8c819bfe241dc95de31ace5004b6c7973607d8",
-            "source_span": "Properties excluded from the Just Cause Eviction Ordinance",
-            "text": "Properties excluded from the Just Cause Eviction Ordinance",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D085",
           "source_hash": "sha256:de9d126675c8ee1ab2809c897c8c819bfe241dc95de31ace5004b6c7973607d8",
           "source_span": null,
@@ -1327,17 +1247,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D007",
-            "source_hash": "sha256:2ba3028382b89ee70810a45e25dd9707297bd65512e2723f4f9bda514af57203",
-            "source_span": "Tenancies under California law",
-            "text": "Tenancies under California law",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D007",
           "source_hash": "sha256:2ba3028382b89ee70810a45e25dd9707297bd65512e2723f4f9bda514af57203",
           "source_span": null,
@@ -1386,17 +1297,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D065",
-            "source_hash": "sha256:c7d281ddae183438fd360bfa0b4824d6541c532efe6ae8123dad37e0f4d53e1e",
-            "source_span": "Rental dwelling units offered by a housing provider",
-            "text": "Rental dwelling units offered by a housing provider",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D065",
           "source_hash": "sha256:c7d281ddae183438fd360bfa0b4824d6541c532efe6ae8123dad37e0f4d53e1e",
           "source_span": null,
@@ -1553,17 +1455,8 @@
         {
           "clause_id": "x10",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x10",
-            "origin": "exemption",
-            "source_doc_id": "D040",
-            "source_hash": "sha256:13f9d54597199b73e23ad12dcc38626d53bb30bd53d89a63b6a7f55ecc570425",
-            "source_span": "Units subject to the City's RSO are also not covered",
-            "text": "Units subject to the City's RSO are also not covered",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D040",
           "source_hash": "sha256:13f9d54597199b73e23ad12dcc38626d53bb30bd53d89a63b6a7f55ecc570425",
           "source_span": null,
@@ -1600,17 +1493,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D022",
-            "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
-            "source_span": "Applies to any 'person' (as defined in Bus",
-            "text": "Applies to any 'person' (as defined in Bus",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D022",
           "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
           "source_span": null,
@@ -1629,17 +1513,8 @@
         {
           "clause_id": "c3",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c3",
-            "origin": "coverage",
-            "source_doc_id": "D022",
-            "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
-            "source_span": "excluding the end consumer",
-            "text": "Code § 16702), excluding the end consumer",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D022",
           "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
           "source_span": null,
@@ -1648,17 +1523,8 @@
         {
           "clause_id": "c4",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c4",
-            "origin": "coverage",
-            "source_doc_id": "D022",
-            "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
-            "source_span": "'Common pricing algorithm' means any methodology, including software, used by two or more persons that uses competitor data to recommend, align, stabilize, set, or otherwise influence a price or commercial term",
-            "text": "'Common pricing algorithm' means any methodology, including software, used by two or more persons that uses competitor data to recommend, align, stabilize, set, or otherwise influence a price or commercial term",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D022",
           "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
           "source_span": null,
@@ -1667,17 +1533,8 @@
         {
           "clause_id": "c5",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c5",
-            "origin": "coverage",
-            "source_doc_id": "D022",
-            "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
-            "source_span": "Commercial terms include level of service, availability",
-            "text": "Commercial terms include level of service, availability",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D022",
           "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
           "source_span": null,
@@ -1696,17 +1553,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D022",
-            "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
-            "source_span": "End consumers of a product",
-            "text": "End consumers of a product",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D022",
           "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
           "source_span": null,
@@ -1715,17 +1563,8 @@
         {
           "clause_id": "x2",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x2",
-            "origin": "exemption",
-            "source_doc_id": "D022",
-            "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
-            "source_span": "service are not 'persons' under the section",
-            "text": "service are not 'persons' under the section",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D022",
           "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
           "source_span": null,
@@ -1762,17 +1601,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D052",
-            "source_hash": "sha256:f24c21cb2b32330c0f2f112f066d02b784887a8552cc3777ea96f1d53dd0171f",
-            "source_span": "Landlords or agents who fail to comply with subsection 6 clauses (a), (d) or (e)",
-            "text": "Landlords or agents who fail to comply with subsection 6 clauses (a), (d) or (e)",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D052",
           "source_hash": "sha256:f24c21cb2b32330c0f2f112f066d02b784887a8552cc3777ea96f1d53dd0171f",
           "source_span": null,
@@ -1809,17 +1639,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D076",
-            "source_hash": "sha256:31b29a40becda1c218d4f64aedcb56a44241857b0f5d8b451c7b20b5737edc1e",
-            "source_span": "Applies to landlords (as defined in SDMC § 98.0702) of residential rental property in the City of San Diego",
-            "text": "Applies to landlords (as defined in SDMC § 98.0702) of residential rental property in the City of San Diego",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D076",
           "source_hash": "sha256:31b29a40becda1c218d4f64aedcb56a44241857b0f5d8b451c7b20b5737edc1e",
           "source_span": null,
@@ -1828,17 +1649,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D076",
-            "source_hash": "sha256:31b29a40becda1c218d4f64aedcb56a44241857b0f5d8b451c7b20b5737edc1e",
-            "source_span": "Excludes software that publishes reports from aggregated historical nonpublic competitor data more than 90 days old",
-            "text": "Excludes software that publishes reports from aggregated historical nonpublic competitor data more than 90 days old",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D076",
           "source_hash": "sha256:31b29a40becda1c218d4f64aedcb56a44241857b0f5d8b451c7b20b5737edc1e",
           "source_span": null,
@@ -1847,17 +1659,8 @@
         {
           "clause_id": "x2",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x2",
-            "origin": "exemption",
-            "source_doc_id": "D076",
-            "source_hash": "sha256:31b29a40becda1c218d4f64aedcb56a44241857b0f5d8b451c7b20b5737edc1e",
-            "source_span": "from public information and does not recommend rates for future leases",
-            "text": "from public information and does not recommend rates for future leases",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D076",
           "source_hash": "sha256:31b29a40becda1c218d4f64aedcb56a44241857b0f5d8b451c7b20b5737edc1e",
           "source_span": null,
@@ -1876,17 +1679,8 @@
         {
           "clause_id": "x4",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x4",
-            "origin": "exemption",
-            "source_doc_id": "D076",
-            "source_hash": "sha256:31b29a40becda1c218d4f64aedcb56a44241857b0f5d8b451c7b20b5737edc1e",
-            "source_span": "also excludes software used to set rents",
-            "text": "also excludes software used to set rents",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D076",
           "source_hash": "sha256:31b29a40becda1c218d4f64aedcb56a44241857b0f5d8b451c7b20b5737edc1e",
           "source_span": null,
@@ -1905,19 +1699,10 @@
         {
           "clause_id": "",
           "origin": "interaction",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "",
-            "origin": "interaction",
-            "source_doc_id": "D076",
-            "source_hash": "sha256:31b29a40becda1c218d4f64aedcb56a44241857b0f5d8b451c7b20b5737edc1e",
-            "source_span": "Remedies are cumulative with other remedies at law, statute, or ordinance.",
-            "text": "Remedies are cumulative with other remedies at law, statute, or ordinance. Takes effect on the thirtieth day after final passage; the document is an unadopted draft with blank passage date.",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
-          "source_doc_id": "D076",
-          "source_hash": "sha256:31b29a40becda1c218d4f64aedcb56a44241857b0f5d8b451c7b20b5737edc1e",
+          "proposal": null,
+          "reason": "states an interaction but no rule in this run governs the same issue on the other side of it",
+          "source_doc_id": null,
+          "source_hash": null,
           "source_span": null,
           "text": "Remedies are cumulative with other remedies at law, statute, or ordinance. Takes effect on the thirtieth day after final passage; the document is an unadopted draft with blank passage date."
         }
@@ -1952,17 +1737,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D052",
-            "source_hash": "sha256:f24c21cb2b32330c0f2f112f066d02b784887a8552cc3777ea96f1d53dd0171f",
-            "source_span": "Any lessor of residential real property, or agent, who accepts a security deposit",
-            "text": "Any lessor of residential real property, or agent, who accepts a security deposit",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D052",
           "source_hash": "sha256:f24c21cb2b32330c0f2f112f066d02b784887a8552cc3777ea96f1d53dd0171f",
           "source_span": null,
@@ -2019,17 +1795,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D079",
-            "source_hash": "sha256:51f9490227bafc8a6f458c7e417f41bce3af07c1416fae77f281b987d97ef793",
-            "source_span": "tenancies eligible for a rent increase under the Costa-Hawkins Rental Housing Act",
-            "text": "tenancies eligible for a rent increase under the Costa-Hawkins Rental Housing Act",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D079",
           "source_hash": "sha256:51f9490227bafc8a6f458c7e417f41bce3af07c1416fae77f281b987d97ef793",
           "source_span": null,
@@ -2076,17 +1843,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D006",
-            "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
-            "source_span": "Owner move-in evictions from units covered by the Berkeley Rent Ordinance",
-            "text": "Owner move-in evictions from units covered by the Berkeley Rent Ordinance",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D006",
           "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
           "source_span": null,
@@ -2123,17 +1881,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D067",
-            "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
-            "source_span": "Prospective residential tenants",
-            "text": "Prospective residential tenants",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D067",
           "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
           "source_span": null,
@@ -2172,17 +1921,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D025",
-            "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
-            "source_span": "Security for a rental agreement for residential property used as the tenant's dwelling",
-            "text": "Security for a rental agreement for residential property used as the tenant's dwelling",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D025",
           "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
           "source_span": null,
@@ -2279,29 +2019,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [
-              {
-                "clause_id": "c1",
-                "field": "certificate_of_occupancy_date",
-                "id": "a1",
-                "op": "lte",
-                "origin": "coverage",
-                "source_doc_id": "D041",
-                "source_hash": "sha256:4d8837313d514bde68624c37ab37622dd950c542bdc74942702641519eae3ece",
-                "source_span": "first built on or before October 1, 1978",
-                "value": "1978-10-01"
-              }
-            ],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D041",
-            "source_hash": "sha256:4d8837313d514bde68624c37ab37622dd950c542bdc74942702641519eae3ece",
-            "source_span": "Rental properties first built on or before October 1, 1978",
-            "text": "Rental properties first built on or before October 1, 1978, plus replacement units under LAMC 151.28",
-            "verdict": "condition"
-          },
-          "reason": "AI interpretation needs human review or complete simple verification",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D041",
           "source_hash": "sha256:4d8837313d514bde68624c37ab37622dd950c542bdc74942702641519eae3ece",
           "source_span": null,
@@ -2410,17 +2129,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D025",
-            "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
-            "source_span": "Service member (Military and Veterans Code § 400) renting residential property in which the service member will reside",
-            "text": "Service member (Military and Veterans Code § 400) renting residential property in which the service member will reside",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D025",
           "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
           "source_span": null,
@@ -2429,17 +2139,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D025",
-            "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
-            "source_span": "applies on or after 2025-04-01",
-            "text": "applies on or after 2025-04-01",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D025",
           "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
           "source_span": null,
@@ -2486,17 +2187,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D067",
-            "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
-            "source_span": "Local rent control or rent leveling ordinances apply where municipalities have adopted them",
-            "text": "Local rent control or rent leveling ordinances apply where municipalities have adopted them",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D067",
           "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
           "source_span": null,
@@ -2553,17 +2245,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D006",
-            "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
-            "source_span": "Fully or partially covered units under the Berkeley Rent Ordinance",
-            "text": "Fully or partially covered units under the Berkeley Rent Ordinance",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D006",
           "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
           "source_span": null,
@@ -2788,17 +2471,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D025",
-            "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
-            "source_span": "Security for a rental agreement for residential property used as the tenant's dwelling",
-            "text": "Security for a rental agreement for residential property used as the tenant's dwelling",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D025",
           "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
           "source_span": null,
@@ -2807,17 +2481,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D025",
-            "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
-            "source_span": "Documentation requirements need not be met if deductions for repairs and cleaning do not exceed $125",
-            "text": "Documentation requirements need not be met if deductions for repairs and cleaning do not exceed $125",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D025",
           "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
           "source_span": null,
@@ -2826,17 +2491,8 @@
         {
           "clause_id": "x2",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x2",
-            "origin": "exemption",
-            "source_doc_id": "D025",
-            "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
-            "source_span": "the tenant validly waived them",
-            "text": "the tenant validly waived them",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D025",
           "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
           "source_span": null,
@@ -2845,17 +2501,8 @@
         {
           "clause_id": "x3",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x3",
-            "origin": "exemption",
-            "source_doc_id": "D025",
-            "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
-            "source_span": "a landlord may use good-faith estimates when work",
-            "text": "a landlord may use good-faith estimates when work",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D025",
           "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
           "source_span": null,
@@ -2864,17 +2511,8 @@
         {
           "clause_id": "x4",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x4",
-            "origin": "exemption",
-            "source_doc_id": "D025",
-            "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
-            "source_span": "documents cannot be completed within 21 days",
-            "text": "documents cannot be completed within 21 days",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D025",
           "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
           "source_span": null,
@@ -2918,17 +2556,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D027",
-            "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
-            "source_span": "Rental of housing",
-            "text": "Rental of housing",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D027",
           "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
           "source_span": null,
@@ -2937,17 +2566,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D027",
-            "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
-            "source_span": "applies to persons residing or proposing to reside together",
-            "text": "applies to persons residing or proposing to reside together",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D027",
           "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
           "source_span": null,
@@ -3098,17 +2718,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D042",
-            "source_hash": "sha256:21a8e44f111659923f120ad5543bf46611e1b2dd5af0087cc16f98de479cd262",
-            "source_span": "Rental units subject to the City of Los Angeles Rent Stabilization Ordinance (RSO)",
-            "text": "Rental units subject to the City of Los Angeles Rent Stabilization Ordinance (RSO)",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D042",
           "source_hash": "sha256:21a8e44f111659923f120ad5543bf46611e1b2dd5af0087cc16f98de479cd262",
           "source_span": null,
@@ -3117,17 +2728,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D042",
-            "source_hash": "sha256:21a8e44f111659923f120ad5543bf46611e1b2dd5af0087cc16f98de479cd262",
-            "source_span": "The page does not state year-built or certificate-of-occupancy cutoffs",
-            "text": "The page does not state year-built or certificate-of-occupancy cutoffs",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D042",
           "source_hash": "sha256:21a8e44f111659923f120ad5543bf46611e1b2dd5af0087cc16f98de479cd262",
           "source_span": null,
@@ -3136,17 +2738,8 @@
         {
           "clause_id": "c3",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c3",
-            "origin": "coverage",
-            "source_doc_id": "D042",
-            "source_hash": "sha256:21a8e44f111659923f120ad5543bf46611e1b2dd5af0087cc16f98de479cd262",
-            "source_span": "it refers users to ZIMAS to check whether a unit is covered",
-            "text": "it refers users to ZIMAS to check whether a unit is covered",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D042",
           "source_hash": "sha256:21a8e44f111659923f120ad5543bf46611e1b2dd5af0087cc16f98de479cd262",
           "source_span": null,
@@ -3155,17 +2748,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D042",
-            "source_hash": "sha256:21a8e44f111659923f120ad5543bf46611e1b2dd5af0087cc16f98de479cd262",
-            "source_span": "Non-RSO properties are not covered by this figure",
-            "text": "Non-RSO properties are not covered by this figure",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D042",
           "source_hash": "sha256:21a8e44f111659923f120ad5543bf46611e1b2dd5af0087cc16f98de479cd262",
           "source_span": null,
@@ -3174,17 +2758,8 @@
         {
           "clause_id": "x2",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x2",
-            "origin": "exemption",
-            "source_doc_id": "D042",
-            "source_hash": "sha256:21a8e44f111659923f120ad5543bf46611e1b2dd5af0087cc16f98de479cd262",
-            "source_span": "The page only refers users to the Housing Department for their allowable increases",
-            "text": "The page only refers users to the Housing Department for their allowable increases",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D042",
           "source_hash": "sha256:21a8e44f111659923f120ad5543bf46611e1b2dd5af0087cc16f98de479cd262",
           "source_span": null,
@@ -3221,17 +2796,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D029",
-            "source_hash": "sha256:ce40e4d452c15e43e1bb07e7f03f7bd2bd738b2da614d1d21b7826f7e581e01c",
-            "source_span": "Real estate transactions covered by the Cambridge Fair Housing Ordinance, including viewing or renting an apartment and terms and conditions of tenancy",
-            "text": "Real estate transactions covered by the Cambridge Fair Housing Ordinance, including viewing or renting an apartment and terms and conditions of tenancy",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D029",
           "source_hash": "sha256:ce40e4d452c15e43e1bb07e7f03f7bd2bd738b2da614d1d21b7826f7e581e01c",
           "source_span": null,
@@ -3285,17 +2851,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D023",
-            "source_hash": "sha256:fdd8d7fca42103cf630c3a9a4ed217150eb17a6e180edd80c1d845ca5e8aa1fe",
-            "source_span": "Applies to tenancies where just cause is required under subdivision (a) and the termination is for a no-fault just cause",
-            "text": "Applies to tenancies where just cause is required under subdivision (a) and the termination is for a no-fault just cause (owner move-in, withdrawal from rental market, government or court order to vacate, demolition or substantial remodel)",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D023",
           "source_hash": "sha256:fdd8d7fca42103cf630c3a9a4ed217150eb17a6e180edd80c1d845ca5e8aa1fe",
           "source_span": null,
@@ -3304,17 +2861,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D023",
-            "source_hash": "sha256:fdd8d7fca42103cf630c3a9a4ed217150eb17a6e180edd80c1d845ca5e8aa1fe",
-            "source_span": "No relocation assistance if a government agency",
-            "text": "No relocation assistance if a government agency",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D023",
           "source_hash": "sha256:fdd8d7fca42103cf630c3a9a4ed217150eb17a6e180edd80c1d845ca5e8aa1fe",
           "source_span": null,
@@ -3323,17 +2871,8 @@
         {
           "clause_id": "x2",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x2",
-            "origin": "exemption",
-            "source_doc_id": "D023",
-            "source_hash": "sha256:fdd8d7fca42103cf630c3a9a4ed217150eb17a6e180edd80c1d845ca5e8aa1fe",
-            "source_span": "court determines the tenant is at fault for the condition that triggered a vacate order",
-            "text": "court determines the tenant is at fault for the condition that triggered a vacate order",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D023",
           "source_hash": "sha256:fdd8d7fca42103cf630c3a9a4ed217150eb17a6e180edd80c1d845ca5e8aa1fe",
           "source_span": null,
@@ -3372,17 +2911,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D069",
-            "source_hash": "sha256:1fdbfb48743a46429c3f47dbd8d08c665739202361661e1a2f19b94bb0ec43a6",
-            "source_span": "Applies to any rental property owner (a person owning one or more rental residential dwelling units, directly or indirectly) and their agents, representatives or subcontractors",
-            "text": "Applies to any rental property owner (a person owning one or more rental residential dwelling units, directly or indirectly) and their agents, representatives or subcontractors",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D069",
           "source_hash": "sha256:1fdbfb48743a46429c3f47dbd8d08c665739202361661e1a2f19b94bb0ec43a6",
           "source_span": null,
@@ -3411,17 +2941,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D069",
-            "source_hash": "sha256:1fdbfb48743a46429c3f47dbd8d08c665739202361661e1a2f19b94bb0ec43a6",
-            "source_span": "Coordinating function excludes research/statistical/testing use not used to set",
-            "text": "Coordinating function excludes research/statistical/testing use not used to set",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D069",
           "source_hash": "sha256:1fdbfb48743a46429c3f47dbd8d08c665739202361661e1a2f19b94bb0ec43a6",
           "source_span": null,
@@ -3478,8 +2999,7 @@
       "legacy_review_state": "needs_review",
       "level": "city",
       "notes": [
-        "partial effective date 2017-02 needs source review",
-        "AI proposed no building-level condition in exemption: to current criminal behavior; awaiting review"
+        "partial effective date 2017-02 needs source review"
       ],
       "review_state": "needs_review",
       "rule_version_hash": "sha256:51754b20c6eee0b9a56613c26f69b42a5bb177015fd4afeb3efe81ba96581f5d",
@@ -3511,17 +3031,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D010",
-            "source_hash": "sha256:61380f45cb66d87065eb029b6f5ee54dc704a0d059acc6136477337ce5f0cb73",
-            "source_span": "Does not apply where there is a direct relationship between a conviction and the housing sought",
-            "text": "Does not apply where there is a direct relationship between a conviction and the housing sought and/",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D010",
           "source_hash": "sha256:61380f45cb66d87065eb029b6f5ee54dc704a0d059acc6136477337ce5f0cb73",
           "source_span": null,
@@ -3530,17 +3041,8 @@
         {
           "clause_id": "x2",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x2",
-            "origin": "exemption",
-            "source_doc_id": "D010",
-            "source_hash": "sha256:61380f45cb66d87065eb029b6f5ee54dc704a0d059acc6136477337ce5f0cb73",
-            "source_span": "an unreasonable risk of substantial harm to the safety of others",
-            "text": "an unreasonable risk of substantial harm to the safety of others",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D010",
           "source_hash": "sha256:61380f45cb66d87065eb029b6f5ee54dc704a0d059acc6136477337ce5f0cb73",
           "source_span": null,
@@ -3549,20 +3051,11 @@
         {
           "clause_id": "x3",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x3",
-            "origin": "exemption",
-            "source_doc_id": "D010",
-            "source_hash": "sha256:61380f45cb66d87065eb029b6f5ee54dc704a0d059acc6136477337ce5f0cb73",
-            "source_span": "to current criminal behavior",
-            "text": "to current criminal behavior",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D010",
           "source_hash": "sha256:61380f45cb66d87065eb029b6f5ee54dc704a0d059acc6136477337ce5f0cb73",
-          "source_span": "to current criminal behavior",
+          "source_span": " This guidance does not apply to current criminal behavior",
           "text": "to current criminal behavior"
         }
       ]
@@ -3598,17 +3091,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D008",
-            "source_hash": "sha256:969848595b70aa2ff7b9e8420f610c36b914521c4ea4dd1d0656be776e90c39f",
-            "source_span": "Eligible landlords under Rent Board Regulation 1148",
-            "text": "Eligible landlords under Rent Board Regulation 1148",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D008",
           "source_hash": "sha256:969848595b70aa2ff7b9e8420f610c36b914521c4ea4dd1d0656be776e90c39f",
           "source_span": null,
@@ -3694,17 +3178,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D005",
-            "source_hash": "sha256:396972b4e199efe65ff763eae53ed8a81d99e17ba900c39f16bfb44c16637bed",
-            "source_span": "Prospective tenants applying for residential rental units in Berkeley",
-            "text": "Prospective tenants applying for residential rental units in Berkeley",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D005",
           "source_hash": "sha256:396972b4e199efe65ff763eae53ed8a81d99e17ba900c39f16bfb44c16637bed",
           "source_span": null,
@@ -3713,17 +3188,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D005",
-            "source_hash": "sha256:396972b4e199efe65ff763eae53ed8a81d99e17ba900c39f16bfb44c16637bed",
-            "source_span": "landlords charging a fee for a consumer credit report and application processing",
-            "text": "landlords charging a fee for a consumer credit report and application processing",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D005",
           "source_hash": "sha256:396972b4e199efe65ff763eae53ed8a81d99e17ba900c39f16bfb44c16637bed",
           "source_span": null,
@@ -3760,17 +3226,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D048",
-            "source_hash": "sha256:090647f489ec5f03c114df23b74c28a107a7e0b855e382969c27dbf58a55837d",
-            "source_span": "Applies to all cities and towns",
-            "text": "Applies to all cities and towns",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D048",
           "source_hash": "sha256:090647f489ec5f03c114df23b74c28a107a7e0b855e382969c27dbf58a55837d",
           "source_span": null,
@@ -3779,17 +3236,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D048",
-            "source_hash": "sha256:090647f489ec5f03c114df23b74c28a107a7e0b855e382969c27dbf58a55837d",
-            "source_span": "The exception applies only to a city or town that accepts chapter 40P",
-            "text": "The exception applies only to a city or town that accepts chapter 40P",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D048",
           "source_hash": "sha256:090647f489ec5f03c114df23b74c28a107a7e0b855e382969c27dbf58a55837d",
           "source_span": null,
@@ -3818,17 +3266,8 @@
         {
           "clause_id": "x2",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x2",
-            "origin": "exemption",
-            "source_doc_id": "D048",
-            "source_hash": "sha256:090647f489ec5f03c114df23b74c28a107a7e0b855e382969c27dbf58a55837d",
-            "source_span": "town that accepts this chapter may adopt rent control regulation that meets the conditions in (a)-(c)",
-            "text": "town that accepts this chapter may adopt rent control regulation that meets the conditions in (a)-(c)",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D048",
           "source_hash": "sha256:090647f489ec5f03c114df23b74c28a107a7e0b855e382969c27dbf58a55837d",
           "source_span": null,
@@ -3847,17 +3286,8 @@
         {
           "clause_id": "x4",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x4",
-            "origin": "exemption",
-            "source_doc_id": "D048",
-            "source_hash": "sha256:090647f489ec5f03c114df23b74c28a107a7e0b855e382969c27dbf58a55837d",
-            "source_span": "The regulation may not cover occupancy, services, evictions, condominium conversion or removal of properties from regulation",
-            "text": "The regulation may not cover occupancy, services, evictions, condominium conversion or removal of properties from regulation",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D048",
           "source_hash": "sha256:090647f489ec5f03c114df23b74c28a107a7e0b855e382969c27dbf58a55837d",
           "source_span": null,
@@ -3866,19 +3296,10 @@
         {
           "clause_id": "",
           "origin": "interaction",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "",
-            "origin": "interaction",
-            "source_doc_id": "D048",
-            "source_hash": "sha256:090647f489ec5f03c114df23b74c28a107a7e0b855e382969c27dbf58a55837d",
-            "source_span": "Preempts local rent control ordinances.",
-            "text": "Preempts local rent control ordinances. The permitted local regulation is limited to the voluntary, compensated form in (a)-(c) and cannot regulate evictions.",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
-          "source_doc_id": "D048",
-          "source_hash": "sha256:090647f489ec5f03c114df23b74c28a107a7e0b855e382969c27dbf58a55837d",
+          "proposal": null,
+          "reason": "states an interaction but no rule in this run governs the same issue on the other side of it",
+          "source_doc_id": null,
+          "source_hash": null,
           "source_span": null,
           "text": "Preempts local rent control ordinances. The permitted local regulation is limited to the voluntary, compensated form in (a)-(c) and cannot regulate evictions."
         }
@@ -3915,17 +3336,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D073",
-            "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
-            "source_span": "Tenancies terminated for no-fault just cause under § 98.0704(b) in residential rental property subject to the Division",
-            "text": "Tenancies terminated for no-fault just cause under § 98.0704(b) in residential rental property subject to the Division",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D073",
           "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
           "source_span": null,
@@ -4124,39 +3536,8 @@
         {
           "clause_id": "x12",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [
-              {
-                "clause_id": "x12",
-                "field": "units",
-                "id": "a1",
-                "op": "eq",
-                "origin": "exemption",
-                "source_doc_id": "D073",
-                "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
-                "source_span": "duplexes",
-                "value": 2
-              },
-              {
-                "clause_id": "x12",
-                "field": "owner_occupied",
-                "id": "a2",
-                "op": "is_true",
-                "origin": "exemption",
-                "source_doc_id": "D073",
-                "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
-                "source_span": "the landlord occupies one unit"
-              }
-            ],
-            "clause_id": "x12",
-            "origin": "exemption",
-            "source_doc_id": "D073",
-            "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
-            "source_span": "duplexes where the landlord occupies one unit",
-            "text": "duplexes where the landlord occupies one unit",
-            "verdict": "condition"
-          },
-          "reason": "AI interpretation needs human review or complete simple verification",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D073",
           "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
           "source_span": null,
@@ -4340,39 +3721,8 @@
         {
           "clause_id": "x9",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [
-              {
-                "clause_id": "x9",
-                "field": "units",
-                "id": "a1",
-                "op": "eq",
-                "origin": "exemption",
-                "source_doc_id": "D023",
-                "source_hash": "sha256:fdd8d7fca42103cf630c3a9a4ed217150eb17a6e180edd80c1d845ca5e8aa1fe",
-                "source_span": "a duplex",
-                "value": 2
-              },
-              {
-                "clause_id": "x9",
-                "field": "owner_occupied",
-                "id": "a2",
-                "op": "is_true",
-                "origin": "exemption",
-                "source_doc_id": "D023",
-                "source_hash": "sha256:fdd8d7fca42103cf630c3a9a4ed217150eb17a6e180edd80c1d845ca5e8aa1fe",
-                "source_span": "the owner occupies one unit"
-              }
-            ],
-            "clause_id": "x9",
-            "origin": "exemption",
-            "source_doc_id": "D023",
-            "source_hash": "sha256:fdd8d7fca42103cf630c3a9a4ed217150eb17a6e180edd80c1d845ca5e8aa1fe",
-            "source_span": "a duplex where the owner occupies one unit",
-            "text": "a duplex where the owner occupies one unit",
-            "verdict": "condition"
-          },
-          "reason": "AI interpretation needs human review or complete simple verification",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D023",
           "source_hash": "sha256:fdd8d7fca42103cf630c3a9a4ed217150eb17a6e180edd80c1d845ca5e8aa1fe",
           "source_span": null,
@@ -4466,17 +3816,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D024",
-            "source_hash": "sha256:eb9c42af2b9a5c220ca37816f409f0bd3ea92a002a973283e779fdb72de18bd7",
-            "source_span": "Applies to residential real property (any dwelling or unit intended for human habitation, including units in a mobilehome park), except exempt property",
-            "text": "Applies to residential real property (any dwelling or unit intended for human habitation, including units in a mobilehome park), except exempt property",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D024",
           "source_hash": "sha256:eb9c42af2b9a5c220ca37816f409f0bd3ea92a002a973283e779fdb72de18bd7",
           "source_span": null,
@@ -4635,17 +3976,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D073",
-            "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
-            "source_span": "Residential rental property subject to the Division (see exemptions in § 98.0703)",
-            "text": "Residential rental property subject to the Division (see exemptions in § 98.0703)",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D073",
           "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
           "source_span": null,
@@ -4654,17 +3986,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D073",
-            "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
-            "source_span": "Properties exempt under § 98.0703",
-            "text": "Properties exempt under § 98.0703",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D073",
           "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
           "source_span": null,
@@ -4771,28 +4094,8 @@
         {
           "clause_id": "c8",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [
-              {
-                "clause_id": "c8",
-                "field": "building_is_subsidised",
-                "id": "a1",
-                "op": "is_true",
-                "origin": "coverage",
-                "source_doc_id": "D009",
-                "source_hash": "sha256:bddd7d3ab24d2717a0393cf879bad9a849af3aa10dd2e426bc9da34dcd19c5e3",
-                "source_span": "Rental Supplement/Section 8 projects with HUD-insured or HUD-held mortgages"
-              }
-            ],
-            "clause_id": "c8",
-            "origin": "coverage",
-            "source_doc_id": "D009",
-            "source_hash": "sha256:bddd7d3ab24d2717a0393cf879bad9a849af3aa10dd2e426bc9da34dcd19c5e3",
-            "source_span": "Rental Supplement/Section 8 projects with HUD-insured or HUD-held mortgages)",
-            "text": "Rental Supplement/Section 8 projects with HUD-insured or HUD-held mortgages)",
-            "verdict": "condition"
-          },
-          "reason": "AI interpretation needs human review or complete simple verification",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D009",
           "source_hash": "sha256:bddd7d3ab24d2717a0393cf879bad9a849af3aa10dd2e426bc9da34dcd19c5e3",
           "source_span": null,
@@ -4889,17 +4192,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D001",
-            "source_hash": "sha256:7f24d692c68f42ed2ab11a2d1f8e060a951f8cf6a3974b4e8090e63081ad6f17",
-            "source_span": "Applies to any coordinated pricing algorithm",
-            "text": "Applies to any coordinated pricing algorithm, meaning a process that uses nonpublic Competitor Data (less than 90 days old) to recommend rents, fees, occupancy rates or other lease terms for future leases, in coordination between a Berkeley landlord and its competitors, including through a third-party vendor",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D001",
           "source_hash": "sha256:7f24d692c68f42ed2ab11a2d1f8e060a951f8cf6a3974b4e8090e63081ad6f17",
           "source_span": null,
@@ -4908,17 +4202,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D001",
-            "source_hash": "sha256:7f24d692c68f42ed2ab11a2d1f8e060a951f8cf6a3974b4e8090e63081ad6f17",
-            "source_span": "Covers residential dwelling units in Berkeley",
-            "text": "Covers residential dwelling units in Berkeley",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D001",
           "source_hash": "sha256:7f24d692c68f42ed2ab11a2d1f8e060a951f8cf6a3974b4e8090e63081ad6f17",
           "source_span": null,
@@ -5061,17 +4346,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D067",
-            "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
-            "source_span": "Most residential rental properties, including mobile homes",
-            "text": "Most residential rental properties, including mobile homes",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D067",
           "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
           "source_span": null,
@@ -5168,17 +4444,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D052",
-            "source_hash": "sha256:f24c21cb2b32330c0f2f112f066d02b784887a8552cc3777ea96f1d53dd0171f",
-            "source_span": "Any security deposit received by a lessor of residential real property",
-            "text": "Any security deposit received by a lessor of residential real property",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D052",
           "source_hash": "sha256:f24c21cb2b32330c0f2f112f066d02b784887a8552cc3777ea96f1d53dd0171f",
           "source_span": null,
@@ -5225,17 +4492,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D006",
-            "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
-            "source_span": "Fully or partially covered units under the Berkeley Rent Ordinance",
-            "text": "Fully or partially covered units under the Berkeley Rent Ordinance",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D006",
           "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
           "source_span": null,
@@ -5274,17 +4532,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D073",
-            "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
-            "source_span": "Substantial remodel means replacing or substantially modifying structural, electrical, plumbing or mechanical systems requiring a permit, or abating hazardous materials",
-            "text": "Substantial remodel means replacing or substantially modifying structural, electrical, plumbing or mechanical systems requiring a permit, or abating hazardous materials",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D073",
           "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
           "source_span": null,
@@ -5293,17 +4542,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D073",
-            "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
-            "source_span": "Cosmetic work does not qualify",
-            "text": "Cosmetic work does not qualify",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D073",
           "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
           "source_span": null,
@@ -5312,17 +4552,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D073",
-            "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
-            "source_span": "Properties exempt under § 98.0703",
-            "text": "Properties exempt under § 98.0703",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D073",
           "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
           "source_span": null,
@@ -5366,28 +4597,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [
-              {
-                "clause_id": "c1",
-                "field": "building_is_subsidised",
-                "id": "a1",
-                "op": "is_true",
-                "origin": "coverage",
-                "source_doc_id": "D027",
-                "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
-                "source_span": "government rent subsidy is in place"
-              }
-            ],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D027",
-            "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
-            "source_span": "Rental applications where a government rent subsidy is in place",
-            "text": "Rental applications where a government rent subsidy is in place",
-            "verdict": "condition"
-          },
-          "reason": "AI interpretation needs human review or complete simple verification",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D027",
           "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
           "source_span": null,
@@ -5396,17 +4607,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D027",
-            "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
-            "source_span": "Does not limit an owner's ability to verify employment, request landlord references",
-            "text": "Does not limit an owner's ability to verify employment, request landlord references",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D027",
           "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
           "source_span": null,
@@ -5543,17 +4745,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D003",
-            "source_hash": "sha256:a008c846fc4edd842994d8c5ea0367546e55319670e9687c5d1c7ccfdfa1ce40",
-            "source_span": "Rental housing providers in Berkeley with respect to current and prospective tenants and applicants",
-            "text": "Rental housing providers in Berkeley with respect to current and prospective tenants and applicants",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D003",
           "source_hash": "sha256:a008c846fc4edd842994d8c5ea0367546e55319670e9687c5d1c7ccfdfa1ce40",
           "source_span": null,
@@ -5650,17 +4843,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D067",
-            "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
-            "source_span": "Most residential rental properties",
-            "text": "Most residential rental properties",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D067",
           "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
           "source_span": null,
@@ -5707,17 +4891,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D007",
-            "source_hash": "sha256:2ba3028382b89ee70810a45e25dd9707297bd65512e2723f4f9bda514af57203",
-            "source_span": "Tenancies in units fully or partially covered by Berkeley's Rent Ordinance",
-            "text": "Tenancies in units fully or partially covered by Berkeley's Rent Ordinance",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D007",
           "source_hash": "sha256:2ba3028382b89ee70810a45e25dd9707297bd65512e2723f4f9bda514af57203",
           "source_span": null,
@@ -5764,17 +4939,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D041",
-            "source_hash": "sha256:4d8837313d514bde68624c37ab37622dd950c542bdc74942702641519eae3ece",
-            "source_span": "Eviction notices must be filed with LAHD within three business days of service",
-            "text": "Eviction notices must be filed with LAHD within three business days of service",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D041",
           "source_hash": "sha256:4d8837313d514bde68624c37ab37622dd950c542bdc74942702641519eae3ece",
           "source_span": null,
@@ -5813,17 +4979,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D065",
-            "source_hash": "sha256:c7d281ddae183438fd360bfa0b4824d6541c532efe6ae8123dad37e0f4d53e1e",
-            "source_span": "Rental dwelling units offered by a housing provider",
-            "text": "Rental dwelling units offered by a housing provider",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D065",
           "source_hash": "sha256:c7d281ddae183438fd360bfa0b4824d6541c532efe6ae8123dad37e0f4d53e1e",
           "source_span": null,
@@ -5870,17 +5027,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D049",
-            "source_hash": "sha256:ac42593c79533c25223582de77eb5411d2f8ef501a0d027d2a61042b7e81d7ef",
-            "source_span": "Applies to any person furnishing credit, services or rental accommodations",
-            "text": "Applies to any person furnishing credit, services or rental accommodations",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D049",
           "source_hash": "sha256:ac42593c79533c25223582de77eb5411d2f8ef501a0d027d2a61042b7e81d7ef",
           "source_span": null,
@@ -5927,17 +5075,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D067",
-            "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
-            "source_span": "All landlord-tenant relationships",
-            "text": "All landlord-tenant relationships",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D067",
           "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
           "source_span": null,
@@ -6016,17 +5155,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D073",
-            "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
-            "source_span": "Properties exempt under § 98.0703",
-            "text": "Properties exempt under § 98.0703",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D073",
           "source_hash": "sha256:d1d4b9874a7c4b51a97cb81809e9ece2658f0f9e52898d904f90d48f3c1a140b",
           "source_span": null,
@@ -6063,17 +5193,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D079",
-            "source_hash": "sha256:51f9490227bafc8a6f458c7e417f41bce3af07c1416fae77f281b987d97ef793",
-            "source_span": "Housing services including garage facilities, parking facilities, driveways, storage spaces",
-            "text": "Housing services including garage facilities, parking facilities, driveways, storage spaces",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D079",
           "source_hash": "sha256:51f9490227bafc8a6f458c7e417f41bce3af07c1416fae77f281b987d97ef793",
           "source_span": null,
@@ -6082,17 +5203,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D079",
-            "source_hash": "sha256:51f9490227bafc8a6f458c7e417f41bce3af07c1416fae77f281b987d97ef793",
-            "source_span": "laundry rooms in units covered by the Rent Ordinance",
-            "text": "laundry rooms in units covered by the Rent Ordinance",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D079",
           "source_hash": "sha256:51f9490227bafc8a6f458c7e417f41bce3af07c1416fae77f281b987d97ef793",
           "source_span": null,
@@ -6101,17 +5213,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D079",
-            "source_hash": "sha256:51f9490227bafc8a6f458c7e417f41bce3af07c1416fae77f281b987d97ef793",
-            "source_span": "Temporary removal of services such as parking and storage for mandatory soft-story seismic retrofit work, where the landlord has complied with Ordinance Section 37.2(r)",
-            "text": "Temporary removal of services such as parking and storage for mandatory soft-story seismic retrofit work, where the landlord has complied with Ordinance Section 37.2(r)",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D079",
           "source_hash": "sha256:51f9490227bafc8a6f458c7e417f41bce3af07c1416fae77f281b987d97ef793",
           "source_span": null,
@@ -6165,17 +5268,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D052",
-            "source_hash": "sha256:f24c21cb2b32330c0f2f112f066d02b784887a8552cc3777ea96f1d53dd0171f",
-            "source_span": "Leases, rentals, occupancies",
-            "text": "Leases, rentals, occupancies",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D052",
           "source_hash": "sha256:f24c21cb2b32330c0f2f112f066d02b784887a8552cc3777ea96f1d53dd0171f",
           "source_span": null,
@@ -6232,17 +5326,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D067",
-            "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
-            "source_span": "Most residential rental properties",
-            "text": "Most residential rental properties",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D067",
           "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
           "source_span": null,
@@ -6309,17 +5394,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D012",
-            "source_hash": "sha256:aaed5c3d1e3aacb57a1f9a8fa9e855ecaa857bdbedc3d7b99a1992e7fc0aed0f",
-            "source_span": "Applies to renting, buying, selling, or financing housing in the City of Boston",
-            "text": "Applies to renting, buying, selling, or financing housing in the City of Boston",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D012",
           "source_hash": "sha256:aaed5c3d1e3aacb57a1f9a8fa9e855ecaa857bdbedc3d7b99a1992e7fc0aed0f",
           "source_span": null,
@@ -6328,17 +5404,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D012",
-            "source_hash": "sha256:aaed5c3d1e3aacb57a1f9a8fa9e855ecaa857bdbedc3d7b99a1992e7fc0aed0f",
-            "source_span": "The page does not state unit-count, year-built, or owner-type limits",
-            "text": "The page does not state unit-count, year-built, or owner-type limits",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D012",
           "source_hash": "sha256:aaed5c3d1e3aacb57a1f9a8fa9e855ecaa857bdbedc3d7b99a1992e7fc0aed0f",
           "source_span": null,
@@ -6377,17 +5444,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D065",
-            "source_hash": "sha256:c7d281ddae183438fd360bfa0b4824d6541c532efe6ae8123dad37e0f4d53e1e",
-            "source_span": "Rental dwelling units offered by a housing provider",
-            "text": "Rental dwelling units offered by a housing provider",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D065",
           "source_hash": "sha256:c7d281ddae183438fd360bfa0b4824d6541c532efe6ae8123dad37e0f4d53e1e",
           "source_span": null,
@@ -6434,17 +5492,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D025",
-            "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
-            "source_span": "Security for a rental agreement for residential property used as the tenant's dwelling",
-            "text": "Security for a rental agreement for residential property used as the tenant's dwelling",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D025",
           "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
           "source_span": null,
@@ -6483,17 +5532,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D065",
-            "source_hash": "sha256:c7d281ddae183438fd360bfa0b4824d6541c532efe6ae8123dad37e0f4d53e1e",
-            "source_span": "Rental dwelling units offered for rent by a housing provider",
-            "text": "Rental dwelling units offered for rent by a housing provider",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D065",
           "source_hash": "sha256:c7d281ddae183438fd360bfa0b4824d6541c532efe6ae8123dad37e0f4d53e1e",
           "source_span": null,
@@ -6502,17 +5542,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D065",
-            "source_hash": "sha256:c7d281ddae183438fd360bfa0b4824d6541c532efe6ae8123dad37e0f4d53e1e",
-            "source_span": "applies to all housing providers (landlords, owners, lessors, agents)",
-            "text": "applies to all housing providers (landlords, owners, lessors, agents)",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D065",
           "source_hash": "sha256:c7d281ddae183438fd360bfa0b4824d6541c532efe6ae8123dad37e0f4d53e1e",
           "source_span": null,
@@ -6569,17 +5600,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D076",
-            "source_hash": "sha256:31b29a40becda1c218d4f64aedcb56a44241857b0f5d8b451c7b20b5737edc1e",
-            "source_span": "Applies to any person selling, licensing or providing an 'algorithmic device' to a landlord for residential rental property in the City of San Diego",
-            "text": "Applies to any person selling, licensing or providing an 'algorithmic device' to a landlord for residential rental property in the City of San Diego",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D076",
           "source_hash": "sha256:31b29a40becda1c218d4f64aedcb56a44241857b0f5d8b451c7b20b5737edc1e",
           "source_span": null,
@@ -6720,17 +5742,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D023",
-            "source_hash": "sha256:fdd8d7fca42103cf630c3a9a4ed217150eb17a6e180edd80c1d845ca5e8aa1fe",
-            "source_span": "Applies to covered tenancies where termination is based on a curable lease violation",
-            "text": "Applies to covered tenancies where termination is based on a curable lease violation",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D023",
           "source_hash": "sha256:fdd8d7fca42103cf630c3a9a4ed217150eb17a6e180edd80c1d845ca5e8aa1fe",
           "source_span": null,
@@ -6767,17 +5780,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D006",
-            "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
-            "source_span": "Units fully or partially covered by the Berkeley Rent Ordinance",
-            "text": "Units fully or partially covered by the Berkeley Rent Ordinance",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D006",
           "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
           "source_span": null,
@@ -6851,17 +5855,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D040",
-            "source_hash": "sha256:13f9d54597199b73e23ad12dcc38626d53bb30bd53d89a63b6a7f55ecc570425",
-            "source_span": "All RSO and JCO rental units in the City of Los Angeles",
-            "text": "All RSO and JCO rental units in the City of Los Angeles",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D040",
           "source_hash": "sha256:13f9d54597199b73e23ad12dcc38626d53bb30bd53d89a63b6a7f55ecc570425",
           "source_span": null,
@@ -6950,17 +5945,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D043",
-            "source_hash": "sha256:31b7db7b0e637435a30b1c9bf6db06d8e1a4b748e335bceeaa9232da266e6f04",
-            "source_span": "Units covered by the RSO or JCO",
-            "text": "Units covered by the RSO or JCO",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D043",
           "source_hash": "sha256:31b7db7b0e637435a30b1c9bf6db06d8e1a4b748e335bceeaa9232da266e6f04",
           "source_span": null,
@@ -7049,17 +6035,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D081",
-            "source_hash": "sha256:e3437f99eae3882641b5052fd7006f2a0304abd2033e1b721a8c32324be2afab",
-            "source_span": "Residential units in San Francisco",
-            "text": "Residential units in San Francisco",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D081",
           "source_hash": "sha256:e3437f99eae3882641b5052fd7006f2a0304abd2033e1b721a8c32324be2afab",
           "source_span": null,
@@ -7068,17 +6045,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D081",
-            "source_hash": "sha256:e3437f99eae3882641b5052fd7006f2a0304abd2033e1b721a8c32324be2afab",
-            "source_span": "'algorithmic device' means a device such as a software program that uses algorithms to analyze nonpublic competitor rental data to give a landlord recommendations on what rent to charge for a vacant unit",
-            "text": "'algorithmic device' means a device such as a software program that uses algorithms to analyze nonpublic competitor rental data to give a landlord recommendations on what rent to charge for a vacant unit",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D081",
           "source_hash": "sha256:e3437f99eae3882641b5052fd7006f2a0304abd2033e1b721a8c32324be2afab",
           "source_span": null,
@@ -7198,29 +6166,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [
-              {
-                "clause_id": "c1",
-                "field": "building_is_subsidised",
-                "id": "a1",
-                "op": "is_true",
-                "origin": "coverage",
-                "source_doc_id": "D027",
-                "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
-                "source_span": "government rent subsidy is in place",
-                "value": null
-              }
-            ],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D027",
-            "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
-            "source_span": "Rentals where a government rent subsidy is in place",
-            "text": "Rentals where a government rent subsidy is in place",
-            "verdict": "condition"
-          },
-          "reason": "AI interpretation needs human review or complete simple verification",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D027",
           "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
           "source_span": null,
@@ -7229,17 +6176,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D027",
-            "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
-            "source_span": "Does not limit an owner's ability to request information to verify employment, request landlord references",
-            "text": "Does not limit an owner's ability to request information to verify employment, request landlord references",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D027",
           "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
           "source_span": null,
@@ -7248,17 +6186,8 @@
         {
           "clause_id": "x2",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x2",
-            "origin": "exemption",
-            "source_doc_id": "D027",
-            "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
-            "source_span": "verify identity (subd",
-            "text": "verify identity (subd",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D027",
           "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
           "source_span": null,
@@ -7267,17 +6196,8 @@
         {
           "clause_id": "x3",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x3",
-            "origin": "exemption",
-            "source_doc_id": "D027",
-            "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
-            "source_span": "(o)(2))",
-            "text": "(o)(2))",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D027",
           "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
           "source_span": null,
@@ -7314,17 +6234,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D006",
-            "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
-            "source_span": "Fully or partially covered units under the Berkeley Rent Ordinance",
-            "text": "Fully or partially covered units under the Berkeley Rent Ordinance",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D006",
           "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
           "source_span": null,
@@ -7361,17 +6272,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D006",
-            "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
-            "source_span": "Landlords of units covered by the Berkeley Rent Ordinance's rent ceiling",
-            "text": "Landlords of units covered by the Berkeley Rent Ordinance's rent ceiling",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D006",
           "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
           "source_span": null,
@@ -7563,17 +6465,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D024",
-            "source_hash": "sha256:eb9c42af2b9a5c220ca37816f409f0bd3ea92a002a973283e779fdb72de18bd7",
-            "source_span": "Applies to residential real property subject to Civ",
-            "text": "Applies to residential real property subject to Civ",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D024",
           "source_hash": "sha256:eb9c42af2b9a5c220ca37816f409f0bd3ea92a002a973283e779fdb72de18bd7",
           "source_span": null,
@@ -7602,17 +6495,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D024",
-            "source_hash": "sha256:eb9c42af2b9a5c220ca37816f409f0bd3ea92a002a973283e779fdb72de18bd7",
-            "source_span": "Same exemptions as § 1947.12(d)",
-            "text": "Same exemptions as § 1947.12(d)",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D024",
           "source_hash": "sha256:eb9c42af2b9a5c220ca37816f409f0bd3ea92a002a973283e779fdb72de18bd7",
           "source_span": null,
@@ -7733,17 +6617,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D016",
-            "source_hash": "sha256:21d92128daede668d6f1a824528ead345982ddf043a32e4fb5d80dd8adbcdce9",
-            "source_span": "Tenants and applicants with disabilities who need a service animal or emotional support animal",
-            "text": "Tenants and applicants with disabilities who need a service animal or emotional support animal",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D016",
           "source_hash": "sha256:21d92128daede668d6f1a824528ead345982ddf043a32e4fb5d80dd8adbcdce9",
           "source_span": null,
@@ -7752,17 +6627,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D016",
-            "source_hash": "sha256:21d92128daede668d6f1a824528ead345982ddf043a32e4fb5d80dd8adbcdce9",
-            "source_span": "housing providers covered by FEHA",
-            "text": "housing providers covered by FEHA",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D016",
           "source_hash": "sha256:21d92128daede668d6f1a824528ead345982ddf043a32e4fb5d80dd8adbcdce9",
           "source_span": null,
@@ -7799,17 +6665,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D025",
-            "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
-            "source_span": "Security for a rental agreement for residential property used as the tenant's dwelling",
-            "text": "Security for a rental agreement for residential property used as the tenant's dwelling",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D025",
           "source_hash": "sha256:48b1d005fb59f73082dc625d4038272f4bde950d2c93a70ef400a43b630e1511",
           "source_span": null,
@@ -8006,17 +6863,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D007",
-            "source_hash": "sha256:2ba3028382b89ee70810a45e25dd9707297bd65512e2723f4f9bda514af57203",
-            "source_span": "Landlords under California law",
-            "text": "Landlords under California law",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D007",
           "source_hash": "sha256:2ba3028382b89ee70810a45e25dd9707297bd65512e2723f4f9bda514af57203",
           "source_span": null,
@@ -8025,17 +6873,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D007",
-            "source_hash": "sha256:2ba3028382b89ee70810a45e25dd9707297bd65512e2723f4f9bda514af57203",
-            "source_span": "The photograph requirement applies after the landlord regains possession and before any repairs or cleaning for which a deduction will be made",
-            "text": "The photograph requirement applies after the landlord regains possession and before any repairs or cleaning for which a deduction will be made",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D007",
           "source_hash": "sha256:2ba3028382b89ee70810a45e25dd9707297bd65512e2723f4f9bda514af57203",
           "source_span": null,
@@ -8072,17 +6911,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D043",
-            "source_hash": "sha256:31b7db7b0e637435a30b1c9bf6db06d8e1a4b748e335bceeaa9232da266e6f04",
-            "source_span": "Units covered by the Los Angeles Rent Stabilization Ordinance (RSO) or Just Cause Ordinance (JCO)",
-            "text": "Units covered by the Los Angeles Rent Stabilization Ordinance (RSO) or Just Cause Ordinance (JCO)",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D043",
           "source_hash": "sha256:31b7db7b0e637435a30b1c9bf6db06d8e1a4b748e335bceeaa9232da266e6f04",
           "source_span": null,
@@ -8129,17 +6959,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D022",
-            "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
-            "source_span": "Applies to any 'person'",
-            "text": "Applies to any 'person' (as defined in Bus",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D022",
           "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
           "source_span": null,
@@ -8158,17 +6979,8 @@
         {
           "clause_id": "c3",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c3",
-            "origin": "coverage",
-            "source_doc_id": "D022",
-            "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
-            "source_span": "excluding the end consumer",
-            "text": "Code § 16702), excluding the end consumer",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D022",
           "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
           "source_span": null,
@@ -8177,17 +6989,8 @@
         {
           "clause_id": "c4",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c4",
-            "origin": "coverage",
-            "source_doc_id": "D022",
-            "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
-            "source_span": "A 'common pricing algorithm' is any methodology, including a computer, software, or other technology",
-            "text": "A 'common pricing algorithm' is any methodology, including a computer, software, or other technology, used by two or more persons that uses competitor data to recommend, align, stabilize, set, or otherwise influence a price or commercial term",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D022",
           "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
           "source_span": null,
@@ -8196,17 +6999,8 @@
         {
           "clause_id": "c5",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c5",
-            "origin": "coverage",
-            "source_doc_id": "D022",
-            "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
-            "source_span": "Not specific to residential rental housing",
-            "text": "Not specific to residential rental housing",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D022",
           "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
           "source_span": null,
@@ -8215,17 +7009,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D022",
-            "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
-            "source_span": "End consumers of a product",
-            "text": "End consumers of a product",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D022",
           "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
           "source_span": null,
@@ -8234,17 +7019,8 @@
         {
           "clause_id": "x2",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x2",
-            "origin": "exemption",
-            "source_doc_id": "D022",
-            "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
-            "source_span": "are not 'persons' under the section",
-            "text": "service are not 'persons' under the section",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D022",
           "source_hash": "sha256:0699980875e6bf3d797abd8b734db7d449b295173e33668cc655e3b394c084ed",
           "source_span": null,
@@ -8281,17 +7057,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D006",
-            "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
-            "source_span": "Fully or partially covered units under the Berkeley Rent Ordinance",
-            "text": "Fully or partially covered units under the Berkeley Rent Ordinance",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D006",
           "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
           "source_span": null,
@@ -8330,17 +7097,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D069",
-            "source_hash": "sha256:1fdbfb48743a46429c3f47dbd8d08c665739202361661e1a2f19b94bb0ec43a6",
-            "source_span": "Applies to any person operating algorithmic revenue management software or an algorithmic device that performs a coordinating function for any rental property owner, including an owner doing so for its own benefit",
-            "text": "Applies to any person operating algorithmic revenue management software or an algorithmic device that performs a coordinating function for any rental property owner, including an owner doing so for its own benefit",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D069",
           "source_hash": "sha256:1fdbfb48743a46429c3f47dbd8d08c665739202361661e1a2f19b94bb0ec43a6",
           "source_span": null,
@@ -8349,17 +7107,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D069",
-            "source_hash": "sha256:1fdbfb48743a46429c3f47dbd8d08c665739202361661e1a2f19b94bb0ec43a6",
-            "source_span": "Excludes spreadsheets operating without AI and requiring human analysis",
-            "text": "Excludes spreadsheets operating without AI and requiring human analysis",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D069",
           "source_hash": "sha256:1fdbfb48743a46429c3f47dbd8d08c665739202361661e1a2f19b94bb0ec43a6",
           "source_span": null,
@@ -8368,17 +7117,8 @@
         {
           "clause_id": "c3",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c3",
-            "origin": "coverage",
-            "source_doc_id": "D069",
-            "source_hash": "sha256:1fdbfb48743a46429c3f47dbd8d08c665739202361661e1a2f19b94bb0ec43a6",
-            "source_span": "databases that only use an algorithm to query unprocessed data",
-            "text": "databases that only use an algorithm to query unprocessed data",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D069",
           "source_hash": "sha256:1fdbfb48743a46429c3f47dbd8d08c665739202361661e1a2f19b94bb0ec43a6",
           "source_span": null,
@@ -8475,17 +7215,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D068",
-            "source_hash": "sha256:857cb50fde16e0027346c44f502b2f0d854aad4bca7cf0926a31cd54adad8159",
-            "source_span": "Applies to the sale or rental of all property, including open land, for business or residential purposes",
-            "text": "Applies to the sale or rental of all property, including open land, for business or residential purposes",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D068",
           "source_hash": "sha256:857cb50fde16e0027346c44f502b2f0d854aad4bca7cf0926a31cd54adad8159",
           "source_span": null,
@@ -8504,39 +7235,8 @@
         {
           "clause_id": "x2",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [
-              {
-                "clause_id": "x2",
-                "field": "units",
-                "id": "a1",
-                "op": "eq",
-                "origin": "exemption",
-                "source_doc_id": "D068",
-                "source_hash": "sha256:857cb50fde16e0027346c44f502b2f0d854aad4bca7cf0926a31cd54adad8159",
-                "source_span": "two-family dwelling",
-                "value": 2
-              },
-              {
-                "clause_id": "x2",
-                "field": "owner_occupied",
-                "id": "a2",
-                "op": "is_true",
-                "origin": "exemption",
-                "source_doc_id": "D068",
-                "source_hash": "sha256:857cb50fde16e0027346c44f502b2f0d854aad4bca7cf0926a31cd54adad8159",
-                "source_span": "the owner occupies the other unit as a residence"
-              }
-            ],
-            "clause_id": "x2",
-            "origin": "exemption",
-            "source_doc_id": "D068",
-            "source_hash": "sha256:857cb50fde16e0027346c44f502b2f0d854aad4bca7cf0926a31cd54adad8159",
-            "source_span": "two-family dwelling where the owner occupies the other unit as a residence",
-            "text": "flat in a two-family dwelling where the owner occupies the other unit as a residence",
-            "verdict": "condition"
-          },
-          "reason": "AI interpretation needs human review or complete simple verification",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D068",
           "source_hash": "sha256:857cb50fde16e0027346c44f502b2f0d854aad4bca7cf0926a31cd54adad8159",
           "source_span": null,
@@ -8613,17 +7313,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D005",
-            "source_hash": "sha256:396972b4e199efe65ff763eae53ed8a81d99e17ba900c39f16bfb44c16637bed",
-            "source_span": "Owners or owner's agents who receive a request to rent residential property in Berkeley and charge a fee for a credit report and application processing",
-            "text": "Owners or owner's agents who receive a request to rent residential property in Berkeley and charge a fee for a credit report and application processing",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D005",
           "source_hash": "sha256:396972b4e199efe65ff763eae53ed8a81d99e17ba900c39f16bfb44c16637bed",
           "source_span": null,
@@ -8662,17 +7353,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D065",
-            "source_hash": "sha256:c7d281ddae183438fd360bfa0b4824d6541c532efe6ae8123dad37e0f4d53e1e",
-            "source_span": "Rental dwelling units offered by a housing provider.",
-            "text": "Rental dwelling units offered by a housing provider",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D065",
           "source_hash": "sha256:c7d281ddae183438fd360bfa0b4824d6541c532efe6ae8123dad37e0f4d53e1e",
           "source_span": null,
@@ -8737,17 +7419,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D080",
-            "source_hash": "sha256:924783981b92aabf2a5200517290879d008fd1e8c579969bdddaa28ff6f9fd7d",
-            "source_span": "Rent-controlled units in San Francisco",
-            "text": "Rent-controlled units in San Francisco",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D080",
           "source_hash": "sha256:924783981b92aabf2a5200517290879d008fd1e8c579969bdddaa28ff6f9fd7d",
           "source_span": null,
@@ -8756,17 +7429,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D080",
-            "source_hash": "sha256:924783981b92aabf2a5200517290879d008fd1e8c579969bdddaa28ff6f9fd7d",
-            "source_span": "allowable increase applies for the period March 1, 2026 through February 28, 2027",
-            "text": "allowable increase applies for the period March 1, 2026 through February 28, 2027",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D080",
           "source_hash": "sha256:924783981b92aabf2a5200517290879d008fd1e8c579969bdddaa28ff6f9fd7d",
           "source_span": null,
@@ -8775,19 +7439,10 @@
         {
           "clause_id": "",
           "origin": "interaction",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "",
-            "origin": "interaction",
-            "source_doc_id": "D080",
-            "source_hash": "sha256:924783981b92aabf2a5200517290879d008fd1e8c579969bdddaa28ff6f9fd7d",
-            "source_span": "Supersedes the prior-year allowable increase of 1.4% (March 1, 2025 through February 28, 2026).",
-            "text": "Supersedes the prior-year allowable increase of 1.4% (March 1, 2025 through February 28, 2026).",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
-          "source_doc_id": "D080",
-          "source_hash": "sha256:924783981b92aabf2a5200517290879d008fd1e8c579969bdddaa28ff6f9fd7d",
+          "proposal": null,
+          "reason": "states an interaction but no rule in this run governs the same issue on the other side of it",
+          "source_doc_id": null,
+          "source_hash": null,
           "source_span": null,
           "text": "Supersedes the prior-year allowable increase of 1.4% (March 1, 2025 through February 28, 2026)."
         }
@@ -8822,17 +7477,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D052",
-            "source_hash": "sha256:f24c21cb2b32330c0f2f112f066d02b784887a8552cc3777ea96f1d53dd0171f",
-            "source_span": "Residential tenancies-at-will and written leases where a security deposit was taken",
-            "text": "Residential tenancies-at-will and written leases where a security deposit was taken",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D052",
           "source_hash": "sha256:f24c21cb2b32330c0f2f112f066d02b784887a8552cc3777ea96f1d53dd0171f",
           "source_span": null,
@@ -8879,17 +7525,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D001",
-            "source_hash": "sha256:7f24d692c68f42ed2ab11a2d1f8e060a951f8cf6a3974b4e8090e63081ad6f17",
-            "source_span": "Applies to landlords setting rents or occupancy levels for residential dwelling units in Berkeley using a coordinated pricing algorithm",
-            "text": "Applies to landlords setting rents or occupancy levels for residential dwelling units in Berkeley using a coordinated pricing algorithm (one using nonpublic Competitor Data less than 90 days old, in coordination with competitors, including via a third-party vendor)",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D001",
           "source_hash": "sha256:7f24d692c68f42ed2ab11a2d1f8e060a951f8cf6a3974b4e8090e63081ad6f17",
           "source_span": null,
@@ -8898,17 +7535,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D001",
-            "source_hash": "sha256:7f24d692c68f42ed2ab11a2d1f8e060a951f8cf6a3974b4e8090e63081ad6f17",
-            "source_span": "Excludes aggregated and anonymous published rental data reports that do not recommend rents, fees",
-            "text": "Excludes aggregated and anonymous published rental data reports that do not recommend rents, fees",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D001",
           "source_hash": "sha256:7f24d692c68f42ed2ab11a2d1f8e060a951f8cf6a3974b4e8090e63081ad6f17",
           "source_span": null,
@@ -9050,17 +7678,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D023",
-            "source_hash": "sha256:fdd8d7fca42103cf630c3a9a4ed217150eb17a6e180edd80c1d845ca5e8aa1fe",
-            "source_span": "Intended occupant must be the owner or the owner's spouse, domestic partner, child, grandchild, parent, or grandparent",
-            "text": "Intended occupant must be the owner or the owner's spouse, domestic partner, child, grandchild, parent, or grandparent",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D023",
           "source_hash": "sha256:fdd8d7fca42103cf630c3a9a4ed217150eb17a6e180edd80c1d845ca5e8aa1fe",
           "source_span": null,
@@ -9124,17 +7743,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D052",
-            "source_hash": "sha256:f24c21cb2b32330c0f2f112f066d02b784887a8552cc3777ea96f1d53dd0171f",
-            "source_span": "Applies only if and when the executive office of housing and livable communities promulgates implementing regulations",
-            "text": "Applies only if and when the executive office of housing and livable communities promulgates implementing regulations",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D052",
           "source_hash": "sha256:f24c21cb2b32330c0f2f112f066d02b784887a8552cc3777ea96f1d53dd0171f",
           "source_span": null,
@@ -9143,17 +7753,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D052",
-            "source_hash": "sha256:f24c21cb2b32330c0f2f112f066d02b784887a8552cc3777ea96f1d53dd0171f",
-            "source_span": "the document does not state that such regulations exist",
-            "text": "the document does not state that such regulations exist",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D052",
           "source_hash": "sha256:f24c21cb2b32330c0f2f112f066d02b784887a8552cc3777ea96f1d53dd0171f",
           "source_span": null,
@@ -9228,17 +7829,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D005",
-            "source_hash": "sha256:396972b4e199efe65ff763eae53ed8a81d99e17ba900c39f16bfb44c16637bed",
-            "source_span": "Applicants for residential rental units in Berkeley",
-            "text": "Applicants for residential rental units in Berkeley",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D005",
           "source_hash": "sha256:396972b4e199efe65ff763eae53ed8a81d99e17ba900c39f16bfb44c16637bed",
           "source_span": null,
@@ -9282,17 +7874,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D027",
-            "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
-            "source_span": "Owners of any housing accommodation",
-            "text": "Owners of any housing accommodation",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D027",
           "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
           "source_span": null,
@@ -9301,17 +7884,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D027",
-            "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
-            "source_span": "'source of income' means lawful, verifiable income paid to a tenant, a tenant's representative, or a landlord on the tenant's behalf, including public assistance and housing subsidies",
-            "text": "'source of income' means lawful, verifiable income paid to a tenant, a tenant's representative, or a landlord on the tenant's behalf, including public assistance and housing subsidies",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D027",
           "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
           "source_span": null,
@@ -9330,17 +7904,8 @@
         {
           "clause_id": "x2",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x2",
-            "origin": "exemption",
-            "source_doc_id": "D027",
-            "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
-            "source_span": "source of income is not discrimination under subdivision (p)(2)",
-            "text": "source of income is not discrimination under subdivision (p)(2)",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D027",
           "source_hash": "sha256:511f8074b8f4959161fb4c7ec922c8fa963735b47c13d852b8a09ca42b922ecf",
           "source_span": null,
@@ -9377,17 +7942,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D067",
-            "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
-            "source_span": "Most residential rental properties, including single-family homes, mobile homes, apartment buildings and rooming and boarding houses",
-            "text": "Most residential rental properties, including single-family homes, mobile homes, apartment buildings and rooming and boarding houses",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D067",
           "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
           "source_span": null,
@@ -9396,28 +7952,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [
-              {
-                "clause_id": "x1",
-                "field": "seasonal_rental",
-                "id": "a1",
-                "op": "is_false",
-                "origin": "exemption",
-                "source_doc_id": "D067",
-                "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
-                "source_span": "seasonal tenants"
-              }
-            ],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D067",
-            "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
-            "source_span": "Hotel/motel guests and seasonal tenants",
-            "text": "Hotel/motel guests and seasonal tenants",
-            "verdict": "condition"
-          },
-          "reason": "AI interpretation needs human review or complete simple verification",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D067",
           "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
           "source_span": null,
@@ -9506,17 +8042,8 @@
         {
           "clause_id": "x2",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x2",
-            "origin": "exemption",
-            "source_doc_id": "D085",
-            "source_hash": "sha256:de9d126675c8ee1ab2809c897c8c819bfe241dc95de31ace5004b6c7973607d8",
-            "source_span": "Owners may petition for relief from the cap by showing a higher increase is needed for a fair and reasonable return",
-            "text": "Owners may petition for relief from the cap by showing a higher increase is needed for a fair and reasonable return",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D085",
           "source_hash": "sha256:de9d126675c8ee1ab2809c897c8c819bfe241dc95de31ace5004b6c7973607d8",
           "source_span": null,
@@ -9553,17 +8080,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D016",
-            "source_hash": "sha256:21d92128daede668d6f1a824528ead345982ddf043a32e4fb5d80dd8adbcdce9",
-            "source_span": "Housing providers covered by FEHA, including tenant screening companies acting for them",
-            "text": "Housing providers covered by FEHA, including tenant screening companies acting for them",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D016",
           "source_hash": "sha256:21d92128daede668d6f1a824528ead345982ddf043a32e4fb5d80dd8adbcdce9",
           "source_span": null,
@@ -9600,17 +8118,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D043",
-            "source_hash": "sha256:31b7db7b0e637435a30b1c9bf6db06d8e1a4b748e335bceeaa9232da266e6f04",
-            "source_span": "Units covered by the RSO or JCO",
-            "text": "Units covered by the RSO or JCO",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D043",
           "source_hash": "sha256:31b7db7b0e637435a30b1c9bf6db06d8e1a4b748e335bceeaa9232da266e6f04",
           "source_span": null,
@@ -9619,17 +8128,8 @@
         {
           "clause_id": "c2",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c2",
-            "origin": "coverage",
-            "source_doc_id": "D043",
-            "source_hash": "sha256:31b7db7b0e637435a30b1c9bf6db06d8e1a4b748e335bceeaa9232da266e6f04",
-            "source_span": "For demolition for new construction, Bulletin B states the copy of the notice must be filed within 3 business days",
-            "text": "For demolition for new construction, Bulletin B states the copy of the notice must be filed within 3 business days",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D043",
           "source_hash": "sha256:31b7db7b0e637435a30b1c9bf6db06d8e1a4b748e335bceeaa9232da266e6f04",
           "source_span": null,
@@ -9668,17 +8168,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D066",
-            "source_hash": "sha256:e06aa61acf6ddb50631d5be3c89c4029caccb13c0dcc7be888e0e64f8b182c2e",
-            "source_span": "Residential rental property for dwelling purposes offered for lease or sublease by a landlord or agent in New Jersey",
-            "text": "Residential rental property for dwelling purposes offered for lease or sublease by a landlord or agent in New Jersey",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D066",
           "source_hash": "sha256:e06aa61acf6ddb50631d5be3c89c4029caccb13c0dcc7be888e0e64f8b182c2e",
           "source_span": null,
@@ -9707,17 +8198,8 @@
         {
           "clause_id": "x3",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x3",
-            "origin": "exemption",
-            "source_doc_id": "D066",
-            "source_hash": "sha256:e06aa61acf6ddb50631d5be3c89c4029caccb13c0dcc7be888e0e64f8b182c2e",
-            "source_span": "a New Jersey Real Estate Commission licensee, unless the licensee is the landlord of the property",
-            "text": "a New Jersey Real Estate Commission licensee, unless the licensee is the landlord of the property",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D066",
           "source_hash": "sha256:e06aa61acf6ddb50631d5be3c89c4029caccb13c0dcc7be888e0e64f8b182c2e",
           "source_span": null,
@@ -9754,17 +8236,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D040",
-            "source_hash": "sha256:13f9d54597199b73e23ad12dcc38626d53bb30bd53d89a63b6a7f55ecc570425",
-            "source_span": "Most residential properties in the City of Los Angeles not regulated by the Rent Stabilization Ordinance (RSO)",
-            "text": "Most residential properties in the City of Los Angeles not regulated by the Rent Stabilization Ordinance (RSO)",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D040",
           "source_hash": "sha256:13f9d54597199b73e23ad12dcc38626d53bb30bd53d89a63b6a7f55ecc570425",
           "source_span": null,
@@ -9873,17 +8346,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D085",
-            "source_hash": "sha256:de9d126675c8ee1ab2809c897c8c819bfe241dc95de31ace5004b6c7973607d8",
-            "source_span": "Residential rental tenancies in Santa Ana, other than the excluded property types",
-            "text": "Residential rental tenancies in Santa Ana, other than the excluded property types",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D085",
           "source_hash": "sha256:de9d126675c8ee1ab2809c897c8c819bfe241dc95de31ace5004b6c7973607d8",
           "source_span": null,
@@ -9987,17 +8451,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D026",
-            "source_hash": "sha256:35ec54ef926471876977b9cad3f0db7ff5b77393bd0baad03ed30125949f8e7a",
-            "source_span": "Applies to landlords and their agents collecting screening fees from applicants for residential rental units",
-            "text": "Applies to landlords and their agents collecting screening fees from applicants for residential rental units",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D026",
           "source_hash": "sha256:35ec54ef926471876977b9cad3f0db7ff5b77393bd0baad03ed30125949f8e7a",
           "source_span": null,
@@ -10006,17 +8461,8 @@
         {
           "clause_id": "x1",
           "origin": "exemption",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "x1",
-            "origin": "exemption",
-            "source_doc_id": "D026",
-            "source_hash": "sha256:35ec54ef926471876977b9cad3f0db7ff5b77393bd0baad03ed30125949f8e7a",
-            "source_span": "No refund required for an applicant whose application is denied after consideration for failing the landlord's established screening criteria under the first-come process option",
-            "text": "No refund required for an applicant whose application is denied after consideration for failing the landlord's established screening criteria under the first-come process option",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D026",
           "source_hash": "sha256:35ec54ef926471876977b9cad3f0db7ff5b77393bd0baad03ed30125949f8e7a",
           "source_span": null,
@@ -10053,17 +8499,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D067",
-            "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
-            "source_span": "Most residential rental properties",
-            "text": "Most residential rental properties",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "no complete, independently verified condition in the source document",
           "source_doc_id": "D067",
           "source_hash": "sha256:a61f61a51b513b48a41cce48326e28861838a95e5e5a29cdedc41470d44ed505",
           "source_span": null,
@@ -10120,17 +8557,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D006",
-            "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
-            "source_span": "Fully covered rental units under the Berkeley Rent Ordinance",
-            "text": "Fully covered rental units under the Berkeley Rent Ordinance, including government-owned or -subsidized units registered as fully covered",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D006",
           "source_hash": "sha256:f1960db522de7f63158e64334835b37e52ae1d8fa8b510eeb314658aef4173fa",
           "source_span": null,
@@ -10177,17 +8605,8 @@
         {
           "clause_id": "c1",
           "origin": "coverage",
-          "proposal": {
-            "atoms": [],
-            "clause_id": "c1",
-            "origin": "coverage",
-            "source_doc_id": "D005",
-            "source_hash": "sha256:396972b4e199efe65ff763eae53ed8a81d99e17ba900c39f16bfb44c16637bed",
-            "source_span": "Owners of residential rental property in Berkeley (or their agents) charging existing tenants",
-            "text": "Owners of residential rental property in Berkeley (or their agents) charging existing tenants",
-            "verdict": "no_building_condition"
-          },
-          "reason": "AI clearance requires human review",
+          "proposal": null,
+          "reason": "coverage clause contains a disjunction; AND/OR structure needs review",
           "source_doc_id": "D005",
           "source_hash": "sha256:396972b4e199efe65ff763eae53ed8a81d99e17ba900c39f16bfb44c16637bed",
           "source_span": null,
