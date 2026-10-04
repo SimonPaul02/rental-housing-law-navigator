@@ -399,6 +399,23 @@ from somebody's own document and then telling them what they are owed would be
 advice resting on an unverified reading. A rent cap worded "the lower of 5% +
 CPI or 10%" also needs a CPI figure this corpus does not carry.
 
+The assistant works the same way and is grounded in the same metadata.
+`rules_for_building` returns the agreements filed against that building
+alongside its rules, so the sentence that is actually worth having costs one
+call rather than two — *"the rent you recorded is $1,850 a month for unit 4B,
+and the rule that governs increases here says this"*. `my_documents` answers
+the portfolio version: which lets have no agreement on file, and which terms
+run out within six months.
+
+Two things make that safe to put in front of a model. The rent crosses as the
+sentence somebody typed — `"$1,850.00 a month"` — rather than as
+`monthly_rent_cents`, so multiplying it by a cap takes a deliberate act rather
+than a lazy one, and whatever is said about it is visibly their figure. And
+every result carries the reading instruction with it, so the constraint
+travels with the data instead of living only in a prompt somebody might edit.
+A building with no agreement on file is a gap in what the assistant knows, not
+evidence that a unit is empty.
+
 ## The three modules
 
 Each is a package under `backend/app/modules/` with its own router, schemas and

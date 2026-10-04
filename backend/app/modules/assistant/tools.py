@@ -366,6 +366,23 @@ async def _answer_for(deps: Deps, address: Address, as_of: dt.date) -> dict:
                 )
             )
 
+    # The agreements filed against this building, in the same breath as the
+    # rules that govern them. Two calls used to be needed to say "your rent is
+    # $1,850 and the rule that governs increases here says this", which is the
+    # single most useful sentence this app can produce for somebody who has
+    # filed a lease - and the one most likely to be skipped when it costs a
+    # second round trip.
+    filed = [
+        _agreement(contract, address.address_id)
+        for contract in await accounts.contracts(deps.session, deps.principal)
+        if contract.place_id
+        in {
+            p.id
+            for p in await accounts.places(deps.session, deps.principal)
+            if p.address_id == address.address_id
+        }
+    ]
+
     caps = {"applies": 12, "unknown": 8, "coming": 4, "superseded": 4}
     shown = {name: rows[: caps[name]] for name, rows in buckets.items()}
     hidden = {
@@ -389,6 +406,10 @@ async def _answer_for(deps: Deps, address: Address, as_of: dt.date) -> dict:
             "counts": {name: len(rows) for name, rows in buckets.items()},
             **shown,
             "not_listed": hidden or None,
+            # Capped hard: a thirty-two unit building carries thirty-two
+            # agreements and an answer about the law is not a rent roll.
+            "agreements_on_file": filed[:6] or None,
+            "agreements_not_listed": max(len(filed) - 6, 0) or None,
             "spans": "Call rule_source for the quoted text behind any rule id above.",
         }
     )
@@ -635,30 +656,93 @@ async def _stock_coverage(deps: Deps, args: dict) -> dict:
     }
 
 
+def _agreement(contract, address_id: str | None = None) -> dict:
+    """One agreement, as much of it as exists, and no more.
+
+    Every field here was typed in by the person who filed it. Nothing was read
+    off the file and nothing was verified against it, which is why the rent is
+    carried as the figure they gave rather than as an amount: it goes *beside*
+    the rule that governs it, never into it.
+    """
+    return _drop_empty(
+        {
+            "document_id": contract.id,
+            "address_id": address_id,
+            "unit": contract.unit_label,
+            "filename": contract.filename,
+            "kind": contract.kind,
+            "pages": contract.page_count,
+            "term_starts": contract.starts_on,
+            "term_ends": contract.ends_on,
+            "monthly_rent_as_typed": (
+                None
+                if contract.monthly_rent_cents is None
+                else f"${contract.monthly_rent_cents / 100:,.2f} a month"
+            ),
+            "note": _clip(contract.note, 200),
+            "filed_on": contract.created_at.date(),
+        }
+    )
+
+
 async def _my_documents(deps: Deps, args: dict) -> dict:
+    """The agreements on file, with the gaps in them named.
+
+    What makes this worth more than a list is the second half: a portfolio's
+    real question is not "what have I filed" but "which lets have no agreement,
+    and which terms run out next". Both are arithmetic over dates and counts,
+    which is allowed here - what is forbidden is arithmetic over somebody's
+    rent, and no figure in this result is ever a term in a sum.
+    """
     filed = await accounts.contracts(deps.session, deps.principal)
-    places = {p.id: p for p in await accounts.places(deps.session, deps.principal)}
-    return {
-        "count": len(filed),
-        "documents": [
-            _drop_empty(
-                {
-                    "document_id": c.id,
-                    "address_id": getattr(places.get(c.place_id), "address_id", None),
-                    "unit": c.unit_label,
-                    "filename": c.filename,
-                    "kind": c.kind,
-                    "term_starts": c.starts_on,
-                    "term_ends": c.ends_on,
-                    # Self-reported, never read off the file, never used in a
-                    # calculation. The system prompt forbids the arithmetic.
-                    "monthly_rent_cents": c.monthly_rent_cents,
-                    "note": _clip(c.note, 200),
-                }
-            )
-            for c in filed[:30]
-        ],
-    }
+    places = await accounts.places(deps.session, deps.principal)
+    by_place = {p.id: p for p in places}
+
+    wanted = (args.get("address_id") or "").strip().upper() or None
+    if wanted:
+        ids = {p.id for p in places if p.address_id == wanted}
+        if not ids:
+            return {"error": f"No building {wanted} is on this account."}
+        filed = [c for c in filed if c.place_id in ids]
+
+    rows = [_agreement(c, getattr(by_place.get(c.place_id), "address_id", None)) for c in filed]
+    # Soonest to end first, because an agreement with a date on it is the one
+    # somebody has to act on; the undated ones are not urgent, they are
+    # incomplete, and they are counted separately below.
+    dated = sorted((r for r in rows if r.get("term_ends")), key=lambda r: r["term_ends"])
+    undated = [r for r in rows if not r.get("term_ends")]
+
+    buildings_with = {c.place_id for c in filed}
+    missing = [
+        p.address_id
+        for p in places
+        if p.id not in buildings_with and (not wanted or p.address_id == wanted)
+    ]
+    today = deps.as_of
+    ending_soon = [r for r in dated if r["term_ends"] and (r["term_ends"] - today).days <= 180]
+
+    shown = (dated + undated)[:25]
+    return _drop_empty(
+        {
+            "for_building": wanted,
+            "count": len(filed),
+            "buildings_with_an_agreement": len(buildings_with),
+            "buildings_with_none": len(missing),
+            # Named only when the list is short enough to act on; past that the
+            # count is the finding and the buildings page is the place to work.
+            "buildings_with_none_ids": sorted(missing)[:10] if missing else None,
+            "ending_within_180_days": len(ending_soon),
+            "no_term_recorded": len(undated),
+            "agreements": shown,
+            "not_listed": len(rows) - len(shown) or None,
+            "reading": (
+                "Every field here was typed in by whoever filed the agreement. The file "
+                "itself has not been read and nothing in it is verified, so quote these "
+                "as what they told you, put a rent beside the rule that governs it, and "
+                "never compute with either."
+            ),
+        }
+    )
 
 
 def _date_or(value: Any, fallback: dt.date) -> dt.date:
@@ -790,10 +874,20 @@ ALL: tuple[Tool, ...] = (
         name="my_documents",
         label="Reading what is on file",
         description=(
-            "The tenancy agreements this person has filed. Metadata only - the files "
-            "themselves are never read."
+            "The tenancy agreements this person has filed: unit, term, the rent they "
+            "typed in, and which building each is against. Also which of their "
+            "buildings have no agreement at all and how many terms end within six "
+            "months, which is usually the actual question. Pass address_id for one "
+            "building, or empty for all of them. The files themselves are never read "
+            "and nothing in them is verified - quote these as what they told you."
         ),
-        properties={},
+        properties={
+            "address_id": {
+                "type": "string",
+                "description": "One building's id, or empty for every agreement on file.",
+            }
+        },
+        required=("address_id",),
         run=_my_documents,
     ),
     Tool(
@@ -837,8 +931,10 @@ ALL: tuple[Tool, ...] = (
         description=(
             "Evaluate every rule against one address on a date: what applies, what is "
             "unknown and which field blocked it, what is superseded, and what is not "
-            "yet in force. Works for any building on file, saved or not. "
-            "Quoted spans are not included - use rule_source."
+            "yet in force. Works for any building on file, saved or not. It also "
+            "returns the agreements filed against that building, so a rent can be put "
+            "beside the rule that governs it without a second call. Quoted spans are "
+            "not included - use rule_source."
         ),
         properties={
             "address_id": _ADDRESS_ID,

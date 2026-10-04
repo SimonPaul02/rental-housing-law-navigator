@@ -136,11 +136,13 @@ class FakeContract:
     place_id: int = 7
     filename: str = "lease.pdf"
     kind: str = "PDF"
-    unit_label: str | None = None
-    starts_on: dt.date | None = None
-    ends_on: dt.date | None = None
+    page_count: int | None = 9
+    unit_label: str | None = "4B"
+    starts_on: dt.date | None = dt.date(2026, 1, 1)
+    ends_on: dt.date | None = dt.date(2026, 12, 31)
     monthly_rent_cents: int | None = 185000
     note: str | None = None
+    created_at: dt.datetime = field(default_factory=lambda: dt.datetime(2026, 9, 1, 12, 0))
 
 
 @dataclass
@@ -934,3 +936,105 @@ def test_a_pasted_address_is_split_into_a_street_and_a_city(typed, expected):
     street is not in the sample" from "this building is not".
     """
     assert tools.relax(typed) == expected
+
+
+# ---------------------------------------------------------------------------
+# What is on file
+# ---------------------------------------------------------------------------
+
+
+async def test_the_rules_for_a_building_arrive_with_what_is_filed_against_it(monkeypatch, world):
+    """ "Your rent is $1,850 and the rule that governs increases says X" is the
+    most useful sentence here, and it used to cost two calls - which is one
+    reason it was often two sentences apart or missing entirely."""
+    from app.modules.address_lookup import service as lookups
+    from app.modules.assistant import tools as tool_module
+
+    class Answer:
+        address_id = "A0132"
+        legal_city = "Los Angeles"
+        legal_state = "CA"
+        outcomes = []
+
+    async def lookup(session, address, as_of, persist=False, include_not_applicable=False):
+        return Answer()
+
+    async def address_for(deps, address_id):
+        return type(
+            "A",
+            (),
+            {
+                "address_id": "A0132",
+                "street_address": "1200 Wilshire Blvd",
+                "postal_city": "Van Nuys",
+                "year_built": 1975,
+                "units": 24,
+            },
+        )()
+
+    monkeypatch.setattr(lookups, "lookup_address", lookup)
+    monkeypatch.setattr(tool_module, "_address_for", address_for)
+
+    result = await tool_module.BY_NAME["rules_for_building"].run(
+        tool_module.Deps(None, PRINCIPAL, Role.renter, dt.date(2026, 10, 1)),
+        {"address_id": "A0132", "as_of": ""},
+    )
+
+    [filed] = result["agreements_on_file"]
+    assert filed["unit"] == "4B"
+    assert filed["term_ends"] == dt.date(2026, 12, 31)
+    # Carried as the words they typed, never as a number to compute with.
+    assert filed["monthly_rent_as_typed"] == "$1,850.00 a month"
+    assert "monthly_rent_cents" not in filed
+
+
+async def test_the_documents_tool_says_which_lets_have_nothing_on_file(monkeypatch, world):
+    """A portfolio's question is not "what have I filed" - it is "what have I
+    not"."""
+    world["places"] = [
+        FakePlace(id=7, address_id="A0132"),
+        FakePlace(id=8, address_id="A0404", street_address="9 Elm St"),
+        FakePlace(id=9, address_id="A0500", street_address="3 Oak Rd"),
+    ]
+    deps = tools.Deps(None, PRINCIPAL, Role.provider, dt.date(2026, 10, 1))
+
+    result = await tools.BY_NAME["my_documents"].run(deps, {"address_id": ""})
+
+    assert result["count"] == 1
+    assert result["buildings_with_an_agreement"] == 1
+    assert result["buildings_with_none"] == 2
+    assert result["buildings_with_none_ids"] == ["A0404", "A0500"]
+    # 2026-12-31 is within six months of the query date.
+    assert result["ending_within_180_days"] == 1
+
+
+async def test_the_documents_tool_narrows_to_one_building(monkeypatch, world):
+    world["places"] = [
+        FakePlace(id=7, address_id="A0132"),
+        FakePlace(id=8, address_id="A0404", street_address="9 Elm St"),
+    ]
+    deps = tools.Deps(None, PRINCIPAL, Role.provider, dt.date(2026, 10, 1))
+
+    mine = await tools.BY_NAME["my_documents"].run(deps, {"address_id": "A0404"})
+    assert mine["count"] == 0
+    assert mine["buildings_with_none"] == 1
+
+    missing = await tools.BY_NAME["my_documents"].run(deps, {"address_id": "A9999"})
+    assert "error" in missing
+
+
+async def test_a_rent_is_never_handed_over_as_a_number(monkeypatch, world):
+    """The one figure in this app that a model must not do arithmetic with.
+
+    Carried as the sentence they typed rather than as cents, so that
+    multiplying it by a rent cap takes a deliberate act rather than a lazy one
+    - and so that whatever is said about it is visibly their figure.
+    """
+    deps = tools.Deps(None, PRINCIPAL, Role.renter, dt.date(2026, 10, 1))
+
+    result = await tools.BY_NAME["my_documents"].run(deps, {"address_id": ""})
+
+    [filed] = result["agreements"]
+    assert filed["monthly_rent_as_typed"] == "$1,850.00 a month"
+    assert "monthly_rent_cents" not in tools.encode(result)
+    assert "typed in by whoever filed" in result["reading"]
