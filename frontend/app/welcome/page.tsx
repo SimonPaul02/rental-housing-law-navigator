@@ -25,7 +25,7 @@ export default async function WelcomePage() {
         </h1>
         <p
           className="mt-2 max-w-2xl leading-relaxed"
-          style={{ color: "var(--text-secondary)" }}
+          style={{ color: "var(--muted)" }}
         >
           One question before you start: which of these are you? Every role
           shares the same interface for now, so nothing is withheld by

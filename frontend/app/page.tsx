@@ -24,21 +24,25 @@ export default async function FrontDoor() {
 
   return (
     <div className="space-y-10">
-      <section className="grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-start">
+      <section className="grid gap-12 lg:grid-cols-[1.25fr_0.9fr] lg:items-start">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">
+          <p className="eyebrow">Rental Housing Law Navigator</p>
+          <h1
+            className="display"
+            style={{ fontSize: 34, lineHeight: 1.18, fontWeight: 650 }}
+          >
             Which housing rules apply here, on this date?
           </h1>
           <p
             className="mt-3 max-w-xl leading-relaxed"
-            style={{ color: "var(--text-secondary)" }}
+            style={{ color: "var(--muted)" }}
           >
             Rental housing law for a specific building on a specific day, with
             the source text behind every answer. Sign in and say which of these
             you are — the same record, four different questions of it.
           </p>
 
-          <ul className="mt-6 space-y-3">
+          <ul className="mt-7 space-y-3.5">
             {ROLE_SLUGS.map((slug) => (
               <li key={slug} className="flex gap-3">
                 <span
@@ -48,7 +52,7 @@ export default async function FrontDoor() {
                 />
                 <span>
                   <strong className="font-medium">{ROLES[slug].label}</strong>{" "}
-                  <span style={{ color: "var(--text-secondary)" }}>
+                  <span style={{ color: "var(--muted)" }}>
                     — {ROLES[slug].blurb}
                   </span>
                 </span>
@@ -56,7 +60,7 @@ export default async function FrontDoor() {
             ))}
           </ul>
 
-          <p className="mt-6 text-sm" style={{ color: "var(--text-muted)" }}>
+          <p className="mt-7 text-sm" style={{ color: "var(--faint)" }}>
             Every role shares one interface for now; the tailored views come
             later. No teams, no sharing, no inboxes either — nobody here can see
             anybody else, and there is nothing in the app that addresses another
@@ -66,7 +70,7 @@ export default async function FrontDoor() {
 
         <Card>
           <h2 className="text-lg font-semibold tracking-tight">Sign in</h2>
-          <p className="mt-1 mb-5 text-sm" style={{ color: "var(--text-secondary)" }}>
+          <p className="mt-1 mb-5 text-sm" style={{ color: "var(--muted)" }}>
             Accounts live in WorkOS. Google works for both signing up and
             signing in.
           </p>

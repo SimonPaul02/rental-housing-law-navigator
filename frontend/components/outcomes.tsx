@@ -12,13 +12,13 @@ export function Outcome({ outcome }: { outcome: RuleOutcome }) {
   return (
     <li
       className="rounded-xl border p-4"
-      style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
+      style={{ borderColor: "var(--line)", background: "var(--surface)" }}
     >
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="font-medium">{outcome.title ?? outcome.team_rule_id}</span>
         {outcome.status && <StatusBadge status={outcome.status} />}
         {outcome.category && (
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+          <span className="text-xs" style={{ color: "var(--faint)" }}>
             {outcome.category.replace(/_/g, " ")}
           </span>
         )}
@@ -30,12 +30,12 @@ export function Outcome({ outcome }: { outcome: RuleOutcome }) {
         </div>
       )}
 
-      <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+      <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
         {outcome.explanation}
       </p>
 
       {outcome.unresolved_fields.length > 0 && (
-        <p className="mt-2 text-sm" style={{ color: "var(--status-warning)" }}>
+        <p className="mt-2 text-sm" style={{ color: "var(--warn)" }}>
           Still unknown because the record does not say:{" "}
           {outcome.unresolved_fields.join(", ").replace(/_/g, " ")}.
         </p>
@@ -44,14 +44,14 @@ export function Outcome({ outcome }: { outcome: RuleOutcome }) {
       {outcome.quoted_span && (
         <blockquote
           className="mt-3 border-l-2 pl-3 text-sm italic"
-          style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+          style={{ borderColor: "var(--line)", color: "var(--faint)" }}
         >
           “{outcome.quoted_span}”
         </blockquote>
       )}
 
       {outcome.citation && (
-        <div className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+        <div className="mt-2 text-xs" style={{ color: "var(--faint)" }}>
           {outcome.source_url ? (
             <a className="underline" href={outcome.source_url} rel="noopener noreferrer">
               {outcome.citation}
@@ -74,7 +74,7 @@ export function Outcomes({
 }) {
   if (outcomes.length === 0) {
     return (
-      <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+      <p className="text-sm" style={{ color: "var(--faint)" }}>
         {empty}
       </p>
     );

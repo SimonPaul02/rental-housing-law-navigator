@@ -83,20 +83,20 @@ export function RolePicker({
               <span className="flex items-baseline justify-between gap-2">
                 <span className="font-medium">{spec.label}</span>
                 {slug === current && (
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  <span className="text-xs" style={{ color: "var(--faint)" }}>
                     current
                   </span>
                 )}
               </span>
               <span
                 className="mt-1 block text-sm"
-                style={{ color: "var(--text-secondary)" }}
+                style={{ color: "var(--muted)" }}
               >
                 {spec.tagline}
               </span>
               <span
                 className="mt-2 block text-sm leading-relaxed"
-                style={{ color: "var(--text-muted)" }}
+                style={{ color: "var(--faint)" }}
               >
                 {spec.blurb}
               </span>
@@ -106,7 +106,7 @@ export function RolePicker({
       </div>
 
       {error && (
-        <p role="alert" className="text-sm" style={{ color: "var(--status-critical)" }}>
+        <p role="alert" className="text-sm" style={{ color: "var(--critical)" }}>
           {error}
         </p>
       )}
@@ -119,7 +119,7 @@ export function RolePicker({
         >
           {current ? "Switch role" : "Continue"} {busy && <Spinner />}
         </button>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+        <p className="text-sm" style={{ color: "var(--faint)" }}>
           You can change this later in settings.
         </p>
       </div>

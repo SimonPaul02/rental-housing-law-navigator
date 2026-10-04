@@ -1,7 +1,15 @@
 import { gate } from "@/lib/auth";
 import { Unavailable } from "@/components/gate-notice";
 import { tryApi } from "@/lib/api";
-import { Card, Notice, SectionTitle, Table, Td, Th } from "@/components/ui";
+import {
+  Card,
+  Notice,
+  PageHeading,
+  SectionTitle,
+  Table,
+  Td,
+  Th,
+} from "@/components/ui";
 import type { CanonicalMatch, ChangeTest, ChangeTestResult } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -28,9 +36,10 @@ export default async function ChangesPage() {
 
   return (
     <div className="space-y-8">
-      <SectionTitle
-        title="Module C · Change tracking"
-        hint="Each case is answered by replaying Module B's evaluator at the relevant dates — not by hard-coding the expected outcome."
+      <PageHeading
+        eyebrow="Module C"
+        title="Change tracking"
+        lede="Each case is answered by replaying Module B's evaluator at the relevant dates — not by hard-coding the expected outcome."
       />
 
       {unmatched.length > 0 && (
@@ -51,13 +60,13 @@ export default async function ChangesPage() {
                 <span className="font-medium">{test.title}</span>
                 <span
                   className="rounded-full border px-2 py-0.5 text-xs"
-                  style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+                  style={{ borderColor: "var(--line)", color: "var(--faint)" }}
                 >
                   {test.type}
                 </span>
               </div>
 
-              <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+              <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
                 <strong>Expected:</strong> {test.expected_behavior}
               </p>
 
@@ -69,25 +78,25 @@ export default async function ChangesPage() {
                       <strong className="tabular-nums">
                         {result.affected_address_ids.length}
                       </strong>{" "}
-                      <span style={{ color: "var(--text-secondary)" }}>affected</span>
+                      <span style={{ color: "var(--muted)" }}>affected</span>
                     </span>
                     {result.conflict_flag_address_ids.length > 0 && (
                       <span>
                         <strong className="tabular-nums">
                           {result.conflict_flag_address_ids.length}
                         </strong>{" "}
-                        <span style={{ color: "var(--text-secondary)" }}>
+                        <span style={{ color: "var(--muted)" }}>
                           flagged for review
                         </span>
                       </span>
                     )}
-                    <span className="mono" style={{ color: "var(--text-muted)" }}>
+                    <span className="mono" style={{ color: "var(--faint)" }}>
                       as of {result.as_of}
                     </span>
                   </div>
                 </div>
               ) : (
-                <p className="mt-3 text-sm" style={{ color: "var(--text-muted)" }}>
+                <p className="mt-3 text-sm" style={{ color: "var(--faint)" }}>
                   Not run yet — <code className="mono">POST /api/change-tracking/tests/{test.test_id}/run</code>
                 </p>
               )}
@@ -118,7 +127,7 @@ export default async function ChangesPage() {
                   {c.matched ? (
                     c.matched_rule_ids.join(", ")
                   ) : (
-                    <span style={{ color: "var(--text-muted)" }}>none</span>
+                    <span style={{ color: "var(--faint)" }}>none</span>
                   )}
                 </Td>
               </tr>

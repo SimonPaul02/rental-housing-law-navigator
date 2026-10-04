@@ -27,7 +27,7 @@ export default async function PlacesPage() {
         <h1 className="text-2xl font-semibold tracking-tight">{PLACE.add}</h1>
         <p
           className="mt-2 max-w-2xl leading-relaxed"
-          style={{ color: "var(--text-secondary)" }}
+          style={{ color: "var(--muted)" }}
         >
           Private to you. Nothing in this app can address another account, so
           there is nobody to share a {PLACE.one} with and no one who can see it.

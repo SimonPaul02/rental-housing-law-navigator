@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { tryApi } from "@/lib/api";
-import { Card, Distribution, Notice, SectionTitle, Stat } from "@/components/ui";
+import {
+  Card,
+  Distribution,
+  Notice,
+  SectionTitle,
+  Stat,
+  StatStrip,
+} from "@/components/ui";
 import { Outcomes } from "@/components/outcomes";
 import type {
   AddressStats,
@@ -33,10 +40,10 @@ interface ChangeStats {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  in_force: "var(--status-good)",
-  not_yet_effective: "var(--status-warning)",
-  pending: "var(--status-serious)",
-  failed: "var(--status-critical)",
+  in_force: "var(--good)",
+  not_yet_effective: "var(--warn)",
+  pending: "var(--serious)",
+  failed: "var(--critical)",
 };
 
 export async function Dashboard({
@@ -80,7 +87,7 @@ export async function Dashboard({
         </h1>
         <p
           className="mt-2 max-w-2xl leading-relaxed"
-          style={{ color: "var(--text-secondary)" }}
+          style={{ color: "var(--muted)" }}
         >
           You signed up as a <strong>{roleLabel.toLowerCase()}</strong>. Every
           role sees this same page for now; the four tailored views come later.
@@ -122,7 +129,7 @@ export async function Dashboard({
         ) : (
           <>
             {places.length > MAX_EVALUATED && (
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+              <p className="text-sm" style={{ color: "var(--faint)" }}>
                 Evaluating the first {MAX_EVALUATED} of {places.length}.
               </p>
             )}
@@ -139,7 +146,7 @@ export async function Dashboard({
           title="The record"
           hint="What the system has read in, and how far it reaches."
         />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatStrip>
           <Stat
             label="Rules on record"
             value={ruleStats?.total ?? "—"}
@@ -163,8 +170,8 @@ export async function Dashboard({
             sub="need a human"
             tone={ruleStats?.flagged_conflicts ? "warning" : undefined}
           />
-        </div>
-        <p className="mt-3 max-w-2xl text-sm" style={{ color: "var(--text-muted)" }}>
+        </StatStrip>
+        <p className="mt-3 max-w-2xl text-sm" style={{ color: "var(--faint)" }}>
           {addressStats?.missing_year_built ?? 0} buildings have no year built
           and {addressStats?.missing_units ?? 0} no unit count. Those gaps are in
           the public records, not a bug: where coverage turns on a fact the data
@@ -246,7 +253,7 @@ function Building({
             <div className="text-lg font-medium">
               {place.label ?? place.street_address}
             </div>
-            <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            <div className="text-sm" style={{ color: "var(--muted)" }}>
               {place.legal_city ?? place.postal_city},{" "}
               {place.legal_state ?? place.state}
               {place.postal_city_differs && (
@@ -258,7 +265,7 @@ function Building({
               )}
             </div>
           </div>
-          <div className="text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
+          <div className="text-sm tabular-nums" style={{ color: "var(--faint)" }}>
             {place.year_built ? `built ${place.year_built}` : "year built unknown"}
             {" · "}
             {place.units ? `${place.units} units` : "unit count unknown"}
@@ -296,7 +303,7 @@ function Building({
             <details>
               <summary
                 className="cursor-pointer text-sm"
-                style={{ color: "var(--text-secondary)" }}
+                style={{ color: "var(--muted)" }}
               >
                 {unknown.length} cannot be answered yet — each names the fact
                 that would settle it
@@ -328,7 +335,7 @@ function ChangesForYou({
   );
   if (mine.length === 0) {
     return (
-      <p className="mt-4 text-sm" style={{ color: "var(--text-muted)" }}>
+      <p className="mt-4 text-sm" style={{ color: "var(--faint)" }}>
         None of these cases moves an answer at your {places.length === 1 ? "address" : "addresses"}.
       </p>
     );
@@ -343,12 +350,12 @@ function ChangesForYou({
             <span className="font-medium">{result.title}</span>
             <span
               className="rounded-full border px-2 py-0.5 text-xs"
-              style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+              style={{ borderColor: "var(--line)", color: "var(--faint)" }}
             >
               affects you
             </span>
           </div>
-          <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
             {result.notes}
           </p>
         </Card>

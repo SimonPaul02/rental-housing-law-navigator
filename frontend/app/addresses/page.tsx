@@ -1,7 +1,17 @@
 import { gate } from "@/lib/auth";
 import { Unavailable } from "@/components/gate-notice";
 import { tryApi } from "@/lib/api";
-import { Card, Notice, SectionTitle, Stat, Table, Td, Th } from "@/components/ui";
+import {
+  Card,
+  Notice,
+  PageHeading,
+  SectionTitle,
+  Stat,
+  StatStrip,
+  Table,
+  Td,
+  Th,
+} from "@/components/ui";
 import type { AddressRecord, AddressStats } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -24,12 +34,13 @@ export default async function AddressesPage() {
 
   return (
     <div className="space-y-8">
-      <SectionTitle
-        title="Module B · Address lookup"
-        hint="The mailing city is not always the legal city. Jurisdiction is resolved against the Census incorporated-places layer before any rule is tested."
+      <PageHeading
+        eyebrow="Module B"
+        title="Address lookup"
+        lede="The mailing city is not always the legal city. Jurisdiction is resolved against the Census incorporated-places layer before any rule is tested."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StatStrip>
         <Stat label="Addresses" value={stats?.total ?? "—"} />
         <Stat
           label="Resolved"
@@ -47,7 +58,7 @@ export default async function AddressesPage() {
           sub="coverage may be unknown"
           tone="warning"
         />
-      </div>
+      </StatStrip>
 
       {stats?.resolved === 0 && (
         <Notice title="No jurisdictions resolved yet">
@@ -79,11 +90,11 @@ export default async function AddressesPage() {
                 <Td className="mono">{a.state}</Td>
                 <Td className="tabular-nums">
                   {a.year_built ?? (
-                    <span style={{ color: "var(--text-muted)" }}>—</span>
+                    <span style={{ color: "var(--faint)" }}>—</span>
                   )}
                 </Td>
                 <Td className="tabular-nums">
-                  {a.units ?? <span style={{ color: "var(--text-muted)" }}>—</span>}
+                  {a.units ?? <span style={{ color: "var(--faint)" }}>—</span>}
                 </Td>
               </tr>
             ))}

@@ -87,7 +87,7 @@ export function Places({
     <div className="space-y-6">
       <form onSubmit={search} className="flex flex-wrap items-end gap-2">
         <label className="min-w-56 flex-1 text-sm">
-          <span style={{ color: "var(--text-secondary)" }}>
+          <span style={{ color: "var(--muted)" }}>
             Find an address — street or city
           </span>
           <input
@@ -103,7 +103,7 @@ export function Places({
       </form>
 
       {error && (
-        <p role="alert" className="text-sm" style={{ color: "var(--status-critical)" }}>
+        <p role="alert" className="text-sm" style={{ color: "var(--critical)" }}>
           {error}
         </p>
       )}
@@ -111,10 +111,10 @@ export function Places({
       {hits !== null && (
         <div
           className="rounded-xl border"
-          style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
+          style={{ borderColor: "var(--line)", background: "var(--surface)" }}
         >
           {hits.length === 0 ? (
-            <p className="p-4 text-sm" style={{ color: "var(--text-muted)" }}>
+            <p className="p-4 text-sm" style={{ color: "var(--faint)" }}>
               Nothing in the sample matches that.
             </p>
           ) : (
@@ -123,15 +123,15 @@ export function Places({
                 <li
                   key={hit.address_id}
                   className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-3 last:border-0"
-                  style={{ borderColor: "var(--border)" }}
+                  style={{ borderColor: "var(--line)" }}
                 >
                   <span className="flex-1">
                     <span className="font-medium">{hit.street_address}</span>
-                    <span className="ml-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+                    <span className="ml-2 text-sm" style={{ color: "var(--muted)" }}>
                       {hit.postal_city}, {hit.state}
                     </span>
                   </span>
-                  <span className="mono text-xs" style={{ color: "var(--text-muted)" }}>
+                  <span className="mono text-xs" style={{ color: "var(--faint)" }}>
                     {hit.year_built ?? "year ?"} · {hit.units ?? "units ?"}
                   </span>
                   <button
@@ -154,7 +154,7 @@ export function Places({
           Your {places.length === 1 ? noun.one : noun.many}
         </h2>
         {places.length === 0 ? (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          <p className="text-sm" style={{ color: "var(--faint)" }}>
             Nothing saved yet. Search above to add one.
           </p>
         ) : (
@@ -163,23 +163,23 @@ export function Places({
               <li
                 key={place.id}
                 className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border p-4"
-                style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
+                style={{ borderColor: "var(--line)", background: "var(--surface)" }}
               >
                 <div className="min-w-48 flex-1">
                   <div className="font-medium">{place.street_address}</div>
-                  <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  <div className="text-sm" style={{ color: "var(--muted)" }}>
                     {place.legal_city ?? place.postal_city}, {place.legal_state ?? place.state}
                     {place.postal_city_differs && (
                       <>
                         {" · "}
-                        <span style={{ color: "var(--status-warning)" }}>
+                        <span style={{ color: "var(--warn)" }}>
                           mail says {place.postal_city}
                         </span>
                       </>
                     )}
                   </div>
                 </div>
-                <span className="mono text-xs" style={{ color: "var(--text-muted)" }}>
+                <span className="mono text-xs" style={{ color: "var(--faint)" }}>
                   {place.address_id}
                 </span>
                 <button

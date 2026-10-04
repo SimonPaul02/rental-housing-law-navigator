@@ -53,10 +53,10 @@ export function SignIn({ configured }: { configured: boolean }) {
   if (!configured) {
     return (
       <div className="auth-shell space-y-3 text-sm">
-        <p className="font-medium" style={{ color: "var(--text-primary)" }}>
+        <p className="font-medium" style={{ color: "var(--ink)" }}>
           Sign-in is not configured here.
         </p>
-        <p style={{ color: "var(--text-secondary)" }}>
+        <p style={{ color: "var(--muted)" }}>
           Set <code className="mono">WORKOS_CLIENT_ID</code>,{" "}
           <code className="mono">WORKOS_API_KEY</code> and{" "}
           <code className="mono">WORKOS_COOKIE_PASSWORD</code> in{" "}
@@ -72,7 +72,7 @@ export function SignIn({ configured }: { configured: boolean }) {
     <div className="auth-shell space-y-4">
       <form onSubmit={submit} className="space-y-3">
         <label className="block text-sm">
-          <span style={{ color: "var(--text-secondary)" }}>Email</span>
+          <span style={{ color: "var(--muted)" }}>Email</span>
           <input
             className="field mt-1"
             type="email"
@@ -83,7 +83,7 @@ export function SignIn({ configured }: { configured: boolean }) {
           />
         </label>
         <label className="block text-sm">
-          <span style={{ color: "var(--text-secondary)" }}>Password</span>
+          <span style={{ color: "var(--muted)" }}>Password</span>
           <input
             className="field mt-1"
             type="password"
@@ -97,7 +97,7 @@ export function SignIn({ configured }: { configured: boolean }) {
           <p
             role="alert"
             className="text-sm"
-            style={{ color: "var(--status-critical)" }}
+            style={{ color: "var(--critical)" }}
           >
             {error}{" "}
             {hosted && (
@@ -119,7 +119,7 @@ export function SignIn({ configured }: { configured: boolean }) {
         Continue with Google
       </a>
 
-      <p className="text-center text-sm" style={{ color: "var(--text-muted)" }}>
+      <p className="text-center text-sm" style={{ color: "var(--faint)" }}>
         New here?{" "}
         <a href="/sign-up" className="underline">
           Create an account

@@ -23,7 +23,7 @@ export default async function SettingsPage() {
     <div className="space-y-8">
       <section>
         <h1 className="text-2xl font-semibold tracking-tight">Your account</h1>
-        <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+        <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
           Signed in as {displayName(user)} ({account.email}). Your password,
           your email address and your Google connection are held by WorkOS, not
           here — change them there.

@@ -23,7 +23,7 @@ export function AccountMenu({
       className="flex items-center gap-3 text-sm"
       onSubmit={() => setBusy(true)}
     >
-      <span className="hidden sm:inline" style={{ color: "var(--text-muted)" }}>
+      <span className="hidden sm:inline" style={{ color: "var(--faint)" }}>
         {name} · {roleLabel}
       </span>
       <button className="btn btn-quiet" disabled={busy}>

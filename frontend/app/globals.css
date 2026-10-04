@@ -1,187 +1,367 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=Manrope:wght@400;500;600;650;700;750;800&display=swap");
 @import "tailwindcss";
 
-/* Design tokens. Status colors come from a validated palette and are always
-   paired with a text label - never carrying meaning by hue alone. */
+/* ---------------------------------------------------------------------------
+   Design tokens — plua.ai's language: a near-white page, white surfaces, one
+   blue accent, hairline borders, and Manrope only where something is a title.
+   Status colours stay from the validated palette and always ship with a label,
+   so colour never carries meaning alone.
+--------------------------------------------------------------------------- */
 :root {
   color-scheme: light;
-  --surface-0: #ffffff;
-  --surface-1: #fcfcfb;
-  --surface-2: #f4f4f1;
-  --border: #e3e2dd;
-  --text-primary: #0b0b0b;
-  --text-secondary: #52514e;
-  --text-muted: #78766f;
-  --accent: #2a78d6;
+  --bg: #fafbfc;
+  --surface: #fff;
+  --surface-2: #f7f8fa;
+  --ink: #202226;
+  --ink-2: #4b5059;
+  --muted: #777d86;
+  --faint: #969aa2;
+  --line: #e9ebee;
+  --line-2: #e3e7ed;
+  --accent: #385de4;
+  --accent-ink: #2d4dc4;
+  --soft: #f1f4fd;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --font: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --display: Manrope, var(--font);
 
-  --status-good: #0ca30c;
-  --status-warning: #fab219;
-  --status-serious: #ec835a;
-  --status-critical: #d03b3b;
+  --good: #0ca30c;
+  --warn: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --surface-0: #121211;
-    --surface-1: #1a1a19;
-    --surface-2: #24241f;
-    --border: #35342e;
-    --text-primary: #ffffff;
-    --text-secondary: #c3c2b7;
-    --text-muted: #8f8d83;
-    --accent: #3987e5;
+    --bg: #111214;
+    --surface: #17181b;
+    --surface-2: #1d1f23;
+    --ink: #f3f4f6;
+    --ink-2: #c9ccd2;
+    --muted: #8f949d;
+    --faint: #6e737b;
+    --line: #26282d;
+    --line-2: #2d3036;
+    --accent: #6f8ef5;
+    --accent-ink: #8aa5f7;
+    --soft: #1b2030;
   }
 }
 
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --surface-0: #121211;
-  --surface-1: #1a1a19;
-  --surface-2: #24241f;
-  --border: #35342e;
-  --text-primary: #ffffff;
-  --text-secondary: #c3c2b7;
-  --text-muted: #8f8d83;
-  --accent: #3987e5;
+/* These element resets MUST sit in @layer base. Tailwind v4 puts utilities in
+   @layer utilities, and unlayered CSS beats any layered rule regardless of
+   specificity - so an unlayered `p { margin: 0 }` silently kills every
+   `mt-*` / `mb-*` utility on a paragraph or heading across the whole app. */
+@layer base {
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, p { margin: 0; }
+  a { color: inherit; text-decoration: none; }
+  button { border: 0; background: none; color: inherit; cursor: pointer; font: inherit; }
+  button:disabled { cursor: not-allowed; opacity: 0.55; }
+  input, select, textarea { font: inherit; min-width: 0; }
+
+  :is(button, a, input, select, summary):focus-visible {
+    outline: 2px solid #5278f6;
+    outline-offset: 3px;
+  }
 }
 
-html, body {
-  background: var(--surface-0);
-  color: var(--text-primary);
+.mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+.display { font-family: var(--display); letter-spacing: -0.02em; }
+
+/* ------------------------------------------------------------------ shell */
+.app-shell { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 236px;
+  position: fixed;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  padding: 28px 16px 0;
+  z-index: 20;
 }
 
-body {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  -webkit-font-smoothing: antialiased;
+.app-main {
+  flex: 1;
+  margin-left: 236px;
+  max-width: 1280px;
+  padding: 40px 42px 56px;
 }
 
-.mono {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+@media (max-width: 860px) {
+  .sidebar {
+    position: static;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 12px 16px;
+  }
+  .app-main { margin-left: 0; padding: 24px 16px 40px; }
+  .sidebar-bottom { margin: 0 0 0 auto; padding: 0; }
+  .nav-caption, .sidebar-note { display: none; }
 }
 
-/* ------------------------------------------------------------------ forms */
-/* Controls, defined once here rather than as repeated Tailwind strings, so
-   every button and field in the app agrees in both colour schemes. */
-
-.field {
-  display: block;
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 0.6rem;
-  background: var(--surface-0);
-  color: var(--text-primary);
-  padding: 0.6rem 0.75rem;
-  font-size: 0.95rem;
-}
-
-.field:focus-visible,
-.btn:focus-visible,
-.role-card:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 0.6rem;
-  padding: 0.6rem 0.9rem;
-  font-size: 0.925rem;
-  font-weight: 500;
-  background: var(--surface-1);
-  color: var(--text-primary);
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.btn:hover:not(:disabled) {
-  background: var(--surface-2);
-}
-
-.btn:disabled {
-  opacity: 0.55;
-  cursor: progress;
-}
-
-.btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  /* Fixed, not a token: the accent is a mid blue in both schemes, so white
-     text keeps its contrast while a themed foreground would lose it. */
-  color: #ffffff;
-}
-
-.btn-primary:hover:not(:disabled) {
-  filter: brightness(1.08);
-  background: var(--accent);
-}
-
-.btn-quiet {
-  background: transparent;
-  border-color: transparent;
-  color: var(--text-secondary);
-}
-
-.btn-quiet:hover:not(:disabled) {
-  background: var(--surface-2);
-  color: var(--text-primary);
-}
-
-/* The role picker. A card per role, radio-group semantics, so the choice is
-   keyboard-reachable and announced as a choice rather than as four buttons. */
-.role-card {
-  display: block;
-  width: 100%;
-  text-align: left;
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  background: var(--surface-1);
-  padding: 1rem 1.1rem;
-  cursor: pointer;
-}
-
-.role-card:hover:not(:disabled) {
-  background: var(--surface-2);
-}
-
-.role-card[aria-checked="true"] {
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-
-/* The sign-in column, centred without pinning it to the viewport height -
-   a short card and a long one should both sit in the same place. */
-.auth-shell {
-  width: 100%;
-  max-width: 25rem;
-  margin: 0 auto;
-}
-
-.auth-rule {
+/* ------------------------------------------------------------------ brand */
+.brand {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  color: var(--text-muted);
-  font-size: 0.8rem;
+  gap: 9px;
+  font-family: var(--display);
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -0.7px;
+  padding: 0 6px;
+  line-height: 1.15;
+}
+.brand-mark {
+  background: #202327;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.brand-period { color: var(--accent); margin-left: -3px; }
+
+/* -------------------------------------------------------------------- nav */
+.nav-caption {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--faint);
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+  margin: 30px 10px 10px;
+}
+.nav-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 3px;
+  transition: background 0.15s, color 0.15s;
+}
+.nav-item:hover { background: var(--surface-2); color: var(--ink-2); }
+.nav-item.active { background: var(--soft); color: var(--accent-ink); font-weight: 600; }
+.nav-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; opacity: 0.45; flex: none;
+}
+.sidebar-bottom { margin-top: auto; padding: 22px 0 20px; }
+.sidebar-note {
+  border-top: 1px solid var(--line);
+  padding: 18px 10px 0;
+  font-size: 12px;
+  color: var(--faint);
+  line-height: 1.45;
 }
 
-.auth-rule::before,
-.auth-rule::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--border);
+/* ----------------------------------------------------------- page heading */
+.page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 30px;
+}
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 1.7px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 9px;
+}
+.page-heading h1 {
+  font-family: var(--display);
+  font-size: 31px;
+  line-height: 1.22;
+  letter-spacing: -1.05px;
+  font-weight: 650;
+}
+.page-heading p {
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 9px;
+  max-width: 64ch;
+}
+.heading-actions { display: flex; align-items: center; gap: 9px; padding-top: 6px; }
+
+/* ----------------------------------------------------------------- button */
+.button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 9px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink-2);
+  transition: background 0.16s, border-color 0.16s, transform 0.16s;
+}
+.button:hover { background: var(--surface-2); }
+.button:active { transform: translateY(1px); }
+.button.primary {
+  background: #262a30;
+  color: #fff;
+  border-color: #262a30;
+  box-shadow: 0 2px 3px #1419220b;
+}
+.button.primary:hover { background: #414650; }
+.button.accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.button.accent:hover { filter: brightness(1.07); }
+
+/* ------------------------------------------------------------------- card */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: 0 1px 2px #1739640a;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+/* ----------------------------------------------------------- stats strip */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  background: linear-gradient(110deg, var(--surface), var(--surface-2));
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  padding: 22px 0;
+  margin-bottom: 30px;
+  box-shadow: 0 3px 12px #17396406;
 }
+.stat { padding: 2px 24px; border-right: 1px solid var(--line); }
+.stat:last-child { border-right: 0; }
+.stat-label {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--faint);
+}
+.stat-value {
+  font-family: var(--display);
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: -0.9px;
+  margin-top: 7px;
+  font-variant-numeric: tabular-nums;
+}
+.stat-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
 
-.spin {
-  animation: spin 0.9s linear infinite;
+/* ------------------------------------------------------------------ table */
+.table-wrap {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+.table-scroll { overflow-x: auto; }
+table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.data th {
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--faint);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  padding: 11px 14px;
+  white-space: nowrap;
+}
+table.data td {
+  border-bottom: 1px solid var(--line);
+  padding: 12px 14px;
+  vertical-align: top;
+  color: var(--ink-2);
+}
+table.data tbody tr:last-child td { border-bottom: 0; }
+table.data tbody tr:hover td { background: var(--surface-2); }
+
+/* ------------------------------------------------------------------ badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.badge-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+
+/* ------------------------------------------------------------ notice/empty */
+.notice {
+  display: flex;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-2);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+.notice.warning { border-left-color: var(--warn); }
+.notice.accent { border-left-color: var(--accent); background: var(--soft); }
+.notice h3 { font-size: 14px; font-weight: 600; }
+.notice p { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.55; }
+
+/* ------------------------------------------------------------------- misc */
+.section-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.section-title h2 { font-family: var(--display); font-size: 17px; font-weight: 650; letter-spacing: -0.4px; }
+.section-title p { font-size: 13px; color: var(--muted); margin-top: 3px; max-width: 70ch; }
+
+.bar-row { display: flex; align-items: center; gap: 12px; }
+.bar-track { height: 7px; flex: 1; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+
+code:not(pre code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88em;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 5px;
 }

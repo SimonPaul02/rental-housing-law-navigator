@@ -4,6 +4,7 @@ import { tryApi } from "@/lib/api";
 import {
   Card,
   Notice,
+  PageHeading,
   SectionTitle,
   StatusBadge,
   Table,
@@ -29,9 +30,10 @@ export default async function RulesPage() {
 
   return (
     <div className="space-y-8">
-      <SectionTitle
-        title="Module A · Rule extraction"
-        hint="Every record is read out of the corpus by the model, then kept only if its quoted span is found verbatim in the source document."
+      <PageHeading
+        eyebrow="Module A"
+        title="Rule extraction"
+        lede="Every record is read out of the corpus by the model, then kept only if its quoted span is found verbatim in the source document."
       />
 
       {!rules?.length && (
@@ -49,7 +51,7 @@ export default async function RulesPage() {
 
       {!!rules?.length && (
         <>
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-sm" style={{ color: "var(--muted)" }}>
             Showing {rules.length} of {stats?.total ?? rules.length} records.
           </p>
           <Table>
@@ -69,7 +71,7 @@ export default async function RulesPage() {
                   <Td className="mono whitespace-nowrap">{rule.team_rule_id}</Td>
                   <Td className="whitespace-nowrap">
                     {rule.jurisdiction}
-                    <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    <div className="text-xs" style={{ color: "var(--faint)" }}>
                       {rule.level}
                     </div>
                   </Td>
@@ -77,7 +79,7 @@ export default async function RulesPage() {
                   <Td>
                     <StatusBadge status={rule.status} />
                     {rule.effective_date && (
-                      <div className="mt-1 text-xs mono" style={{ color: "var(--text-muted)" }}>
+                      <div className="mt-1 text-xs mono" style={{ color: "var(--faint)" }}>
                         {rule.effective_date}
                       </div>
                     )}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { AccountMenu } from "@/components/account-menu";
+import { NavLink } from "@/components/nav-link";
 import { NAV } from "@/lib/roles";
 import { displayName, viewer } from "@/lib/auth";
 import "./globals.css";
@@ -24,80 +25,58 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // One menu for all four roles, for now. The session is still resolved here
-  // rather than in each page, because the header shows who is signed in and
-  // what they signed up as; `viewer()` is memoised per render, so the page
-  // below this asks the same question for free.
+  // One menu for all four roles, for now. The session is resolved here rather
+  // than per page, because the sidebar shows who is signed in and what they
+  // signed up as; `viewer()` is memoised per render.
   const seen = await viewer();
   const nav =
     seen.state === "ready" ? NAV : seen.state === "open" ? OPEN_NAV : [];
 
   return (
     <html lang="en">
-      <body className="min-h-screen">
+      <body>
         <AuthKitProvider>
-          <header
-            className="sticky top-0 z-10 border-b backdrop-blur"
-            style={{
-              borderColor: "var(--border)",
-              background: "color-mix(in srgb, var(--surface-0) 85%, transparent)",
-            }}
-          >
-            <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-              <Link
-                href={seen.state === "ready" ? "/home" : "/"}
-                className="font-semibold tracking-tight"
-              >
-                Rental Housing Law Navigator
+          <div className="app-shell">
+            <aside className="sidebar">
+              <Link href={seen.state === "ready" ? "/home" : "/"} className="brand">
+                <span className="brand-mark" aria-hidden>
+                  R
+                </span>
+                <span>
+                  Navigator<span className="brand-period">.</span>
+                </span>
               </Link>
 
-              <nav className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-                {nav.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="hover:underline"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
+              {nav.length > 0 && (
+                <nav>
+                  <p className="nav-caption">Navigate</p>
+                  {nav.map((item) => (
+                    <NavLink key={item.href} href={item.href} label={item.label} />
+                  ))}
+                </nav>
+              )}
 
-              {seen.state === "ready" ? (
-                <div className="ml-auto flex items-center gap-4">
-                  <Link
-                    href="/settings"
-                    className="text-sm hover:underline"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    Settings
-                  </Link>
+              <div className="sidebar-bottom">
+                {seen.state === "ready" ? (
                   <AccountMenu
                     name={displayName(seen.user)}
                     roleLabel={seen.account.role_label}
                   />
-                </div>
-              ) : (
-                <a
-                  href="/api/docs"
-                  className="ml-auto text-sm hover:underline"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  API docs
-                </a>
-              )}
-            </div>
-          </header>
+                ) : (
+                  <a className="nav-item" href="/api/docs">
+                    <span className="nav-dot" aria-hidden />
+                    API docs
+                  </a>
+                )}
+                <p className="sidebar-note">
+                  Not legal advice. Every answer cites the source text it came
+                  from.
+                </p>
+              </div>
+            </aside>
 
-          <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
-
-          <footer
-            className="mx-auto max-w-6xl px-4 pb-10 pt-4 text-sm"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Not legal advice. Every answer cites the source text it came from.
-          </footer>
+            <main className="app-main">{children}</main>
+          </div>
         </AuthKitProvider>
       </body>
     </html>
