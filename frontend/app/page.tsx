@@ -3,12 +3,25 @@ import { redirect } from "next/navigation";
 import { DemoAccounts } from "@/components/demo-accounts";
 import { SignIn } from "@/components/sign-in";
 import { Card, Notice } from "@/components/ui";
-import { ROLES, ROLE_SLUGS } from "@/lib/roles";
+import { ROLES, ROLE_SLUGS, type Cardinality } from "@/lib/roles";
 import { signInConfigured, viewer } from "@/lib/auth";
 import { tryApi } from "@/lib/api";
 import type { Health } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+/** How many addresses each role has, in four words.
+ *
+ * It is the first thing worth knowing about the four apps, because it is what
+ * makes them different apps rather than four skins: a page about one building
+ * and a page about five hundred cannot be the same page.
+ */
+const CARDINALITY: Record<Cardinality, string> = {
+  one: "One address.",
+  portfolio: "A portfolio, answered together.",
+  caseload: "Many, never added up.",
+  stock: "The whole sample, none of their own.",
+};
 
 /** The front door.
  *
@@ -40,7 +53,8 @@ export default async function FrontDoor() {
           >
             Rental housing law for a specific building on a specific day, with
             the source text behind every answer. Sign in and say which of these
-            you are — the same record, four different questions of it.
+            you are: one record, four apps, because the four do not even hold
+            the same number of addresses.
           </p>
 
           <ul className="mt-7 space-y-3.5">
@@ -55,6 +69,9 @@ export default async function FrontDoor() {
                   <strong className="font-medium">{ROLES[slug].label}</strong>{" "}
                   <span style={{ color: "var(--muted)" }}>
                     — {ROLES[slug].blurb}
+                  </span>{" "}
+                  <span style={{ color: "var(--faint)" }}>
+                    {CARDINALITY[ROLES[slug].cardinality]}
                   </span>
                 </span>
               </li>
@@ -62,10 +79,11 @@ export default async function FrontDoor() {
           </ul>
 
           <p className="mt-7 text-sm" style={{ color: "var(--faint)" }}>
-            Every role shares one interface for now; the tailored views come
-            later. No teams, no sharing, no inboxes either — nobody here can see
-            anybody else, and there is nothing in the app that addresses another
-            account.
+            A role is never a permission — every row this app serves is either
+            public corpus material or your own — so it decides what you are
+            shown, not what you may read. No teams, no sharing, no inboxes
+            either: nobody here can see anybody else, and there is nothing in
+            the app that addresses another account.
           </p>
         </div>
 
@@ -85,11 +103,11 @@ export default async function FrontDoor() {
             Or sign in as one of the four roles
           </h2>
           <p className="mt-1 mb-5 max-w-2xl text-sm" style={{ color: "var(--muted)" }}>
-            Every role currently shares one interface, so seeing all four means being
-            four different people. These accounts exist so you can do that without
-            being issued anything — pick one, or type its credentials into the card
-            above. They are ordinary accounts with nothing withheld. Signing out
-            brings you back here to try the next one.
+            The four roles get four different apps, so seeing all of them means
+            being four different people. These accounts exist so you can do that
+            without being issued anything — pick one, or type its credentials
+            into the card above. They are ordinary accounts with nothing
+            withheld. Signing out brings you back here to try the next one.
           </p>
           <DemoAccounts />
         </Card>

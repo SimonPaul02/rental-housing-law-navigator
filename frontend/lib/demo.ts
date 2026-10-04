@@ -2,9 +2,9 @@ import { ROLES, type Role } from "./roles";
 
 /** The four published demo accounts, one per role.
  *
- * Every role gets the same interface today, so "see all four roles" means
- * signing in as four different people. These exist so a reviewer can do that
- * without being issued anything: the credentials are on the front door.
+ * The four roles get four different apps, so "see all four" means signing in
+ * as four different people. These exist so a reviewer can do that without
+ * being issued anything: the credentials are on the front door.
  *
  * The passwords are in the client bundle on purpose. Anyone who can use the
  * buttons can read them anyway, so pretending otherwise would buy nothing and

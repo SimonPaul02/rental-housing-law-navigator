@@ -34,3 +34,28 @@ export async function clientApi<T>(
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
+
+/** Upload a file.
+ *
+ * Separate from `clientApi` for one reason: the browser has to set
+ * `Content-Type` itself on a multipart body, because only it knows the
+ * boundary it generated. Sending `application/json` with a `FormData` — which
+ * is what reusing the function above would do — produces a body the server
+ * cannot parse and an error that looks like a server fault.
+ */
+export async function clientUpload<T>(path: string, form: FormData): Promise<T> {
+  const token = await accessToken();
+  const response = await fetch(`/api${path}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (response.status === 401) forgetAccessToken();
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(
+      typeof body.detail === "string" ? body.detail : "The upload did not go through.",
+    );
+  }
+  return (await response.json()) as T;
+}

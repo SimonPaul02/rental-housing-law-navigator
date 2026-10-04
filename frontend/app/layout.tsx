@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { AccountMenu } from "@/components/account-menu";
 import { NavLink } from "@/components/nav-link";
-import { NAV } from "@/lib/roles";
+import { CORPUS_NAV, navFor } from "@/lib/roles";
 import { displayName, viewer } from "@/lib/auth";
 import "./globals.css";
 
@@ -13,24 +13,25 @@ export const metadata: Metadata = {
     "Which housing rules apply to an address on a given date, and how do supplied law-change cases affect the answer?",
 };
 
-/** What a checkout with no WorkOS environment can reach: the corpus views,
- *  which need no account. The personal pages are in `NAV` but say for
- *  themselves that they need one. */
-const OPEN_NAV = NAV.filter((item) =>
-  ["/rules", "/addresses", "/changes"].includes(item.href),
-);
-
 export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // One menu for all four roles, for now. The session is resolved here rather
-  // than per page, because the nav shows who is signed in and what they signed
-  // up as; `viewer()` is memoised per render.
+  // The menu is the role's, so the session is resolved here rather than per
+  // page: the nav both names who is signed in and is itself tailored to them.
+  // `viewer()` is memoised per render, so the pages below pay nothing for it.
+  //
+  // A shorter menu withholds nothing. Every page is still reachable by path and
+  // the API would serve it either way — what the role decides is what is put in
+  // somebody's way, which is the whole reason it was asked for.
   const seen = await viewer();
   const nav =
-    seen.state === "ready" ? NAV : seen.state === "open" ? OPEN_NAV : [];
+    seen.state === "ready"
+      ? navFor(seen.role)
+      : seen.state === "open"
+        ? CORPUS_NAV
+        : [];
 
   return (
     <html lang="en">

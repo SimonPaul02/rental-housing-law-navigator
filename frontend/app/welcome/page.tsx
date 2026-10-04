@@ -27,10 +27,11 @@ export default async function WelcomePage() {
           className="mt-2 max-w-2xl leading-relaxed"
           style={{ color: "var(--muted)" }}
         >
-          One question before you start: which of these are you? Every role
-          shares the same interface for now, so nothing is withheld by
-          answering — but the four ask entirely different things of the same
-          record, and this is what the tailored views will be built on.
+          One question before you start: which of these are you? It decides
+          which of the four apps you get — they ask entirely different things
+          of the same record, starting with how many addresses you have. It is
+          not a permission and withholds nothing: you can change it later, and
+          what you may read never depends on it.
         </p>
       </section>
 
