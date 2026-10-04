@@ -51,6 +51,27 @@ class GeocodeResponse:
 
 
 @dataclass(frozen=True)
+class AcceptedEndpoint:
+    input_street: str
+    candidate: GeocodeCandidate
+    match_kind: str  # exact or normalized
+
+
+@dataclass(frozen=True)
+class ZipAssessment:
+    # missing_input, invalid_for_state, insufficient_evidence, matches_all,
+    # matches_some_endpoints, or mismatch
+    status: str
+    input_zip: str
+    matched_zips: tuple[str, ...]
+    expected_endpoints: int
+    accepted_endpoints: int
+    reason: str
+    source_dataset: str = ""
+    source_retrieved_at: str = ""
+
+
+@dataclass(frozen=True)
 class LookupAttempt:
     query: AddressQuery
     # match, normalized_match, no_match, rejected, ambiguous, invalid_input,
@@ -91,6 +112,8 @@ class ResolvedAddress:
     vintage: str | None
     resolution_method: str = "unresolved"  # geocoder, review_override, or unresolved
     review_override: ReviewOverride | None = None
+    zip_assessment: ZipAssessment | None = None
+    accepted_endpoints: tuple[AcceptedEndpoint, ...] = ()
     warnings: tuple[str, ...] = ()
     attempts: tuple[LookupAttempt, ...] = ()
     candidates: tuple[GeocodeCandidate, ...] = ()

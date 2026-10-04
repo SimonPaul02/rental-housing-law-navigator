@@ -28,6 +28,8 @@ async def test_unresolved_result_stays_unresolved_in_backend(monkeypatch) -> Non
         street_address="12 OAK ST",
         postal_city="Newark",
         state="NJ",
+        source_dataset="county assessor",
+        retrieved_at="2026-10-01",
     )
     result = ResolvedAddress(
         address_id="A1",
@@ -44,7 +46,13 @@ async def test_unresolved_result_stays_unresolved_in_backend(monkeypatch) -> Non
         vintage=None,
         warnings=("jurisdiction_needs_review",),
     )
-    monkeypatch.setattr(service, "_resolve_batch", lambda inputs: [result])
+    seen_inputs = []
+
+    def fake_resolve(inputs):
+        seen_inputs.extend(inputs)
+        return [result]
+
+    monkeypatch.setattr(service, "_resolve_batch", fake_resolve)
     session = RecordingSession()
 
     rows = await service.resolve_many(session, [address])
@@ -54,3 +62,5 @@ async def test_unresolved_result_stays_unresolved_in_backend(monkeypatch) -> Non
     assert rows[0].method == "unresolved"
     assert rows[0].legal_city is None
     assert rows[0].resolution_evidence["status"] == "needs_review"
+    assert seen_inputs[0].source_dataset == "county assessor"
+    assert seen_inputs[0].retrieved_at == "2026-10-01"

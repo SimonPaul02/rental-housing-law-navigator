@@ -178,6 +178,9 @@ class Address(Base, TimestampMixin):
     jurisdiction: Mapped[AddressJurisdiction | None] = relationship(
         back_populates="address", uselist=False, cascade="all, delete-orphan"
     )
+    zip_reviews: Mapped[list[AddressZipReview]] = relationship(
+        back_populates="address", cascade="all, delete-orphan"
+    )
 
 
 class AddressJurisdiction(Base, TimestampMixin):
@@ -203,6 +206,34 @@ class AddressJurisdiction(Base, TimestampMixin):
     resolution_evidence: Mapped[dict | None] = mapped_column(JSONB)
 
     address: Mapped[Address] = relationship(back_populates="jurisdiction")
+
+    @property
+    def zip_assessment(self) -> dict | None:
+        """Structured postal evidence; the jurisdiction columns remain independent."""
+        return (self.resolution_evidence or {}).get("zip_assessment")
+
+
+class AddressZipReview(Base, TimestampMixin):
+    """Append-only, source-backed human finding kept across resolver reruns."""
+
+    __tablename__ = "address_zip_reviews"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    address_id: Mapped[str] = mapped_column(
+        ForeignKey("addresses.address_id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    input_street_address: Mapped[str] = mapped_column(Text, nullable=False)
+    input_postal_city: Mapped[str] = mapped_column(String(128), nullable=False)
+    input_state: Mapped[str] = mapped_column(String(2), nullable=False)
+    input_zip: Mapped[str] = mapped_column(String(10), nullable=False)
+    decision: Mapped[str] = mapped_column(String(32), nullable=False)
+    confirmed_zip: Mapped[str | None] = mapped_column(String(10))
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewer: Mapped[str] = mapped_column(String(128), nullable=False)
+    reviewed_at: Mapped[dt.date] = mapped_column(Date, nullable=False)
+
+    address: Mapped[Address] = relationship(back_populates="zip_reviews")
 
 
 class Lookup(Base, TimestampMixin):

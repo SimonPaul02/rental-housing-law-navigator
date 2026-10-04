@@ -98,6 +98,7 @@ def write_review_csv(results: list[ResolvedAddress], path: str | Path) -> None:
     with destination.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(
             stream,
+            lineterminator="\n",
             fieldnames=[
                 "address_id",
                 "status",
@@ -137,5 +138,59 @@ def write_review_csv(results: list[ResolvedAddress], path: str | Path) -> None:
                     "candidate_cities": "; ".join(
                         sorted({item.city for item in item.candidates if item.city})
                     ),
+                }
+            )
+
+
+def write_zip_review_csv(results: list[ResolvedAddress], path: str | Path) -> None:
+    """Export ZIP discrepancies without changing jurisdiction or raw source data."""
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with destination.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(
+            stream,
+            lineterminator="\n",
+            fieldnames=[
+                "address_id",
+                "jurisdiction_status",
+                "street_address",
+                "postal_city",
+                "legal_city",
+                "state",
+                "input_zip",
+                "matched_zips",
+                "zip_status",
+                "accepted_endpoints",
+                "expected_endpoints",
+                "reason",
+                "source_dataset",
+                "source_retrieved_at",
+            ],
+        )
+        writer.writeheader()
+        for result in results:
+            assessment = result.zip_assessment
+            if assessment is None or assessment.status not in {
+                "invalid_for_state",
+                "mismatch",
+                "matches_some_endpoints",
+            }:
+                continue
+            writer.writerow(
+                {
+                    "address_id": result.address_id,
+                    "jurisdiction_status": result.status,
+                    "street_address": result.input.street_address,
+                    "postal_city": result.input.postal_city,
+                    "legal_city": result.legal_city or "",
+                    "state": result.input.state,
+                    "input_zip": assessment.input_zip,
+                    "matched_zips": "; ".join(assessment.matched_zips),
+                    "zip_status": assessment.status,
+                    "accepted_endpoints": assessment.accepted_endpoints,
+                    "expected_endpoints": assessment.expected_endpoints,
+                    "reason": assessment.reason,
+                    "source_dataset": assessment.source_dataset,
+                    "source_retrieved_at": assessment.source_retrieved_at,
                 }
             )

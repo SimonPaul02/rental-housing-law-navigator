@@ -38,6 +38,7 @@ The command produces:
 - `data/resolved_addresses.json` – one processed record per input, including unresolved records marked `needs_review`
 - `data/census_geocode_cache.jsonl` – cached Census API responses
 - `data/address_review.csv` – unresolved addresses and unexpected postal/legal-city mismatches to inspect
+- `data/zip_review.csv` – ZIP discrepancies, with the original and accepted Census ZIPs
 
 The command exits with code `2` if a cache miss or service error leaves an address
 unresolved, or if no addresses resolve at all. It still writes the output and
@@ -86,6 +87,46 @@ The resolver accepts a small set of equivalent street spellings (for example,
 every directional component. These results carry a `street_normalized_match`
 warning. Missing or changed directions, street-name typos, and unmatched range
 endpoints remain in the review queue; they need source-backed verification.
+
+## ZIP evidence
+
+ZIP quality is assessed separately from legal jurisdiction. `zip_assessment.py`
+compares the original ZIP with the ZIP of every accepted endpoint; rejected
+Census candidates are excluded. Its statuses are `missing_input`,
+`invalid_for_state`, `insufficient_evidence`, `matches_all`,
+`matches_some_endpoints`, and `mismatch`. The original ZIP and legal city are
+never changed by this assessment.
+
+The offline snapshot currently has 467 resolved jurisdictions and 33 needing
+review. It has 92 ZIP discrepancies on resolved addresses. `zip_review.csv`
+contains 93 rows because one more address has an invalid ZIP and an unresolved
+jurisdiction. The detailed assessment and endpoint evidence are included in
+`resolved_addresses.json` and stored by the backend in
+`address_jurisdictions.resolution_evidence`.
+
+After migrating an existing database, backfill ZIP evidence from the checked-in
+Census cache without changing jurisdiction decisions:
+
+```bash
+cd backend && python3 scripts/backfill_zip_assessments.py
+```
+
+Human ZIP findings use the separate, append-only `address_zip_reviews` table, so
+resolver reruns cannot erase them. An operator can copy
+`data/zip_reviews.example.csv`, add source-backed decisions, and import them:
+
+```bash
+cd backend && python3 scripts/import_zip_reviews.py --input ../data/zip_reviews.csv
+```
+
+The import checks that the reviewed street, mailing city, state, and original
+ZIP still match the address. `GET /api/address-lookup/zip-review` lists current
+discrepancies; `GET /api/address-lookup/addresses/{address_id}` includes the
+latest reviewed decision and whether it still matches the input.
+The CSV `decision` is one of `input_zip_supported`, `census_zip_supported`,
+`another_zip_supported`, or `inconclusive`; a supported decision needs a
+five-digit `confirmed_zip`. Imports are operator-run because the app has no
+restricted reviewer role.
 
 ## Confidence and edge cases
 

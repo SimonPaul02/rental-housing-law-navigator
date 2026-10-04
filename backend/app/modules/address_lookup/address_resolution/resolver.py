@@ -8,6 +8,7 @@ from dataclasses import replace
 from urllib.parse import urlparse
 
 from .models import (
+    AcceptedEndpoint,
     AddressInput,
     AddressQuery,
     GeocodeCandidate,
@@ -16,6 +17,7 @@ from .models import (
     ReviewOverride,
 )
 from .ports import CacheMissError, Geocoder, GeocoderError
+from .zip_assessment import assess_zip, zip_is_plausible
 
 # These names are search hints only. The returned incorporated place is the
 # evidence for a legal city; an alias never becomes a resolution by itself.
@@ -62,7 +64,6 @@ _ORDINALS = {
     "TENTH": "10TH",
 }
 _EXTRA_SUFFIXES = {"BLV": "BLVD", "WY": "WAY"}
-_ZIP_PREFIXES = {"CA": ("9",), "NJ": ("07", "08"), "MA": ("01", "02", "055")}
 
 
 def _house_number_and_street(value: str) -> tuple[str | None, tuple[str, ...]]:
@@ -118,12 +119,6 @@ def _street_endpoints(street_address: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys((f"{first} {street}", f"{last} {street}")))
 
 
-def _zip_is_plausible(zip_code: str, state: str) -> bool:
-    return bool(re.fullmatch(r"\d{5}", zip_code)) and zip_code.startswith(
-        _ZIP_PREFIXES.get(state.upper(), tuple(str(i) for i in range(10)))
-    )
-
-
 def _queries(
     street: str,
     address: AddressInput,
@@ -139,7 +134,7 @@ def _queries(
             continue
         # Omit ZIP first: several supplied ZIPs conflict with their city.
         queries.append(AddressQuery(street, city, address.state.upper()))
-        if address.zip and _zip_is_plausible(address.zip, address.state):
+        if address.zip and zip_is_plausible(address.zip, address.state):
             queries.append(AddressQuery(street, city, address.state.upper(), address.zip))
     return tuple(dict.fromkeys(queries))
 
@@ -210,12 +205,18 @@ def choose_resolution(
     attempts: Sequence[LookupAttempt],
     candidates: Sequence[GeocodeCandidate],
     search_aliases: Mapping[str, str] = DEFAULT_SEARCH_ALIASES,
+    accepted_endpoints: Sequence[AcceptedEndpoint] = (),
+    expected_endpoint_count: int | None = None,
 ) -> ResolvedAddress:
     """Make the final decision from supplied evidence; performs no I/O."""
     warnings: list[str] = []
-    if not address.zip:
+    endpoint_count = (
+        expected_endpoint_count if expected_endpoint_count is not None else len(endpoint_results)
+    )
+    zip_assessment = assess_zip(address, accepted_endpoints, endpoint_count)
+    if zip_assessment.status == "missing_input":
         warnings.append("missing_input_zip")
-    elif not _zip_is_plausible(address.zip, address.state):
+    elif zip_assessment.status == "invalid_for_state":
         warnings.append("suspicious_input_zip")
     if len(endpoint_results) > 1:
         warnings.append("house_number_range_checked_at_both_endpoints")
@@ -235,7 +236,14 @@ def choose_resolution(
         )
         if expected_city and selected.city and selected.city.casefold() != expected_city.casefold():
             warnings.append("postal_city_differs_from_legal_city")
-        if address.zip and selected.zip and address.zip != selected.zip:
+        if zip_assessment.status in {
+            "invalid_for_state",
+            "mismatch",
+            "matches_some_endpoints",
+        } and (
+            zip_assessment.status == "matches_some_endpoints"
+            or (selected.zip and address.zip != selected.zip)
+        ):
             warnings.append("input_zip_differs_from_match")
     if selected is None:
         warnings.append("jurisdiction_needs_review")
@@ -254,6 +262,8 @@ def choose_resolution(
         benchmark=selected.benchmark if selected else None,
         vintage=selected.vintage if selected else None,
         resolution_method="geocoder" if selected else "unresolved",
+        zip_assessment=zip_assessment,
+        accepted_endpoints=tuple(accepted_endpoints),
         warnings=tuple(warnings),
         attempts=tuple(attempts),
         candidates=tuple(dict.fromkeys(candidates)),
@@ -278,17 +288,37 @@ def resolve_addresses(
             raise ValueError(f"Missing or duplicate address_id: {address.address_id!r}")
         seen_ids.add(address.address_id)
         endpoint_results: list[GeocodeCandidate | None] = []
+        accepted_endpoints: list[AcceptedEndpoint] = []
         attempts: list[LookupAttempt] = []
         candidates: list[GeocodeCandidate] = []
-        for street in _street_endpoints(address.street_address):
+        streets = _street_endpoints(address.street_address)
+        for street in streets:
             chosen, endpoint_attempts, endpoint_candidates = _lookup_endpoint(
                 street, address, geocoder, search_aliases
             )
             endpoint_results.append(chosen)
+            if chosen is not None:
+                accepted_endpoints.append(
+                    AcceptedEndpoint(
+                        input_street=street,
+                        candidate=chosen,
+                        match_kind="normalized"
+                        if endpoint_attempts[-1].outcome == "normalized_match"
+                        else "exact",
+                    )
+                )
             attempts.extend(endpoint_attempts)
             candidates.extend(endpoint_candidates)
         output.append(
-            choose_resolution(address, endpoint_results, attempts, candidates, search_aliases)
+            choose_resolution(
+                address,
+                endpoint_results,
+                attempts,
+                candidates,
+                search_aliases,
+                accepted_endpoints,
+                len(streets),
+            )
         )
     return output
 

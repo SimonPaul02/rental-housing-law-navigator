@@ -157,6 +157,13 @@ It never substitutes a mailing city for a verified legal city. The supplied
 Census response cache supports reproducible offline runs; documented review
 overrides can be supplied through `data/address_overrides.csv`.
 
+ZIP quality is tracked separately from jurisdiction: each accepted Census
+endpoint contributes its ZIP to a structured assessment, and discrepancies are
+exported in `data/zip_review.csv`. Source-backed human ZIP findings are stored
+in a separate database audit table. Existing deployments can run
+`cd backend && python3 scripts/backfill_zip_assessments.py` after migration to
+add ZIP evidence from the checked-in cache without changing legal cities.
+
 The separate `property_facts` package retains raw values, missingness, fact
 kind and source provenance. Its status flags prevent an invalid or contradictory
 unit count from silently determining rule coverage. Both packages live under

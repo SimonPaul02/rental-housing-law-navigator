@@ -21,6 +21,35 @@ class AddressRecord(BaseModel):
     use_description: str | None = None
 
 
+class ZipAssessmentRecord(BaseModel):
+    status: str
+    input_zip: str
+    matched_zips: list[str]
+    expected_endpoints: int
+    accepted_endpoints: int
+    reason: str
+    source_dataset: str = ""
+    source_retrieved_at: str = ""
+
+
+class ZipReviewRecord(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    address_id: str
+    input_street_address: str
+    input_postal_city: str
+    input_state: str
+    input_zip: str
+    decision: str
+    confirmed_zip: str | None = None
+    source_url: str
+    reason: str
+    reviewer: str
+    reviewed_at: dt.date
+    current: bool = False
+
+
 class JurisdictionRecord(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -36,15 +65,27 @@ class JurisdictionRecord(BaseModel):
     confidence: float | None = None
     note: str | None = None
     resolution_evidence: dict | None = None
+    zip_assessment: ZipAssessmentRecord | None = None
 
 
 class AddressDetail(AddressRecord):
     jurisdiction: JurisdictionRecord | None = None
     property_facts: dict | None = None
+    zip_review: ZipReviewRecord | None = None
     postal_city_differs: bool = Field(
         default=False,
         description="True when the legal city is not the mailing city.",
     )
+
+
+class ZipReviewCase(BaseModel):
+    address_id: str
+    street_address: str
+    postal_city: str
+    state: str
+    legal_city: str | None = None
+    assessment: ZipAssessmentRecord
+    review: ZipReviewRecord | None = None
 
 
 class RuleOutcome(BaseModel):

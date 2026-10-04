@@ -13,6 +13,7 @@ from app.modules.address_lookup.adapters.address_files import (
     read_review_overrides_csv,
     write_review_csv,
     write_to_internal_json,
+    write_zip_review_csv,
 )
 from app.modules.address_lookup.address_resolution.census import CachedGeocoder, CensusGeocoder
 from app.modules.address_lookup.address_resolution.models import (
@@ -75,6 +76,65 @@ class AddressResolutionTests(unittest.TestCase):
         self.assertEqual(result.status, "resolved")
         self.assertIn("suspicious_input_zip", result.warnings)
         self.assertIn("input_zip_differs_from_match", result.warnings)
+        self.assertEqual(result.zip_assessment.status, "invalid_for_state")
+        self.assertEqual(result.zip_assessment.matched_zips, ("07030",))
+
+    def test_zip_assessment_uses_accepted_candidates_only(self) -> None:
+        address = AddressInput("A1", "12 OAK ST", "Newark", "NJ", "07102")
+        good = replace(candidate("12 OAK ST", "Newark", "3451000"), zip="07102")
+        wrong_house = replace(candidate("14 OAK ST", "Newark", "3451000"), zip="07030")
+        result = resolve_addresses(
+            [address],
+            FakeGeocoder(
+                {
+                    "12 OAK ST": [good, wrong_house],
+                }
+            ),
+        )[0]
+        self.assertEqual(result.zip_assessment.status, "matches_all")
+        self.assertEqual(result.zip_assessment.matched_zips, ("07102",))
+        self.assertEqual(len(result.candidates), 2)
+        self.assertEqual(len(result.accepted_endpoints), 1)
+
+    def test_range_zip_assessment_checks_both_endpoints(self) -> None:
+        address = AddressInput("A1", "12-14 OAK ST", "Newark", "NJ", "07102")
+        first = replace(candidate("12 OAK ST", "Newark", "3451000"), zip="07102")
+        second = replace(candidate("14 OAK ST", "Newark", "3451000"), zip="07103")
+        result = resolve_addresses(
+            [address],
+            FakeGeocoder(
+                {
+                    "12 OAK ST": [first],
+                    "14 OAK ST": [second],
+                }
+            ),
+        )[0]
+        self.assertEqual(result.status, "resolved")
+        self.assertEqual(result.zip_assessment.status, "matches_some_endpoints")
+        self.assertEqual(result.zip_assessment.matched_zips, ("07102", "07103"))
+        self.assertIn("input_zip_differs_from_match", result.warnings)
+
+    def test_zip_review_export_keeps_source_and_jurisdiction_separate(self) -> None:
+        address = AddressInput(
+            "A1",
+            "12 OAK ST",
+            "Newark",
+            "NJ",
+            "11219",
+            source_dataset="assessor",
+            retrieved_at="2026-10-01",
+        )
+        match = replace(candidate("12 OAK ST", "Newark", "3451000"), zip="07102")
+        result = resolve_addresses([address], FakeGeocoder({"12 OAK ST": [match]}))[0]
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "zip_review.csv"
+            write_zip_review_csv([result], path)
+            text = path.read_text(encoding="utf-8")
+        self.assertIn("A1,resolved", text)
+        self.assertIn("invalid_for_state", text)
+        self.assertIn("assessor", text)
+        self.assertEqual(result.legal_city, "Newark")
+        self.assertEqual(result.input.zip, "11219")
 
     def test_neighborhood_alias_is_only_a_search_hint(self) -> None:
         address = AddressInput("A0065", "12 TEST ST", "Dorchester", "MA", "")
@@ -350,6 +410,8 @@ class AddressResolutionTests(unittest.TestCase):
                     str(temp / "resolved.json"),
                     "--review",
                     str(temp / "review.csv"),
+                    "--zip-review",
+                    str(temp / "zip_review.csv"),
                 ],
                 cwd=root,
                 text=True,
@@ -385,6 +447,8 @@ class AddressResolutionTests(unittest.TestCase):
                     str(temp / "resolved.json"),
                     "--review",
                     str(temp / "review.csv"),
+                    "--zip-review",
+                    str(temp / "zip_review.csv"),
                     "--overrides",
                     str(temp / "overrides.csv"),
                 ],

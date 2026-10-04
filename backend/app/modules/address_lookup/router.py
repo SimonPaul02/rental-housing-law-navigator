@@ -24,7 +24,10 @@ from app.modules.address_lookup.schemas import (
     LookupResponse,
     ResolveRequest,
     ResolveSummary,
+    ZipReviewCase,
+    ZipReviewRecord,
 )
+from app.modules.address_lookup.zip_reviews import same_input
 
 router = APIRouter(prefix="/address-lookup", tags=["Module B - address lookup"])
 
@@ -35,6 +38,14 @@ def _default_as_of() -> dt.date:
 
 def _with_juris(stmt):
     return stmt.options(selectinload(Address.jurisdiction))
+
+
+def _latest_zip_review(address: Address) -> ZipReviewRecord | None:
+    if not address.zip_reviews:
+        return None
+    latest = max(address.zip_reviews, key=lambda row: row.id)
+    record = ZipReviewRecord.model_validate(latest)
+    return record.model_copy(update={"current": same_input(latest, service.input_from_db(address))})
 
 
 # ------------------------------------------------------------- addresses ---
@@ -91,7 +102,9 @@ async def list_addresses(
 async def get_address(
     address_id: str, session: AsyncSession = Depends(get_session)
 ) -> AddressDetail:
-    stmt = _with_juris(select(Address).where(Address.address_id == address_id))
+    stmt = _with_juris(select(Address).where(Address.address_id == address_id)).options(
+        selectinload(Address.zip_reviews)
+    )
     address = (await session.execute(stmt)).scalar_one_or_none()
     if address is None:
         raise HTTPException(404, f"No address {address_id}")
@@ -100,12 +113,49 @@ async def get_address(
         **AddressRecord.model_validate(address).model_dump(),
         jurisdiction=(JurisdictionRecord.model_validate(juris) if juris else None),
         property_facts=address.property_facts or to_payload(from_db_address(address)),
+        zip_review=_latest_zip_review(address),
         postal_city_differs=bool(
             juris
             and juris.legal_city
             and juris.legal_city.casefold() != address.postal_city.casefold()
         ),
     )
+
+
+@router.get("/zip-review", response_model=list[ZipReviewCase])
+async def list_zip_review_cases(
+    session: AsyncSession = Depends(get_session),
+    status: str | None = None,
+) -> list[ZipReviewCase]:
+    """Show automatic ZIP discrepancies with any source-backed human finding."""
+    stmt = _with_juris(select(Address).order_by(Address.address_id)).options(
+        selectinload(Address.zip_reviews)
+    )
+    addresses = (await session.execute(stmt)).scalars().all()
+    cases: list[ZipReviewCase] = []
+    for address in addresses:
+        juris = address.jurisdiction
+        assessment = juris.zip_assessment if juris else None
+        if not assessment or assessment.get("status") not in {
+            "invalid_for_state",
+            "mismatch",
+            "matches_some_endpoints",
+        }:
+            continue
+        if status and assessment["status"] != status:
+            continue
+        cases.append(
+            ZipReviewCase(
+                address_id=address.address_id,
+                street_address=address.street_address,
+                postal_city=address.postal_city,
+                state=address.state,
+                legal_city=juris.legal_city,
+                assessment=assessment,
+                review=_latest_zip_review(address),
+            )
+        )
+    return cases
 
 
 # ------------------------------------------------------- jurisdiction fix ---

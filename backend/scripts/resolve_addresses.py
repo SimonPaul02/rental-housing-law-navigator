@@ -12,6 +12,7 @@ from app.modules.address_lookup.adapters.address_files import (  # noqa: E402
     read_review_overrides_csv,
     write_review_csv,
     write_to_internal_json,
+    write_zip_review_csv,
 )
 from app.modules.address_lookup.address_resolution.census import (  # noqa: E402
     CachedGeocoder,
@@ -31,6 +32,7 @@ def main() -> int:
     parser.add_argument("--output", default=str(DATA_DIR / "resolved_addresses.json"))
     parser.add_argument("--cache", default=str(DATA_DIR / "census_geocode_cache.jsonl"))
     parser.add_argument("--review", default=str(DATA_DIR / "address_review.csv"))
+    parser.add_argument("--zip-review", default=str(DATA_DIR / "zip_review.csv"))
     parser.add_argument("--overrides", help="CSV of source-backed review decisions")
     parser.add_argument("--offline", action="store_true", help="Only use cached Census responses")
     args = parser.parse_args()
@@ -42,10 +44,12 @@ def main() -> int:
         results = apply_review_overrides(results, read_review_overrides_csv(args.overrides))
     write_to_internal_json(results, args.output)
     write_review_csv(results, args.review)
+    write_zip_review_csv(results, args.zip_review)
     counts = Counter(item.status for item in results)
     print(f"Processed {len(results)} addresses: {dict(counts)}")
     print(f"Resolution output: {args.output}")
     print(f"Review queue: {args.review}")
+    print(f"ZIP review: {args.zip_review}")
     failed_lookups = [
         result
         for result in results

@@ -29,6 +29,34 @@ _GEOCODE_LOCK = Lock()
 VERIFIED_METHODS = frozenset({"geocoder", "review_override", "census", "manual"})
 
 
+def input_from_db(address: Address) -> AddressInput:
+    return AddressInput(
+        address_id=address.address_id,
+        street_address=address.street_address,
+        postal_city=address.postal_city,
+        state=address.state,
+        zip=address.zip or "",
+        source_dataset=address.source_dataset or "",
+        retrieved_at=address.retrieved_at or "",
+    )
+
+
+def merge_zip_evidence(existing: dict, result: ResolvedAddress) -> dict:
+    """Backfill ZIP evidence without replacing a jurisdiction or its review history."""
+    previous_input = existing.get("input") or {}
+    current = result.input
+    for field in ("street_address", "postal_city", "state", "zip"):
+        if (
+            str(previous_input.get(field) or "").strip()
+            != str(getattr(current, field) or "").strip()
+        ):
+            raise ValueError(f"Address {result.address_id} changed since jurisdiction resolution")
+    updated = dict(existing)
+    updated["zip_assessment"] = asdict(result.zip_assessment)
+    updated["accepted_endpoints"] = [asdict(item) for item in result.accepted_endpoints]
+    return updated
+
+
 def parse_effective_date(value: str | None) -> dt.date | None:
     """Accepts YYYY, YYYY-MM or YYYY-MM-DD; returns the earliest covered day."""
     if not value:
@@ -92,16 +120,7 @@ async def resolve_many(
     session: AsyncSession, addresses: list[Address]
 ) -> list[AddressJurisdiction]:
     """Persist resolver decisions, including unresolved records needing review."""
-    inputs = [
-        AddressInput(
-            address_id=address.address_id,
-            street_address=address.street_address,
-            postal_city=address.postal_city,
-            state=address.state,
-            zip=address.zip or "",
-        )
-        for address in addresses
-    ]
+    inputs = [input_from_db(address) for address in addresses]
     results = await asyncio.to_thread(_resolve_batch, inputs)
     rows: list[AddressJurisdiction] = []
     by_id = {address.address_id: address for address in addresses}
