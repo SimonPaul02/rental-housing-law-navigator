@@ -10,10 +10,10 @@ from threading import Lock
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.db.models import Address, AddressJurisdiction, Lookup, Rule
-from app.modules.address_lookup import coverage
 from app.modules.address_lookup.adapters.address_files import read_review_overrides_csv
 from app.modules.address_lookup.adapters.property_facts import from_db_address
 from app.modules.address_lookup.address_resolution.census import CachedGeocoder, CensusGeocoder
@@ -22,6 +22,19 @@ from app.modules.address_lookup.address_resolution.resolver import (
     apply_review_overrides,
     resolve_addresses,
 )
+from app.modules.address_lookup.rule_adapter import adapters as rule_adapters
+from app.modules.address_lookup.rule_adapter.models import (
+    COMPILER_VERSION,
+    CompiledRule,
+    Relation,
+    rule_version_hash,
+)
+from app.modules.address_lookup.rule_evaluation import predicates as pred
+from app.modules.address_lookup.rule_evaluation.base import evaluate_base
+from app.modules.address_lookup.rule_evaluation.decisions import BaseResult, Decision, Ternary
+from app.modules.address_lookup.rule_evaluation.explanations import explain
+from app.modules.address_lookup.rule_evaluation.export import to_submission, validate_submission
+from app.modules.address_lookup.rule_evaluation.interactions import resolve_interactions
 from app.modules.address_lookup.schemas import LookupResponse, RuleOutcome
 from app.modules.address_lookup.status import VERIFIED_METHODS
 
@@ -57,43 +70,127 @@ def merge_zip_evidence(existing: dict, result: ResolvedAddress) -> dict:
     return updated
 
 
-def parse_effective_date(value: str | None) -> dt.date | None:
-    """Accepts YYYY, YYYY-MM or YYYY-MM-DD; returns the earliest covered day."""
-    if not value:
-        return None
-    parts = value.split("-")
-    try:
-        year = int(parts[0])
-        month = int(parts[1]) if len(parts) > 1 else 1
-        day = int(parts[2]) if len(parts) > 2 else 1
-        return dt.date(year, month, day)
-    except (ValueError, IndexError):
-        log.warning("unparseable effective_date %r", value)
-        return None
+def evidence_for(address: Address) -> pred.AddressEvidence:
+    """Everything the evaluator may know about one address, with status kept.
 
-
-def facts_for(address: Address) -> coverage.AddressFacts:
+    The point of carrying `FactValue` rather than a bare value is that
+    `not_supplied`, `invalid` and `conflicted` are different answers. Flattening
+    all three to `None` loses the reason, and the reason is what the explanation
+    has to say out loud.
+    """
     juris = address.jurisdiction
-    property_record = from_db_address(address)
-    return coverage.AddressFacts(
+    verified = bool(juris and juris.method in VERIFIED_METHODS)
+    record = from_db_address(address)
+
+    def fact(name: str) -> pred.FactValue:
+        held = getattr(record, name, None)
+        if held is None:
+            return pred.FactValue(None, "not_supplied")
+        provenance = getattr(held, "provenance", None)
+        return pred.FactValue(
+            value=held.value,
+            status=held.status,
+            scope=getattr(record, "record_scope", "source_address_row"),
+            provenance=getattr(provenance, "source_dataset", None) if provenance else None,
+        )
+
+    return pred.AddressEvidence(
         address_id=address.address_id,
-        legal_city=(juris.legal_city if juris and juris.method in VERIFIED_METHODS else None),
-        legal_state=(juris.legal_state or address.state) if juris else address.state,
-        year_built=(
-            property_record.year_built.value
-            if property_record.year_built.status == "present"
-            else None
+        legal_city=pred.FactValue(
+            juris.legal_city if verified else None,
+            "present" if verified and juris.legal_city else "not_supplied",
         ),
-        units=(property_record.units.value if property_record.units.status == "present" else None),
-        use_code=(
-            property_record.use_code.value if property_record.use_code.status == "present" else None
+        legal_state=pred.FactValue(
+            (juris.legal_state if juris and juris.legal_state else address.state),
+            "present" if (juris and juris.legal_state) or address.state else "not_supplied",
         ),
-        certificate_of_occupancy_date=(
-            property_record.certificate_of_occupancy_date.value
-            if property_record.certificate_of_occupancy_date.status == "present"
-            else None
-        ),
+        units=fact("units"),
+        year_built=fact("year_built"),
+        certificate_of_occupancy_date=fact("certificate_of_occupancy_date"),
+        use_code=fact("use_code"),
+        jurisdiction_method=(juris.method if juris else None),
+        jurisdiction_note=(juris.note if juris else None),
     )
+
+
+# A rule is compiled once per version and kept, so evaluating five hundred
+# addresses does not retranslate the same prose five hundred times.
+_COMPILED: dict[str, CompiledRule] = {}
+_COMPILED_LOCK = Lock()
+
+
+def compiled_for(record: Rule) -> CompiledRule:
+    version = rule_version_hash(record)
+    key = f"{record.team_rule_id}@{version}"
+    with _COMPILED_LOCK:
+        hit = _COMPILED.get(key)
+    if hit is not None:
+        return hit
+
+    store = rule_adapters.store()
+    compiled = store.get(record.team_rule_id, version)
+    if compiled is None:
+        from app.modules.address_lookup.rule_adapter import compiler
+
+        compiled, _ = compiler.compile_rule(record)
+    compiled = store.apply_reviews(compiled)
+    with _COMPILED_LOCK:
+        _COMPILED[key] = compiled
+    return compiled
+
+
+def clear_compiled_cache() -> None:
+    with _COMPILED_LOCK:
+        _COMPILED.clear()
+
+
+async def compiled_rules(
+    session: AsyncSession,
+) -> tuple[list[Rule], dict[str, CompiledRule], list[Relation]]:
+    """Every rule, its compiled form, and the reviewed relations between them."""
+    rows = await session.execute(select(Rule).order_by(Rule.team_rule_id))
+    records = list(rows.scalars().all())
+    store = rule_adapters.store()
+    compiled = {r.team_rule_id: compiled_for(r) for r in records}
+    return records, compiled, store.all_relations()
+
+
+def _outcome_from(decision: Decision, record: Rule) -> RuleOutcome:
+    return RuleOutcome(
+        team_rule_id=decision.team_rule_id,
+        result=str(decision.result),
+        explanation=decision.explanation,
+        conflict_flag=decision.conflict_flag or bool(record.conflict_flag),
+        unresolved_fields=list(decision.base.unresolved_fields),
+        in_jurisdiction=decision.base.geography is not Ternary.false,
+        category=record.category,
+        jurisdiction=record.jurisdiction,
+        level=record.level,
+        status=record.status,
+        title=record.title,
+        key_value=record.key_value,
+        citation=record.citation,
+        source_url=record.source_url,
+        quoted_span=record.quoted_span,
+        superseded_by=decision.superseded_by,
+        issue_key=decision.base.issue_key,
+        checks=[c.to_json() for c in (*decision.base.checks, *decision.interaction_checks)],
+    )
+
+
+def decide_for_address(
+    records: list[Rule],
+    compiled: dict[str, CompiledRule],
+    relations: list[Relation],
+    evidence: pred.AddressEvidence,
+    as_of: dt.date,
+) -> list[Decision]:
+    """Base decisions for every rule, then the interaction pass across them."""
+    bases = [evaluate_base(compiled[r.team_rule_id], evidence, as_of) for r in records]
+    decisions = resolve_interactions(bases, relations)
+    for decision in decisions:
+        decision.explanation = explain(decision)
+    return decisions
 
 
 # ------------------------------------------------------------- resolution ---
@@ -146,131 +243,21 @@ async def resolve_many(
 
 # ----------------------------------------------------------------- lookup ---
 def evaluate_rule_for_address(
-    rule: Rule, facts: coverage.AddressFacts, as_of: dt.date
+    rule: Rule, evidence: pred.AddressEvidence, as_of: dt.date
 ) -> RuleOutcome:
-    """The full decision for one (rule, address, date) triple."""
-    context = {
-        "team_rule_id": rule.team_rule_id,
-        "category": rule.category,
-        "jurisdiction": rule.jurisdiction,
-        "level": rule.level,
-        "status": rule.status,
-        "title": rule.title,
-        "key_value": rule.key_value,
-        "citation": rule.citation,
-        "source_url": rule.source_url,
-        "quoted_span": rule.quoted_span,
-    }
+    """The decision for one (rule, address, date) triple.
 
-    if rule.level == "city" and rule.status != "failed" and facts.legal_city is None:
-        city_state = rule.jurisdiction.rpartition(",")[2].strip().upper()
-        if not city_state or city_state == (facts.legal_state or "").upper():
-            return RuleOutcome(
-                result="unknown",
-                explanation="The legal city has not been verified for this address.",
-                unresolved_fields=["legal_city"],
-                **context,
-            )
-
-    # 1. Geography.
-    geo_ok, geo_reason = coverage.jurisdiction_matches(
-        rule_jurisdiction=rule.jurisdiction, rule_level=rule.level, facts=facts
-    )
-    if not geo_ok:
-        return RuleOutcome(
-            result="does_not_apply",
-            explanation=geo_reason,
-            in_jurisdiction=False,
-            **context,
-        )
-
-    # 2. Status and effective date as of the query date.
-    if rule.status == "failed":
-        return RuleOutcome(
-            result="does_not_apply",
-            explanation=(
-                f"{rule.citation} was defeated or struck, so it imposes no "
-                "requirement. Recorded as failed."
-            ),
-            **context,
-        )
-    if rule.status == "pending":
-        return RuleOutcome(
-            result="does_not_apply",
-            explanation=(
-                f"{rule.citation} is still pending and not in force on "
-                f"{as_of.isoformat()}. Reported as pending, not applied."
-            ),
-            **context,
-        )
-
-    effective = parse_effective_date(rule.effective_date)
-    if effective and effective > as_of:
-        return RuleOutcome(
-            result="does_not_apply",
-            explanation=(
-                f"Enacted but not yet effective: takes effect "
-                f"{rule.effective_date}, after the query date {as_of.isoformat()}."
-            ),
-            **context,
-        )
-    if rule.status == "not_yet_effective" and not effective:
-        return RuleOutcome(
-            result="unknown",
-            explanation=(
-                "Recorded as not yet effective but the source gives no "
-                "effective date, so its status on "
-                f"{as_of.isoformat()} cannot be determined."
-            ),
-            unresolved_fields=["effective_date"],
-            **context,
-        )
-
-    # 3. Coverage conditions and exemptions. These pull in opposite
-    #    directions, so they are evaluated separately: a coverage condition
-    #    must hold for the rule to bite, an exemption must NOT hold.
-    cover_preds = coverage.parse_conditions(rule.coverage_conditions)
-    exempt_preds = coverage.parse_conditions(rule.exemptions)
-
-    cover = coverage.evaluate(cover_preds, facts)
-    exempt = coverage.evaluate_exemption(exempt_preds, facts)
-
-    if not cover_preds and not exempt_preds:
-        return RuleOutcome(
-            result="applies",
-            explanation=(
-                f"{geo_reason} In force on {as_of.isoformat()} with no coverage "
-                "condition this data could narrow."
-            ),
-            conflict_flag=rule.conflict_flag,
-            **context,
-        )
-
-    reasons = [*cover.reasons, *exempt.reasons]
-    unresolved = sorted(set(cover.unresolved) | set(exempt.unresolved))
-
-    if cover.outcome is coverage.Outcome.fails:
-        result = "does_not_apply"
-    elif exempt.outcome is coverage.ExemptionOutcome.exempt:
-        result = "does_not_apply"
-        reasons.append("The building falls inside the rule's exemption.")
-    elif (
-        cover.outcome is coverage.Outcome.unknown
-        or exempt.outcome is coverage.ExemptionOutcome.unknown
-    ):
-        result = "unknown"
-    else:
-        result = "applies"
-        if exempt_preds:
-            reasons.append("The exemption cannot apply to this building, so the rule stands.")
-
-    return RuleOutcome(
-        result=result,
-        explanation=" ".join(reasons) or geo_reason,
-        conflict_flag=rule.conflict_flag,
-        unresolved_fields=unresolved if result == "unknown" else [],
-        **context,
-    )
+    Kept as a single-rule entry point for Module C and the detail view. It runs
+    the same compiled rule and the same evaluator as a full lookup; what it
+    cannot do is the interaction pass, which needs every rule for the address -
+    so a rule that would be superseded reports its base result here.
+    """
+    compiled = compiled_for(rule)
+    base = evaluate_base(compiled, evidence, as_of)
+    decision = Decision(base=base, result=base.result, conflict_flag=base.conflict_flag)
+    decision.conflict_reason = base.conflict_reason
+    decision.explanation = explain(decision)
+    return _outcome_from(decision, rule)
 
 
 async def lookup_address(
@@ -280,36 +267,33 @@ async def lookup_address(
     *,
     persist: bool = False,
 ) -> LookupResponse:
-    facts = facts_for(address)
-    rules = (await session.execute(select(Rule).order_by(Rule.team_rule_id))).scalars().all()
+    evidence = evidence_for(address)
+    records, compiled, relations = await compiled_rules(session)
+    decisions = decide_for_address(records, compiled, relations, evidence, as_of)
 
-    outcomes = [evaluate_rule_for_address(r, facts, as_of) for r in rules]
-    # Report rules that bear on the address. Rules that simply belong to
-    # another jurisdiction are dropped; anything not in force is kept so the
-    # answer can say "pending" or "not yet effective" out loud.
-    relevant = [
-        o
-        for o in outcomes
-        if o.in_jurisdiction
-        and (
-            o.result in {"applies", "unknown"}
-            or o.status in {"pending", "not_yet_effective", "failed"}
-        )
+    by_id = {r.team_rule_id: r for r in records}
+    # Report anything that bears on this address. A rule that definitely does
+    # not cover it, and a measure that failed, are dropped; pending and
+    # not-yet-effective rules are kept so the answer can say so out loud.
+    outcomes = [
+        _outcome_from(d, by_id[d.team_rule_id])
+        for d in decisions
+        if d.base.could_be_relevant and d.result is not BaseResult.does_not_apply
     ]
 
     if persist:
-        await _persist_lookups(session, address.address_id, as_of, relevant)
+        await _persist_lookups(session, address.address_id, as_of, outcomes)
 
     juris = address.jurisdiction
     return LookupResponse(
         address_id=address.address_id,
         as_of=as_of,
-        legal_city=facts.legal_city,
-        legal_state=facts.legal_state,
+        legal_city=(evidence.legal_city.value if evidence.legal_city.usable else None),
+        legal_state=(evidence.legal_state.value if evidence.legal_state.usable else None),
         resolution_method=(juris.method if juris else None),
-        outcomes=relevant,
-        applies_count=sum(1 for o in relevant if o.result == "applies"),
-        unknown_count=sum(1 for o in relevant if o.result == "unknown"),
+        outcomes=outcomes,
+        applies_count=sum(1 for o in outcomes if o.result == "applies"),
+        unknown_count=sum(1 for o in outcomes if o.result == "unknown"),
     )
 
 
@@ -341,3 +325,78 @@ async def _persist_lookups(
         row.conflict_flag = outcome.conflict_flag
         row.unresolved_fields = outcome.unresolved_fields
     await session.flush()
+
+
+# ----------------------------------------------------------- submission run ---
+async def run_lookup_export(
+    session: AsyncSession,
+    as_of: dt.date,
+    *,
+    write_audit: bool = True,
+) -> dict:
+    """Evaluate every supplied address once and build lookups.json from it.
+
+    Built from one completed run rather than from whatever `lookups` rows
+    happen to carry today's date. Persisted rows are a convenient latest-result
+    view and they are overwritten in place, which makes them a cache and not an
+    audit trail - so an export assembled from them can silently mix two runs or
+    omit an address nobody re-evaluated.
+
+    The audit log is the replayable record: one JSON line per reported
+    decision, carrying the rule version it was decided against and every check
+    that produced it.
+    """
+    import json
+
+    records, compiled, relations = await compiled_rules(session)
+    addresses = (
+        (
+            await session.execute(
+                select(Address)
+                .options(selectinload(Address.jurisdiction))
+                .order_by(Address.address_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    decisions: list[Decision] = []
+    for address in addresses:
+        decisions.extend(
+            decide_for_address(records, compiled, relations, evidence_for(address), as_of)
+        )
+
+    payload = to_submission(decisions, [a.address_id for a in addresses], as_of)
+    problems = validate_submission(
+        payload,
+        expected_address_ids=[a.address_id for a in addresses],
+        known_rule_ids={r.team_rule_id for r in records},
+    )
+
+    if write_audit:
+        run_id = f"{as_of.isoformat()}-{dt.datetime.now(dt.UTC):%Y%m%dT%H%M%SZ}"
+        path = settings.data_root / "data" / "lookup_runs" / f"{run_id}.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as handle:
+            handle.write(
+                json.dumps(
+                    {
+                        "run_id": run_id,
+                        "as_of": as_of.isoformat(),
+                        "compiler_version": COMPILER_VERSION,
+                        "rules": {rid: compiled[rid].rule_version_hash for rid in sorted(compiled)},
+                        "addresses": len(addresses),
+                        "problems": problems,
+                    },
+                    sort_keys=True,
+                )
+                + "\n"
+            )
+            for decision in decisions:
+                if decision.result in (BaseResult.does_not_apply, BaseResult.failed):
+                    continue
+                handle.write(json.dumps(decision.to_json(), sort_keys=True) + "\n")
+
+    payload["validation_problems"] = problems
+    return payload

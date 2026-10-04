@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -118,30 +118,66 @@ async def _addresses_for(session: AsyncSession, states: list[str], limit: int) -
     return list((await session.execute(stmt.limit(limit))).scalars())
 
 
+def _result_for(rule: Rule, address: Address, day: dt.date) -> str:
+    evidence = lookup_service.evidence_for(address)
+    return lookup_service.evaluate_rule_for_address(rule, evidence, day).result
+
+
 def _applies(rule: Rule, address: Address, day: dt.date) -> bool:
-    facts = lookup_service.facts_for(address)
-    outcome = lookup_service.evaluate_rule_for_address(rule, facts, day)
-    return outcome.result == "applies"
+    return _result_for(rule, address, day) == "applies"
+
+
+#: Results that mean the rule is not in force for this address on this day.
+_NOT_IN_FORCE = {"not_yet_effective", "pending"}
+#: Results that mean the temporal gate is open - the rule is law here now, even
+#: if a missing fact leaves its coverage unresolved.
+_LIVE = {"applies", "unknown", "superseded"}
+
+
+def _gate_opened(rule: Rule, address: Address, before: dt.date, after: dt.date) -> str | None:
+    """Did this rule start reaching this address between the two dates?
+
+    Asking "did it move from applies to applies" would miss every address whose
+    coverage is unresolved, and those are the majority here - a rule whose
+    exemption turns on a fact the data lacks is `unknown`, not `applies`. The
+    change being tested is temporal, so the question is whether the date gate
+    opened for an address the rule could reach, and the answer distinguishes
+    the two cases rather than averaging them.
+    """
+    was, now = _result_for(rule, address, before), _result_for(rule, address, after)
+    if was in _NOT_IN_FORCE and now in _LIVE:
+        return now
+    return None
 
 
 def _in_scope(rule: Rule, address: Address) -> bool:
-    """Jurisdiction covers this address, ignoring status and effective date -
-    i.e. who *would* be affected if the measure took effect."""
-    facts = lookup_service.facts_for(address)
-    ok, _ = lookup_service.coverage.jurisdiction_matches(
-        rule_jurisdiction=rule.jurisdiction, rule_level=rule.level, facts=facts
+    """Jurisdiction and coverage reach this address, ignoring status and date -
+    i.e. who *would* be affected if the measure took effect.
+
+    Runs the same compiled rule and the same evaluator as a live lookup, with
+    the temporal gate removed, so "would be affected" and "is affected" cannot
+    drift apart. Unknown counts as in scope: the question is who might be
+    covered, and the challenge treats an unresolved fact as a real answer
+    rather than a no.
+    """
+    from app.modules.address_lookup.rule_evaluation.base import (
+        evaluate_base,
+        evaluate_geography,
     )
-    if not ok:
+    from app.modules.address_lookup.rule_evaluation.decisions import BaseResult, Ternary
+
+    compiled = lookup_service.compiled_for(rule)
+    evidence = lookup_service.evidence_for(address)
+
+    geo, _ = evaluate_geography(compiled, evidence)
+    if geo is Ternary.false:
         return False
-    cover = lookup_service.coverage.evaluate(
-        lookup_service.coverage.parse_conditions(rule.coverage_conditions), facts
-    )
-    exempt = lookup_service.coverage.evaluate_exemption(
-        lookup_service.coverage.parse_conditions(rule.exemptions), facts
-    )
-    if exempt.outcome is lookup_service.coverage.ExemptionOutcome.exempt:
-        return False
-    return cover.outcome.value in {"applies", "unknown"}
+
+    # Evaluate as if the measure were in force, so only geography and coverage
+    # decide. Everything else about the rule is unchanged.
+    as_if = replace(compiled, status="in_force", effective_dates=())
+    decision = evaluate_base(as_if, evidence, dt.date(2026, 10, 1))
+    return decision.result in (BaseResult.applies, BaseResult.unknown)
 
 
 async def run_test(
@@ -175,16 +211,21 @@ async def run_test(
                 f"{test.test_id} is an as_of test but is missing as_of_before/as_of_after."
             )
         changed: list[str] = []
+        now_applies: list[str] = []
+        now_unknown: list[str] = []
         for address in addresses:
-            was = any(_applies(r, address, before) for r in primary)
-            now = any(_applies(r, address, after) for r in primary)
-            if now and not was:
-                changed.append(address.address_id)
+            opened = [o for o in (_gate_opened(r, address, before, after) for r in primary) if o]
+            if not opened:
+                continue
+            changed.append(address.address_id)
+            (now_applies if "applies" in opened else now_unknown).append(address.address_id)
         affected = changed
         detail = {
             "as_of_before": before.isoformat(),
             "as_of_after": after.isoformat(),
             "addresses_examined": len(addresses),
+            "covered_after": len(now_applies),
+            "coverage_unresolved_after": len(now_unknown),
             "rule_status": {
                 r.team_rule_id: {
                     "status": r.status,
@@ -195,8 +236,9 @@ async def run_test(
         }
         notes = (
             f"{len(changed)} of {len(addresses)} addresses in "
-            f"{', '.join(test.states) or 'the sample'} move from not-covered on "
-            f"{before} to covered on {after}."
+            f"{', '.join(test.states) or 'the sample'} move from not in force on "
+            f"{before} to in force on {after}: {len(now_applies)} are covered outright and "
+            f"{len(now_unknown)} have coverage this data cannot resolve."
         )
 
         # A local rule already in force where a later state rule arrives is a

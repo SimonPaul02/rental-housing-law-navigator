@@ -105,6 +105,11 @@ const RULE_STATUS: Record<RuleStatus, { color: string; label: string }> = {
 const RESULT: Record<LookupResult, { color: string; label: string }> = {
   applies: { color: "var(--good)", label: "applies" },
   unknown: { color: "var(--warn)", label: "unknown" },
+  // Covered, but another rule governs this same obligation here.
+  superseded: { color: "var(--accent)", label: "superseded" },
+  not_yet_effective: { color: "var(--accent)", label: "not yet effective" },
+  pending: { color: "var(--accent)", label: "pending" },
+  // Internal only - never written to lookups.json.
   does_not_apply: { color: "var(--faint)", label: "does not apply" },
 };
 

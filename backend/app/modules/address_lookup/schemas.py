@@ -93,7 +93,14 @@ class ZipReviewCase(BaseModel):
 
 class RuleOutcome(BaseModel):
     team_rule_id: str
-    result: str = Field(description="applies | does_not_apply | unknown")
+    result: str = Field(
+        description=(
+            "applies | unknown | superseded | not_yet_effective | pending, plus the "
+            "internal-only does_not_apply. The submission file carries the five; "
+            "does_not_apply exists so the UI and the audit trail can say that a rule was "
+            "considered and definitely does not cover this address."
+        )
+    )
     explanation: str
     conflict_flag: bool = False
     unresolved_fields: list[str] = Field(default_factory=list)
@@ -111,6 +118,11 @@ class RuleOutcome(BaseModel):
     citation: str | None = None
     source_url: str | None = None
     quoted_span: str | None = None
+    # Why this decision, in the evaluator's own terms. The challenge export has
+    # only four fields, so the trace stays in the API view.
+    superseded_by: str | None = None
+    issue_key: str | None = None
+    checks: list[dict] = Field(default_factory=list)
 
 
 class LookupResponse(BaseModel):

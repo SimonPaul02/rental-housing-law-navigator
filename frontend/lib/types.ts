@@ -3,7 +3,18 @@
 import type { Role } from "./roles";
 
 export type RuleStatus = "in_force" | "not_yet_effective" | "pending" | "failed";
-export type LookupResult = "applies" | "does_not_apply" | "unknown";
+/** The challenge's five reportable results, plus the internal `does_not_apply`.
+ *
+ *  `does_not_apply` never reaches lookups.json - it exists so this view can say
+ *  that a rule was considered and definitely does not cover an address, which
+ *  the submission format has no word for. */
+export type LookupResult =
+  | "applies"
+  | "unknown"
+  | "superseded"
+  | "not_yet_effective"
+  | "pending"
+  | "does_not_apply";
 export type JurisdictionStatus = "resolved" | "needs_review" | "not_checked";
 
 export interface RuleRecord {

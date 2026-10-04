@@ -1,0 +1,1505 @@
+{
+  "prompt_version": "1",
+  "proposals": {
+    "r-01f48fb3|sha256:da30b88828517bd4702b22e7d6193a8ee30d90cbd1805b2c7a9af7f6e14aa544|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Housing providers covered by FEHA, including landlords, property managers and tenant screening companies, for most housing accommodations in California",
+          "text": "Housing providers covered by FEHA, including landlords, property managers and tenant screening companies, for most housing accommodations in California",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "advertisements",
+          "text": "advertisements",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-027144eb|sha256:bbd20e4a3417d67d7da0b01a744c553f9597db38ebf6c3452f83cd71ecdee3bb|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Rental units subject to the City of Los Angeles Rent Stabilization Ordinance (RSO)",
+          "text": "Rental units subject to the City of Los Angeles Rent Stabilization Ordinance (RSO)",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-0365b11c|sha256:718e7e72c0b284894c2a38962a9b5be0a70b6011dc753cdc23b53a2277d78a8f|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Any person or agent who threatens or takes reprisals against a tenant of residential premises",
+          "text": "Any person or agent who threatens or takes reprisals against a tenant of residential premises",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-07954e8a|sha256:3017cbfe2a3d5cdd1a3d79ef695c1623a6a6d2263a13ea0fc3833b5aba855a91|claude-sonnet-5-5|1": {
+      "clauses": []
+    },
+    "r-07d2253e|sha256:14291cc862bc9d0f93e8c794ea633aed76e02a94065f7cec5a0e9de96a52dd3f|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Tenancies covered by the Just Cause Eviction Ordinance that are terminated for no-fault reasons such as owner occupancy, withdrawal from the rental market, or demolition or substantial remodel",
+          "text": "Tenancies covered by the Just Cause Eviction Ordinance that are terminated for no-fault reasons such as owner occupancy, withdrawal from the rental market, or demolition or substantial remodel",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Properties excluded from the Just Cause Eviction Ordinance",
+          "text": "Properties excluded from the Just Cause Eviction Ordinance",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-0a32149e|sha256:43c3a213d4f99ea58a99f59afff8547cf2a2ce389b17225d2e3af47b5ba43c95|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Tenancies under California law",
+          "text": "Tenancies under California law",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-0c93d18c|sha256:591f44de013e90c4dd158801cedbacc5c322dbf8b99084598551a2510f8b4d61|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Rental dwelling units offered by a housing provider",
+          "text": "Rental dwelling units offered by a housing provider",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-0d968a45|sha256:69088af93c6323325e14eb1bad4333c154fbd60497931720fb472790ddabcb8f|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Units subject to the City's RSO are also not covered",
+          "text": "Units subject to the City's RSO are also not covered",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-0f3287cc|sha256:08d153cc41510a996122d3c38b02232f621a4993d732f09bb09db5af27f867f0|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to any 'person' (as defined in Bus",
+          "text": "Applies to any 'person' (as defined in Bus",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "excluding the end consumer",
+          "text": "Code \u00a7 16702), excluding the end consumer",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "'Common pricing algorithm' means any methodology, including software, used by two or more persons that uses competitor data to recommend, align, stabilize, set, or otherwise influence a price or commercial term",
+          "text": "'Common pricing algorithm' means any methodology, including software, used by two or more persons that uses competitor data to recommend, align, stabilize, set, or otherwise influence a price or commercial term",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Commercial terms include level of service, availability",
+          "text": "Commercial terms include level of service, availability",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "End consumers of a product",
+          "text": "End consumers of a product",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "service are not 'persons' under the section",
+          "text": "service are not 'persons' under the section",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-10c48ed7|sha256:29355d6de9bb8145acc88b8be5226176a7ed4f65abc6c5534c6e1027b25442f3|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Landlords or agents who fail to comply with subsection 6 clauses (a), (d) or (e)",
+          "text": "Landlords or agents who fail to comply with subsection 6 clauses (a), (d) or (e)",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-11141412|sha256:74466f30e09fc97e51f582455163ce6794d3c98e40fca35cb2d634b78e6edd0c|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to landlords (as defined in SDMC \u00a7 98.0702) of residential rental property in the City of San Diego",
+          "text": "Applies to landlords (as defined in SDMC \u00a7 98.0702) of residential rental property in the City of San Diego",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Excludes software that publishes reports from aggregated historical nonpublic competitor data more than 90 days old",
+          "text": "Excludes software that publishes reports from aggregated historical nonpublic competitor data more than 90 days old",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "from public information and does not recommend rates for future leases",
+          "text": "from public information and does not recommend rates for future leases",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "also excludes software used to set rents",
+          "text": "also excludes software used to set rents",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Remedies are cumulative with other remedies at law, statute, or ordinance.",
+          "text": "Remedies are cumulative with other remedies at law, statute, or ordinance. Takes effect on the thirtieth day after final passage; the document is an unadopted draft with blank passage date.",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-12130f1b|sha256:cc820c173d4f5874c33f5e7037458e4b03334deccecda03530c5bc71a4e897dc|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Any lessor of residential real property, or agent, who accepts a security deposit",
+          "text": "Any lessor of residential real property, or agent, who accepts a security deposit",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-1346b876|sha256:90c4a1f59ee8d69accb9da5543a309e1239b40b1d90fb00896bf0a6aad793951|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "tenancies eligible for a rent increase under the Costa-Hawkins Rental Housing Act",
+          "text": "tenancies eligible for a rent increase under the Costa-Hawkins Rental Housing Act",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-16050310|sha256:66e93b965938a97fc010ad239dc31cd2174ece2b442123c1d30a39069f1d922f|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Owner move-in evictions from units covered by the Berkeley Rent Ordinance",
+          "text": "Owner move-in evictions from units covered by the Berkeley Rent Ordinance",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-16f6b5d3|sha256:619071a1d8c505ece46a87c46d3228d46b08111c914c1580234fead77792ffa3|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Prospective residential tenants",
+          "text": "Prospective residential tenants",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-1c1f3af9|sha256:3ef3a5026878e475aedb847b7aa6a8eda24a1336cae2e147147b9315b0f56173|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Security for a rental agreement for residential property used as the tenant's dwelling",
+          "text": "Security for a rental agreement for residential property used as the tenant's dwelling",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-1f90d32d|sha256:77a87acdfc0a96ba1cf5dc0cd374983caac286f3508dea3df7411c7144a8fa61|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [
+            {
+              "field": "certificate_of_occupancy_date",
+              "id": "a1",
+              "op": "lte",
+              "source_span": "first built on or before October 1, 1978",
+              "value": "1978-10-01"
+            }
+          ],
+          "source_span": "Rental properties first built on or before October 1, 1978",
+          "text": "Rental properties first built on or before October 1, 1978, plus replacement units under LAMC 151.28",
+          "verdict": "condition"
+        }
+      ]
+    },
+    "r-21673199|sha256:dfdfb9e74ae06c679d8f394ba0f750e49d584a169b0ce7fdcb3efa176f1042a0|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Service member (Military and Veterans Code \u00a7 400) renting residential property in which the service member will reside",
+          "text": "Service member (Military and Veterans Code \u00a7 400) renting residential property in which the service member will reside",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "applies on or after 2025-04-01",
+          "text": "applies on or after 2025-04-01",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-227e5acf|sha256:093b327caee817ce1aae90b1da260ebd73f9a9d0425562b4fcb7965a6594cbb2|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Local rent control or rent leveling ordinances apply where municipalities have adopted them",
+          "text": "Local rent control or rent leveling ordinances apply where municipalities have adopted them",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-25e6edf6|sha256:4c0d7c840fdee4d321a1ca11790e1f0f0c1a0103aa977e20433cdf2cab067bb8|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Fully or partially covered units under the Berkeley Rent Ordinance",
+          "text": "Fully or partially covered units under the Berkeley Rent Ordinance",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-264dfb5b|sha256:8d692742314112226e1ba0decc5e0c97c0aa16395f9019ab5a5c711d341aa9b4|claude-sonnet-5-5|1": {
+      "clauses": []
+    },
+    "r-26ba6031|sha256:c2e7b0307fc0df696c70f63316397198c15b77b5a1e3b0328e6341a8adf0c13d|claude-sonnet-5-5|1": {
+      "clauses": []
+    },
+    "r-278c32e2|sha256:025a0006225007101042d2eff79eac0226a93e4d97587ff5fb59391f69a67cfa|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Security for a rental agreement for residential property used as the tenant's dwelling",
+          "text": "Security for a rental agreement for residential property used as the tenant's dwelling",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Documentation requirements need not be met if deductions for repairs and cleaning do not exceed $125",
+          "text": "Documentation requirements need not be met if deductions for repairs and cleaning do not exceed $125",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "the tenant validly waived them",
+          "text": "the tenant validly waived them",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "a landlord may use good-faith estimates when work",
+          "text": "a landlord may use good-faith estimates when work",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "documents cannot be completed within 21 days",
+          "text": "documents cannot be completed within 21 days",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-27f4d965|sha256:6a94778fa010cd9c52eb95f929854580e71b1828c6a77c8d2b79f4cca051790b|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Rental of housing",
+          "text": "Rental of housing",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "applies to persons residing or proposing to reside together",
+          "text": "applies to persons residing or proposing to reside together",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-28dd2ea6|sha256:1a265a667cd0118cd9b44da81b8a7aa04d23af1368819cefa2d5398d4ab92ca7|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Rental units covered by the San Francisco Rent Ordinance",
+          "text": "Rental units covered by the San Francisco Rent Ordinance",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-29a60261|sha256:1786a9a49a85e2d9092e119d6c2103db130b81994454b5b7240543579ecb03f3|claude-sonnet-5-5|1": {
+      "clauses": []
+    },
+    "r-2b290690|sha256:8a5a60a9241e8ca986a5bfacedc0723fd0545256af71bb94693eb875bf35f8aa|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Rental units subject to the City of Los Angeles Rent Stabilization Ordinance (RSO)",
+          "text": "Rental units subject to the City of Los Angeles Rent Stabilization Ordinance (RSO)",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "The page does not state year-built or certificate-of-occupancy cutoffs",
+          "text": "The page does not state year-built or certificate-of-occupancy cutoffs",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "it refers users to ZIMAS to check whether a unit is covered",
+          "text": "it refers users to ZIMAS to check whether a unit is covered",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Non-RSO properties are not covered by this figure",
+          "text": "Non-RSO properties are not covered by this figure",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "The page only refers users to the Housing Department for their allowable increases",
+          "text": "The page only refers users to the Housing Department for their allowable increases",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-2f5e54fc|sha256:2e23e333a5aefd1180c810047616951ed29f76132c2b2ea385c49c32a2a02200|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Real estate transactions covered by the Cambridge Fair Housing Ordinance, including viewing or renting an apartment and terms and conditions of tenancy",
+          "text": "Real estate transactions covered by the Cambridge Fair Housing Ordinance, including viewing or renting an apartment and terms and conditions of tenancy",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-30b18f96|sha256:59b5948f2b9866b5c7b1a1b20058ca8540df365e9adaa44bffe0bd1564f17d4b|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to tenancies where just cause is required under subdivision (a) and the termination is for a no-fault just cause",
+          "text": "Applies to tenancies where just cause is required under subdivision (a) and the termination is for a no-fault just cause (owner move-in, withdrawal from rental market, government or court order to vacate, demolition or substantial remodel)",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "No relocation assistance if a government agency",
+          "text": "No relocation assistance if a government agency",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "court determines the tenant is at fault for the condition that triggered a vacate order",
+          "text": "court determines the tenant is at fault for the condition that triggered a vacate order",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-3321751a|sha256:99f3fba866a766609157a677b822ff0427a76066e8c0e98c48a574ad09b83fe0|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to any rental property owner (a person owning one or more rental residential dwelling units, directly or indirectly) and their agents, representatives or subcontractors",
+          "text": "Applies to any rental property owner (a person owning one or more rental residential dwelling units, directly or indirectly) and their agents, representatives or subcontractors",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Coordinating function excludes research/statistical/testing use not used to set",
+          "text": "Coordinating function excludes research/statistical/testing use not used to set",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-36585c7a|sha256:d52e40b7da24ff7d8a477ee32f4f6b26ea268ab18567824ea88311e1ce513bd4|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Does not apply where there is a direct relationship between a conviction and the housing sought",
+          "text": "Does not apply where there is a direct relationship between a conviction and the housing sought and/",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "an unreasonable risk of substantial harm to the safety of others",
+          "text": "an unreasonable risk of substantial harm to the safety of others",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "to current criminal behavior",
+          "text": "to current criminal behavior",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Federal or state law imposing a conflicting criminal history requirement preempts this policy.",
+          "text": "Federal or state law imposing a conflicting criminal history requirement preempts this policy.",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-3812099c|sha256:5347aeb9d99b0c83b513f4906a503a562844633a9f76cfcb81da561d0c684665|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Eligible landlords under Rent Board Regulation 1148",
+          "text": "Eligible landlords under Rent Board Regulation 1148",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-41389548|sha256:7ea2841ff83cb2a9977fe769f3faa2df1ceab719ccb721b2d1d4388f8d1b74e6|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Prospective tenants applying for residential rental units in Berkeley",
+          "text": "Prospective tenants applying for residential rental units in Berkeley",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "landlords charging a fee for a consumer credit report and application processing",
+          "text": "landlords charging a fee for a consumer credit report and application processing",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-42e8bcdd|sha256:8582db8d4cdec0b6d04c737b6c02a6db8300d14bae3e4c010dd49bc034121bf3|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to all cities and towns",
+          "text": "Applies to all cities and towns",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "The exception applies only to a city or town that accepts chapter 40P",
+          "text": "The exception applies only to a city or town that accepts chapter 40P",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "town that accepts this chapter may adopt rent control regulation that meets the conditions in (a)-(c)",
+          "text": "town that accepts this chapter may adopt rent control regulation that meets the conditions in (a)-(c)",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "The regulation may not cover occupancy, services, evictions, condominium conversion or removal of properties from regulation",
+          "text": "The regulation may not cover occupancy, services, evictions, condominium conversion or removal of properties from regulation",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Preempts local rent control ordinances.",
+          "text": "Preempts local rent control ordinances. The permitted local regulation is limited to the voluntary, compensated form in (a)-(c) and cannot regulate evictions.",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-44e87853|sha256:6c4880a2a61e9ed2c239c84c24f2d02d25bad647d8a0cc902b82939939dab3d2|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Tenancies terminated for no-fault just cause under \u00a7 98.0704(b) in residential rental property subject to the Division",
+          "text": "Tenancies terminated for no-fault just cause under \u00a7 98.0704(b) in residential rental property subject to the Division",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-465469a9|sha256:a7309bd7a94d9607b2150e55906211feaef7d7cd1e640e840bf5f067e91006c4|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [
+            {
+              "field": "units",
+              "id": "a1",
+              "op": "eq",
+              "source_span": "duplexes",
+              "value": 2
+            },
+            {
+              "field": "owner_occupied",
+              "id": "a2",
+              "op": "is_true",
+              "source_span": "the landlord occupies one unit"
+            }
+          ],
+          "source_span": "duplexes where the landlord occupies one unit",
+          "text": "duplexes where the landlord occupies one unit",
+          "verdict": "condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Rights are in addition to state or federal tenant rights.",
+          "text": "Consistent with California Civil Code section 1946.2. Rights are in addition to state or federal tenant rights.",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-48c8c1b0|sha256:085a83409f26887d99fa77b321f8b68038e25185288ed4b60f4b005f1392fedb|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [
+            {
+              "field": "units",
+              "id": "a1",
+              "op": "eq",
+              "source_span": "a duplex",
+              "value": 2
+            },
+            {
+              "field": "owner_occupied",
+              "id": "a2",
+              "op": "is_true",
+              "source_span": "the owner occupies one unit"
+            }
+          ],
+          "source_span": "a duplex where the owner occupies one unit",
+          "text": "a duplex where the owner occupies one unit",
+          "verdict": "condition"
+        }
+      ]
+    },
+    "r-492dc4cf|sha256:e71e55196adda1c3b56397a893bbfe93ed0dcb9e67893a16970aec66c3122040|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to residential real property (any dwelling or unit intended for human habitation, including units in a mobilehome park), except exempt property",
+          "text": "Applies to residential real property (any dwelling or unit intended for human habitation, including units in a mobilehome park), except exempt property",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-4a9e3484|sha256:c3f32b1452b9f5c910d940df1ce0742b356fe0adc562b0380fe5cf2ec7911966|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Residential rental property subject to the Division (see exemptions in \u00a7 98.0703)",
+          "text": "Residential rental property subject to the Division (see exemptions in \u00a7 98.0703)",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Properties exempt under \u00a7 98.0703",
+          "text": "Properties exempt under \u00a7 98.0703",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-4c54c0f8|sha256:51eb4318bed1e040fc151663248137456447c94e682b43b5df749b00cc96c3a3|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [
+            {
+              "field": "building_is_subsidised",
+              "id": "a1",
+              "op": "is_true",
+              "source_span": "Rental Supplement/Section 8 projects with HUD-insured or HUD-held mortgages"
+            }
+          ],
+          "source_span": "Rental Supplement/Section 8 projects with HUD-insured or HUD-held mortgages)",
+          "text": "Rental Supplement/Section 8 projects with HUD-insured or HUD-held mortgages)",
+          "verdict": "condition"
+        }
+      ]
+    },
+    "r-4ca7d4c7|sha256:3ef817e8dc71e10bf14d96a98fc5d38679d0a26e928f6cffbf2a6f81e5cc8a40|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to any coordinated pricing algorithm",
+          "text": "Applies to any coordinated pricing algorithm, meaning a process that uses nonpublic Competitor Data (less than 90 days old) to recommend rents, fees, occupancy rates or other lease terms for future leases, in coordination between a Berkeley landlord and its competitors, including through a third-party vendor",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Covers residential dwelling units in Berkeley",
+          "text": "Covers residential dwelling units in Berkeley",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-52dbca2e|sha256:3b2e47723af78162eb321de8f5c3684789eb5f098c30d7e960ec003360e6a6d4|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to landlords and their agents charging screening fees to applicants for residential rental units",
+          "text": "Applies to landlords and their agents charging screening fees to applicants for residential rental units",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-532406bb|sha256:9a4036c232ea7461b7d96aab87bc8ce3a5dd8c543c41f8b72ca4eb4410acbf5a|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Most residential rental properties, including mobile homes",
+          "text": "Most residential rental properties, including mobile homes",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-5a4d40e1|sha256:c1a1c8ace276c061c40d4127df7a57beecc01f925818684543f687ad6b8db358|claude-sonnet-5-5|1": {
+      "clauses": []
+    },
+    "r-5cc19161|sha256:2e8d606b9a2a38842d3b93862ceccd9222326d3981b63bede45abc3046e7f382|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Any security deposit received by a lessor of residential real property",
+          "text": "Any security deposit received by a lessor of residential real property",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-5e569c49|sha256:b74f82fdc7feef3d2bb8eacfaae0ca16d7cb28b581e4e24e42a958b7879f42a3|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Fully or partially covered units under the Berkeley Rent Ordinance",
+          "text": "Fully or partially covered units under the Berkeley Rent Ordinance",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-5ef71379|sha256:7dfb5046887fb494cf5759c1a833c21d60fbe8db1e44149ced984d72ec00fd13|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Substantial remodel means replacing or substantially modifying structural, electrical, plumbing or mechanical systems requiring a permit, or abating hazardous materials",
+          "text": "Substantial remodel means replacing or substantially modifying structural, electrical, plumbing or mechanical systems requiring a permit, or abating hazardous materials",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Cosmetic work does not qualify",
+          "text": "Cosmetic work does not qualify",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Properties exempt under \u00a7 98.0703",
+          "text": "Properties exempt under \u00a7 98.0703",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-5f642a70|sha256:39857c63da3277bffcb7f462d88c4ed69db82d22048f81b2cffed705630a1674|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [
+            {
+              "field": "building_is_subsidised",
+              "id": "a1",
+              "op": "is_true",
+              "source_span": "government rent subsidy is in place"
+            }
+          ],
+          "source_span": "Rental applications where a government rent subsidy is in place",
+          "text": "Rental applications where a government rent subsidy is in place",
+          "verdict": "condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Does not limit an owner's ability to verify employment, request landlord references",
+          "text": "Does not limit an owner's ability to verify employment, request landlord references",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-6305c60b|sha256:45cd15f8bb101b82c233f93cdb979e2c9ca82496c04120da5b3fd51d0a164421|claude-sonnet-5-5|1": {
+      "clauses": []
+    },
+    "r-65b06a0b|sha256:af9cdec955239bbe17c95ce709aa33888fdf2d08150c6f4b57bbd3956975bb71|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Rental housing providers in Berkeley with respect to current and prospective tenants and applicants",
+          "text": "Rental housing providers in Berkeley with respect to current and prospective tenants and applicants",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-6b5e3b6e|sha256:e1f2087a76693cfa0329f3f8e946093484d6e5e12bba82288916ae8b294c286e|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Most residential rental properties",
+          "text": "Most residential rental properties",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-6fc82c1c|sha256:00d084d9decb795df751bda51f26ac894c6e4fc9e1777d6a2e31cb85fb047596|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Tenancies in units fully or partially covered by Berkeley's Rent Ordinance",
+          "text": "Tenancies in units fully or partially covered by Berkeley's Rent Ordinance",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-71283b33|sha256:c2ca5287a29afb7aa182cbef8bec10eecc085aeb32e2b9ecf8a17401b2351d52|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Eviction notices must be filed with LAHD within three business days of service",
+          "text": "Eviction notices must be filed with LAHD within three business days of service",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-7171a9d2|sha256:16aa0711cb0d5359d32647a0d38ce6c9f5b6146780744d50650b89e3ccba3515|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Rental dwelling units offered by a housing provider",
+          "text": "Rental dwelling units offered by a housing provider",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-7183a251|sha256:9a7d92bc13b86c6d25cbe2f86e9f3fc126d97bdc46956a5f97088d77448a683f|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to any person furnishing credit, services or rental accommodations",
+          "text": "Applies to any person furnishing credit, services or rental accommodations",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-71a9f9fc|sha256:7cd404e5dfdb26713f8a1eb8fd348e0a8e10239120a99df8c15001761b211ab2|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "All landlord-tenant relationships",
+          "text": "All landlord-tenant relationships",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-71e31655|sha256:b93ca1fea0759266c246041e8ae469a53a121e5f378ce4a76b9701a4f66ac3b6|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Properties exempt under \u00a7 98.0703",
+          "text": "Properties exempt under \u00a7 98.0703",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-74dde1b0|sha256:b7101b8f26428c38b5942d9cae3ccdabe2d98ae953cdda567593a4338b676985|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Housing services including garage facilities, parking facilities, driveways, storage spaces",
+          "text": "Housing services including garage facilities, parking facilities, driveways, storage spaces",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "laundry rooms in units covered by the Rent Ordinance",
+          "text": "laundry rooms in units covered by the Rent Ordinance",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Temporary removal of services such as parking and storage for mandatory soft-story seismic retrofit work, where the landlord has complied with Ordinance Section 37.2(r)",
+          "text": "Temporary removal of services such as parking and storage for mandatory soft-story seismic retrofit work, where the landlord has complied with Ordinance Section 37.2(r)",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-75694d33|sha256:7f583b3912eafe5d795db29c48029baf24629bd4da55e7d22b081368203e349d|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Leases, rentals, occupancies",
+          "text": "Leases, rentals, occupancies",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-75943132|sha256:9cbc1ff885733d42b5bc5bed40a55a7e15695c9c875a1c678eff6fa5653b191e|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Most residential rental properties",
+          "text": "Most residential rental properties",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-777a6012|sha256:23bb168d7f0a34d2d8e2809031306b1ab435de648b747a7edb554a1bfb986c06|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to renting, buying, selling, or financing housing in the City of Boston",
+          "text": "Applies to renting, buying, selling, or financing housing in the City of Boston",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "The page does not state unit-count, year-built, or owner-type limits",
+          "text": "The page does not state unit-count, year-built, or owner-type limits",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-781462bf|sha256:f184c22b614b8a0be339f82511775a1b576dceefcb88bca937ae04d54290d869|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Rental dwelling units offered by a housing provider",
+          "text": "Rental dwelling units offered by a housing provider",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-7c8b33f9|sha256:91f2ab80b6cbbe81740fc0a6a270b26b4f9deeec5a2594c98dcb72e7e1cea1db|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Security for a rental agreement for residential property used as the tenant's dwelling",
+          "text": "Security for a rental agreement for residential property used as the tenant's dwelling",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-7db4fc11|sha256:378433ef07734de7345416261d66469ed64b0c46fa6564a4f0b9bdb4a313f991|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Rental dwelling units offered for rent by a housing provider",
+          "text": "Rental dwelling units offered for rent by a housing provider",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "applies to all housing providers (landlords, owners, lessors, agents)",
+          "text": "applies to all housing providers (landlords, owners, lessors, agents)",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-81c04cac|sha256:c388daf46cd4da179f6dec9eaa89b0df097f73c7a0c99b4539a77c029d55c665|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to any person selling, licensing or providing an 'algorithmic device' to a landlord for residential rental property in the City of San Diego",
+          "text": "Applies to any person selling, licensing or providing an 'algorithmic device' to a landlord for residential rental property in the City of San Diego",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-8237b0ce|sha256:063a4f1cf5a072871e7fd42d43aaddf83de6d9ca4aed1e7d800b2eb5b79a9eab|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to covered tenancies where termination is based on a curable lease violation",
+          "text": "Applies to covered tenancies where termination is based on a curable lease violation",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-8541297e|sha256:b73d51ba8c4f64f718958eb8c3c1ac0f230144699bc6ef0a0f32914a8f1865bf|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Units fully or partially covered by the Berkeley Rent Ordinance",
+          "text": "Units fully or partially covered by the Berkeley Rent Ordinance",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-869b1a8c|sha256:7c0f7a92b35a876613c3fd81e7116a82b82cce191fa889a712ff2fdbaf01e1e9|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "All RSO and JCO rental units in the City of Los Angeles",
+          "text": "All RSO and JCO rental units in the City of Los Angeles",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-88a4091a|sha256:dabb0966cb21aef371729bbcd3a3dd2549cbe46afc71ad438da298d1afdeb063|claude-sonnet-5-5|1": {
+      "clauses": []
+    },
+    "r-90c385c2|sha256:9ed6f97f7001f498f7a444c1acabc4fc0fbcb8a5f85eed7261c9ef596fffcc85|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Units covered by the RSO or JCO",
+          "text": "Units covered by the RSO or JCO",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-946122d8|sha256:b66feeaaec868e0ed0fe2432b7ceb16518f29a935c785b2cee243e60242aae7f|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Residential units in San Francisco",
+          "text": "Residential units in San Francisco",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "'algorithmic device' means a device such as a software program that uses algorithms to analyze nonpublic competitor rental data to give a landlord recommendations on what rent to charge for a vacant unit",
+          "text": "'algorithmic device' means a device such as a software program that uses algorithms to analyze nonpublic competitor rental data to give a landlord recommendations on what rent to charge for a vacant unit",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-96f16208|sha256:a8abb8ea81f3a5c18c160b33d1e4fe21bfa1c395e87f2b30a80d49da04112e30|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to landlords and their agents who collect an application screening fee from an applicant",
+          "text": "Applies to landlords and their agents who collect an application screening fee from an applicant",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-990aca03|sha256:54a81a9f310ff84dd8600a237f69a16f8fe89ffb6d78d9473889061c3c127e32|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [
+            {
+              "field": "building_is_subsidised",
+              "id": "a1",
+              "op": "is_true",
+              "source_span": "government rent subsidy is in place",
+              "value": null
+            }
+          ],
+          "source_span": "Rentals where a government rent subsidy is in place",
+          "text": "Rentals where a government rent subsidy is in place",
+          "verdict": "condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Does not limit an owner's ability to request information to verify employment, request landlord references",
+          "text": "Does not limit an owner's ability to request information to verify employment, request landlord references",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "verify identity (subd",
+          "text": "verify identity (subd",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "(o)(2))",
+          "text": "(o)(2))",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-9d61e287|sha256:07c2cb5463da42f2108fb33a771ccdb2a066d0760c816cf090f7c7ad7cf02a7a|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Fully or partially covered units under the Berkeley Rent Ordinance",
+          "text": "Fully or partially covered units under the Berkeley Rent Ordinance",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-9e5fe825|sha256:e07699f6d172f89f26447b4dcb38bedbedf8b4b714a160e6fa0aefba6a09fc8c|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Landlords of units covered by the Berkeley Rent Ordinance's rent ceiling",
+          "text": "Landlords of units covered by the Berkeley Rent Ordinance's rent ceiling",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-a0daef9e|sha256:5817dfd57f466458aa785a9e751c003b74f01c88f3126b18ba247162fc095ed9|claude-sonnet-5-5|1": {
+      "clauses": []
+    },
+    "r-a1a11407|sha256:81209442da6e6bfcce068ecf673f71eb3ca617e7d5d3898982812fc4dde3c78b|claude-sonnet-5-5|1": {
+      "clauses": []
+    },
+    "r-a1d3f491|sha256:e6a8fede4063f2b1d06c9c30c0e84f857147b6916a35d255c7924833b78373cb|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to residential real property subject to Civ",
+          "text": "Applies to residential real property subject to Civ",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Same exemptions as \u00a7 1947.12(d)",
+          "text": "Same exemptions as \u00a7 1947.12(d)",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-a2190629|sha256:12ab2b91ddd6e3b4be73d8e6d5a8f3d67993fac1143d2685e31cd262362fa6ac|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to landlords (owners of residential rental property) and their agents charging applicants, including guarantors and cosigners, for residential rental units",
+          "text": "Applies to landlords (owners of residential rental property) and their agents charging applicants, including guarantors and cosigners, for residential rental units",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-a21e0af5|sha256:3ea6861f4954c78afac13e6ae58a3556ad1f49196ca0cf2f398a628ee19d7938|claude-sonnet-5-5|1": {
+      "clauses": []
+    },
+    "r-a3048f26|sha256:0d6cdccffaca2d42635764bff0137173c703cd8f8c66b3eac1ffe90025f294be|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Tenants and applicants with disabilities who need a service animal or emotional support animal",
+          "text": "Tenants and applicants with disabilities who need a service animal or emotional support animal",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "housing providers covered by FEHA",
+          "text": "housing providers covered by FEHA",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-ad07550f|sha256:63289ea43285d4cbdaa25cb09a081b4dc780dd185a32bfbe303dd82b7696f9dd|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Security for a rental agreement for residential property used as the tenant's dwelling",
+          "text": "Security for a rental agreement for residential property used as the tenant's dwelling",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-ae48cb6c|sha256:0c004b01fe5f5ed78eb70a2e1644c54fe16bcc4a368f41d52ed843d92ac8e828|claude-sonnet-5-5|1": {
+      "clauses": []
+    },
+    "r-aeb12cba|sha256:b7b07175ba6f86b2411f48c7dea4fe27ee5be020bd9c46d462002770fab4a02d|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Landlords under California law",
+          "text": "Landlords under California law",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "The photograph requirement applies after the landlord regains possession and before any repairs or cleaning for which a deduction will be made",
+          "text": "The photograph requirement applies after the landlord regains possession and before any repairs or cleaning for which a deduction will be made",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-affdda25|sha256:7191eaa5e83307d2253f581f0be4196c0cea9971178c1cd053e200287b9b1d6e|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Units covered by the Los Angeles Rent Stabilization Ordinance (RSO) or Just Cause Ordinance (JCO)",
+          "text": "Units covered by the Los Angeles Rent Stabilization Ordinance (RSO) or Just Cause Ordinance (JCO)",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-b03a70bc|sha256:6dbc5e90dcaea1c799884fe59f0e63472cad9c10d8d32828116093ee67e1ab42|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to any 'person'",
+          "text": "Applies to any 'person' (as defined in Bus",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "excluding the end consumer",
+          "text": "Code \u00a7 16702), excluding the end consumer",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "A 'common pricing algorithm' is any methodology, including a computer, software, or other technology",
+          "text": "A 'common pricing algorithm' is any methodology, including a computer, software, or other technology, used by two or more persons that uses competitor data to recommend, align, stabilize, set, or otherwise influence a price or commercial term",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Not specific to residential rental housing",
+          "text": "Not specific to residential rental housing",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "End consumers of a product",
+          "text": "End consumers of a product",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "are not 'persons' under the section",
+          "text": "service are not 'persons' under the section",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-b0e8e0b7|sha256:f78a13ebc92efa9e82f94c23cffc7592acfe63bd03dd05a201653dada97ad8ac|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Fully or partially covered units under the Berkeley Rent Ordinance",
+          "text": "Fully or partially covered units under the Berkeley Rent Ordinance",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-b6484cfb|sha256:0f3693184bfee93e30cbc13dc681dec21de345cf8bb0d9770243113204655399|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to any person operating algorithmic revenue management software or an algorithmic device that performs a coordinating function for any rental property owner, including an owner doing so for its own benefit",
+          "text": "Applies to any person operating algorithmic revenue management software or an algorithmic device that performs a coordinating function for any rental property owner, including an owner doing so for its own benefit",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Excludes spreadsheets operating without AI and requiring human analysis",
+          "text": "Excludes spreadsheets operating without AI and requiring human analysis",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "databases that only use an algorithm to query unprocessed data",
+          "text": "databases that only use an algorithm to query unprocessed data",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-b6f65368|sha256:56d8e0283a0d0ea9464d9d82cfd76001e7fb84f4f7bc861e019468829d69678a|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to the sale or rental of all property, including open land, for business or residential purposes",
+          "text": "Applies to the sale or rental of all property, including open land, for business or residential purposes",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [
+            {
+              "field": "units",
+              "id": "a1",
+              "op": "eq",
+              "source_span": "two-family dwelling",
+              "value": 2
+            },
+            {
+              "field": "owner_occupied",
+              "id": "a2",
+              "op": "is_true",
+              "source_span": "the owner occupies the other unit as a residence"
+            }
+          ],
+          "source_span": "two-family dwelling where the owner occupies the other unit as a residence",
+          "text": "flat in a two-family dwelling where the owner occupies the other unit as a residence",
+          "verdict": "condition"
+        }
+      ]
+    },
+    "r-b7efbc45|sha256:643da191522d5c854f7d0b9210803707aba83c8b46bfee9f7f3f4ca8c51995f1|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Owners or owner's agents who receive a request to rent residential property in Berkeley and charge a fee for a credit report and application processing",
+          "text": "Owners or owner's agents who receive a request to rent residential property in Berkeley and charge a fee for a credit report and application processing",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-be1e34af|sha256:c84d967471513951389662a773fd6003a11d495617ef0dc2102c47c4c911668c|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Rental dwelling units offered by a housing provider.",
+          "text": "Rental dwelling units offered by a housing provider",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-c0776898|sha256:3d9ca177d8bbc0136b227d07a584631f8761b78eaad7e5c36dccbf74df690579|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Rent-controlled units in San Francisco",
+          "text": "Rent-controlled units in San Francisco",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "allowable increase applies for the period March 1, 2026 through February 28, 2027",
+          "text": "allowable increase applies for the period March 1, 2026 through February 28, 2027",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Supersedes the prior-year allowable increase of 1.4% (March 1, 2025 through February 28, 2026).",
+          "text": "Supersedes the prior-year allowable increase of 1.4% (March 1, 2025 through February 28, 2026).",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-c3ec3017|sha256:8cd429821223daf2b483299c3ad8c0c796ea2c4201d0cb58f361031f6df9313d|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Residential tenancies-at-will and written leases where a security deposit was taken",
+          "text": "Residential tenancies-at-will and written leases where a security deposit was taken",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-c6c00791|sha256:6b66ff58194c96effe8c5846f044795d8f5296c82552df29988bb37613e620e7|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to landlords setting rents or occupancy levels for residential dwelling units in Berkeley using a coordinated pricing algorithm",
+          "text": "Applies to landlords setting rents or occupancy levels for residential dwelling units in Berkeley using a coordinated pricing algorithm (one using nonpublic Competitor Data less than 90 days old, in coordination with competitors, including via a third-party vendor)",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "Excludes aggregated and anonymous published rental data reports that do not recommend rents, fees",
+          "text": "Excludes aggregated and anonymous published rental data reports that do not recommend rents, fees",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-cea37d19|sha256:5d71fbcba573cdb39d2bea80c0874b9f7ebb9c35be07281d7d8c64761e78476c|claude-sonnet-5-5|1": {
+      "clauses": []
+    },
+    "r-d34717cb|sha256:e88921c9969726c85dbca4ead18277844fc06d510c509cef70ed860aa5751813|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Intended occupant must be the owner or the owner's spouse, domestic partner, child, grandchild, parent, or grandparent",
+          "text": "Intended occupant must be the owner or the owner's spouse, domestic partner, child, grandchild, parent, or grandparent",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-d4a56cd0|sha256:8acb159bc666a8a69b58ae4f72745f481bb2e7ebbbd1226dcd8f100336f0d741|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies only if and when the executive office of housing and livable communities promulgates implementing regulations",
+          "text": "Applies only if and when the executive office of housing and livable communities promulgates implementing regulations",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "the document does not state that such regulations exist",
+          "text": "the document does not state that such regulations exist",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-d55536e0|sha256:82a5c964e031a6b7debbdf7c49809cdfb3302aa942b90a090bf85a02993090f4|claude-sonnet-5-5|1": {
+      "clauses": []
+    },
+    "r-ddfdad05|sha256:7da3de31064db0ce8888c7dcc0abcdd8bf90ce90e2b990303b387dbe6849d710|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applicants for residential rental units in Berkeley",
+          "text": "Applicants for residential rental units in Berkeley",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-de573721|sha256:1404029b76a19cfccabe5236dff7c936fdb7e61dd994082c6c9882fb0ccb87ed|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Owners of any housing accommodation",
+          "text": "Owners of any housing accommodation",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "'source of income' means lawful, verifiable income paid to a tenant, a tenant's representative, or a landlord on the tenant's behalf, including public assistance and housing subsidies",
+          "text": "'source of income' means lawful, verifiable income paid to a tenant, a tenant's representative, or a landlord on the tenant's behalf, including public assistance and housing subsidies",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "source of income is not discrimination under subdivision (p)(2)",
+          "text": "source of income is not discrimination under subdivision (p)(2)",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-deed1aeb|sha256:d62eff3c02288d67f95c28451a242fb21e40ffee5da5471de58d857beb99c00c|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Most residential rental properties, including single-family homes, mobile homes, apartment buildings and rooming and boarding houses",
+          "text": "Most residential rental properties, including single-family homes, mobile homes, apartment buildings and rooming and boarding houses",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [
+            {
+              "field": "seasonal_rental",
+              "id": "a1",
+              "op": "is_false",
+              "source_span": "seasonal tenants"
+            }
+          ],
+          "source_span": "Hotel/motel guests and seasonal tenants",
+          "text": "Hotel/motel guests and seasonal tenants",
+          "verdict": "condition"
+        }
+      ]
+    },
+    "r-e48d7170|sha256:9dfcc350b02fddf8bffd22cbcb8a2b6ec5bd1a03bafd106ee4e2baeecfe6ffce|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Owners may petition for relief from the cap by showing a higher increase is needed for a fair and reasonable return",
+          "text": "Owners may petition for relief from the cap by showing a higher increase is needed for a fair and reasonable return",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-e61d4419|sha256:6a30e356bc43bddcb056c202539850e87501b7e21abfce7b955319d28a9572a8|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Housing providers covered by FEHA, including tenant screening companies acting for them",
+          "text": "Housing providers covered by FEHA, including tenant screening companies acting for them",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-e73f1627|sha256:12da9e014e4de3e0b9f98739847e5a962a3da861e81f448c0bae398c8cfe2108|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Units covered by the RSO or JCO",
+          "text": "Units covered by the RSO or JCO",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "For demolition for new construction, Bulletin B states the copy of the notice must be filed within 3 business days",
+          "text": "For demolition for new construction, Bulletin B states the copy of the notice must be filed within 3 business days",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-e79cf803|sha256:80be1fe6f5d48712409a4251b38b726a34398d426474377e48562c7806099f81|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Residential rental property for dwelling purposes offered for lease or sublease by a landlord or agent in New Jersey",
+          "text": "Residential rental property for dwelling purposes offered for lease or sublease by a landlord or agent in New Jersey",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "a New Jersey Real Estate Commission licensee, unless the licensee is the landlord of the property",
+          "text": "a New Jersey Real Estate Commission licensee, unless the licensee is the landlord of the property",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-e8927609|sha256:a993a379886317e2c37a884c155bda7c35c3947c6d2b277e7f565a705a36cf8c|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Most residential properties in the City of Los Angeles not regulated by the Rent Stabilization Ordinance (RSO)",
+          "text": "Most residential properties in the City of Los Angeles not regulated by the Rent Stabilization Ordinance (RSO)",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-ee37f8e7|sha256:56ead3bd2a17fcb03763e2e1c034d7f3c136bbc3a60c2965fab588eea7d8aa01|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Residential rental tenancies in Santa Ana, other than the excluded property types",
+          "text": "Residential rental tenancies in Santa Ana, other than the excluded property types",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-f06d7c5e|sha256:c49ba0370056899f58ef436ae5e5bb08a13e38f192b4aefe2345e16804371747|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Applies to landlords and their agents collecting screening fees from applicants for residential rental units",
+          "text": "Applies to landlords and their agents collecting screening fees from applicants for residential rental units",
+          "verdict": "no_building_condition"
+        },
+        {
+          "atoms": [],
+          "source_span": "No refund required for an applicant whose application is denied after consideration for failing the landlord's established screening criteria under the first-come process option",
+          "text": "No refund required for an applicant whose application is denied after consideration for failing the landlord's established screening criteria under the first-come process option",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-f169b5c3|sha256:80ad6222b69bcf4b30514320882614c8d69e653b3c2d6a53bfbbeeb1d6b50f1a|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Most residential rental properties",
+          "text": "Most residential rental properties",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-f285d7ae|sha256:2d658e0e5597a8dd62e0a8dccf3df4b7cd530f2ea157cfc134fb043036367e0f|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Fully covered rental units under the Berkeley Rent Ordinance",
+          "text": "Fully covered rental units under the Berkeley Rent Ordinance, including government-owned or -subsidized units registered as fully covered",
+          "verdict": "no_building_condition"
+        }
+      ]
+    },
+    "r-f642556a|sha256:8d0041a9a4de6c1235b2a091a7dd6855558825da64be6c1b2a2d6430e69e8357|claude-sonnet-5-5|1": {
+      "clauses": [
+        {
+          "atoms": [],
+          "source_span": "Owners of residential rental property in Berkeley (or their agents) charging existing tenants",
+          "text": "Owners of residential rental property in Berkeley (or their agents) charging existing tenants",
+          "verdict": "no_building_condition"
+        }
+      ]
+    }
+  }
+}

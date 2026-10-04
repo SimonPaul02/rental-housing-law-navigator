@@ -1,7 +1,10 @@
-"""The full (rule, address, date) decision, including status and date gating.
+"""The decision at the ORM boundary: real Rule and Address rows, no database.
 
-These use plain ORM instances - no database needed, because
-evaluate_rule_for_address is pure.
+These exercise the path the API takes - `evidence_for` reads the address and
+its property facts, `compiled_for` translates the rule, and the evaluator
+decides - so a change that works on hand-built evidence but breaks on a real
+row shows up here. The vocabulary is the submission's: a pending bill reports
+`pending`, not `does_not_apply`.
 """
 
 from __future__ import annotations
@@ -11,13 +14,20 @@ import datetime as dt
 from app.db.models import Address, AddressJurisdiction, Rule
 from app.modules.address_lookup.adapters.property_facts import to_payload
 from app.modules.address_lookup.property_facts import PropertyInput, build_property_facts
+from app.modules.address_lookup.rule_evaluation.decisions import BaseResult
 from app.modules.address_lookup.service import (
+    clear_compiled_cache,
     evaluate_rule_for_address,
-    facts_for,
-    parse_effective_date,
+    evidence_for,
 )
 
 AS_OF = dt.date(2026, 10, 1)
+
+
+def setup_function() -> None:
+    # The compiled-rule cache is keyed by rule version, and these tests build
+    # many rules with the same id.
+    clear_compiled_cache()
 
 
 def make_address(**kw) -> Address:
@@ -63,27 +73,19 @@ def make_rule(**kw) -> Rule:
 
 
 def decide(rule: Rule, address: Address, as_of: dt.date = AS_OF) -> tuple[str, str]:
-    outcome = evaluate_rule_for_address(rule, facts_for(address), as_of)
+    outcome = evaluate_rule_for_address(rule, evidence_for(address), as_of)
     return outcome.result, outcome.explanation
 
 
-# -- effective dates ---------------------------------------------------------
-def test_parse_partial_effective_dates():
-    assert parse_effective_date("2027") == dt.date(2027, 1, 1)
-    assert parse_effective_date("2027-07") == dt.date(2027, 7, 1)
-    assert parse_effective_date("2027-07-02") == dt.date(2027, 7, 2)
-    assert parse_effective_date(None) is None
-    assert parse_effective_date("not a date") is None
-
-
-def test_future_effective_date_does_not_apply():
+# -- status and dates --------------------------------------------------------
+def test_a_future_effective_date_reports_not_yet_effective():
     rule = make_rule(status="not_yet_effective", effective_date="2027-07-02")
     result, why = decide(rule, make_address())
-    assert result == "does_not_apply"
-    assert "not yet effective" in why.lower()
+    assert result == str(BaseResult.not_yet_effective)
+    assert "2027-07-02" in why
 
 
-def test_same_rule_applies_after_its_effective_date():
+def test_the_same_rule_applies_once_its_date_has_passed():
     rule = make_rule(status="not_yet_effective", effective_date="2027-07-02")
     result, _ = decide(rule, make_address(), dt.date(2027, 7, 2))
     assert result == "applies"
@@ -91,107 +93,124 @@ def test_same_rule_applies_after_its_effective_date():
 
 def test_not_yet_effective_without_a_date_is_unknown():
     rule = make_rule(status="not_yet_effective", effective_date=None)
-    result, _ = decide(rule, make_address())
+    result, why = decide(rule, make_address())
     assert result == "unknown"
+    assert "not January 1" in why
 
 
-# -- status ------------------------------------------------------------------
-def test_pending_bill_does_not_apply_but_says_so():
+def test_a_month_precision_date_is_unknown_inside_its_month():
+    rule = make_rule(status="not_yet_effective", effective_date="2026-10")
+    result, why = decide(rule, make_address(), dt.date(2026, 10, 15))
+    assert result == "unknown"
+    assert "month precision" in why
+
+
+def test_a_pending_bill_reports_pending_rather_than_not_applying():
     rule = make_rule(status="pending")
     result, why = decide(rule, make_address())
-    assert result == "does_not_apply"
+    assert result == str(BaseResult.pending)
     assert "pending" in why.lower()
 
 
-def test_failed_measure_does_not_apply():
+def test_a_failed_measure_is_reported_nowhere():
     rule = make_rule(status="failed")
     result, why = decide(rule, make_address())
-    assert result == "does_not_apply"
-    assert "failed" in why.lower() or "defeated" in why.lower()
+    assert result == str(BaseResult.failed)
+    assert "defeated" in why.lower() or "struck" in why.lower()
 
 
 # -- jurisdiction ------------------------------------------------------------
-def test_out_of_state_rule_is_marked_out_of_jurisdiction():
-    rule = make_rule(jurisdiction="NJ")
-    outcome = evaluate_rule_for_address(rule, facts_for(make_address()), AS_OF)
-    assert outcome.result == "does_not_apply"
+def test_an_out_of_state_rule_is_marked_out_of_jurisdiction():
+    outcome = evaluate_rule_for_address(
+        make_rule(jurisdiction="NJ"), evidence_for(make_address()), AS_OF
+    )
+    assert outcome.result == str(BaseResult.does_not_apply)
     assert outcome.in_jurisdiction is False
 
 
-def test_city_rule_uses_legal_city_not_postal_city():
+def test_a_city_rule_uses_the_legal_city_not_the_postal_city():
     """A Van Nuys mailing address is inside the City of Los Angeles."""
     address = make_address(postal_city="Van Nuys", legal_city="Los Angeles")
-    rule = make_rule(jurisdiction="Los Angeles, CA", level="city")
-    result, _ = decide(rule, address)
+    result, why = decide(make_rule(jurisdiction="Los Angeles, CA", level="city"), address)
     assert result == "applies"
+    assert "Los Angeles" in why
 
 
-def test_hoboken_rule_does_not_reach_jersey_city():
+def test_a_hoboken_rule_does_not_reach_jersey_city():
     address = make_address(postal_city="Jersey City", legal_city="Jersey City", state="NJ")
-    rule = make_rule(jurisdiction="Hoboken, NJ", level="city")
-    outcome = evaluate_rule_for_address(rule, facts_for(address), AS_OF)
+    outcome = evaluate_rule_for_address(
+        make_rule(jurisdiction="Hoboken, NJ", level="city"), evidence_for(address), AS_OF
+    )
     assert outcome.in_jurisdiction is False
 
 
-def test_unresolved_city_does_not_assume_postal_city():
+def test_an_unresolved_city_never_falls_back_to_the_postal_city():
     address = make_address(postal_city="Jersey City", state="NJ")
     address.jurisdiction = None
-    rule = make_rule(jurisdiction="Jersey City, NJ", level="city")
-    outcome = evaluate_rule_for_address(rule, facts_for(address), AS_OF)
+    outcome = evaluate_rule_for_address(
+        make_rule(jurisdiction="Jersey City, NJ", level="city"), evidence_for(address), AS_OF
+    )
     assert outcome.result == "unknown"
-    assert outcome.unresolved_fields == ["legal_city"]
+    assert "legal_city" in outcome.unresolved_fields
 
 
-def test_conflicted_unit_count_cannot_decide_coverage():
+# -- facts -------------------------------------------------------------------
+def test_a_conflicted_unit_count_cannot_decide_coverage():
     address = make_address(units=15)
     record = build_property_facts(
         [
             PropertyInput(
-                address_id=address.address_id,
-                units="15",
-                use_description="Apartment 5 to 14 Units",
+                address_id=address.address_id, units="15", use_description="Apartment 5 to 14 Units"
             )
         ]
     )[0]
     address.property_facts = to_payload(record)
-    rule = make_rule(coverage_conditions="Applies to buildings with 5 or more units.")
-    outcome = evaluate_rule_for_address(rule, facts_for(address), AS_OF)
+    outcome = evaluate_rule_for_address(
+        make_rule(coverage_conditions="Applies to buildings with 5 or more units."),
+        evidence_for(address),
+        AS_OF,
+    )
     assert outcome.result == "unknown"
     assert "units" in outcome.unresolved_fields
 
 
-# -- coverage interaction ----------------------------------------------------
-def test_sf_cutoff_year_building_is_unknown():
-    address = make_address(postal_city="San Francisco", legal_city="San Francisco", year_built=1979)
-    rule = make_rule(
-        jurisdiction="San Francisco, CA",
-        level="city",
-        coverage_conditions="Certificate of occupancy issued on or before 1979-06-13.",
-    )
-    result, why = decide(rule, address)
-    assert result == "unknown"
-    assert "certificate" in why.lower()
-
-
-def test_missing_units_yields_unknown_with_the_field_named():
+def test_a_missing_unit_count_names_the_field_that_blocked_it():
     address = make_address(postal_city="Berkeley", legal_city="Berkeley", units=None)
-    rule = make_rule(
-        jurisdiction="Berkeley, CA",
-        level="city",
-        coverage_conditions="Applies to buildings with 5 or more units.",
+    outcome = evaluate_rule_for_address(
+        make_rule(
+            jurisdiction="Berkeley, CA",
+            level="city",
+            coverage_conditions="Applies to buildings with 5 or more units.",
+        ),
+        evidence_for(address),
+        AS_OF,
     )
-    outcome = evaluate_rule_for_address(rule, facts_for(address), AS_OF)
     assert outcome.result == "unknown"
     assert outcome.unresolved_fields == ["units"]
 
 
-def test_rule_with_no_conditions_applies_statewide():
-    rule = make_rule(coverage_conditions="Residential rentals statewide")
-    result, _ = decide(rule, make_address())
+def test_the_san_francisco_cutoff_year_is_unknown():
+    address = make_address(postal_city="San Francisco", legal_city="San Francisco", year_built=1979)
+    result, why = decide(
+        make_rule(
+            jurisdiction="San Francisco, CA",
+            level="city",
+            coverage_conditions="Certificate of occupancy issued on or before 1979-06-13.",
+        ),
+        address,
+    )
+    assert result == "unknown"
+    assert "certificate" in why.lower()
+
+
+def test_a_rule_with_no_building_condition_applies_across_its_jurisdiction():
+    result, _ = decide(
+        make_rule(coverage_conditions="Residential rentals statewide"), make_address()
+    )
     assert result == "applies"
 
 
-def test_large_building_defeats_small_landlord_exemption():
+def test_a_large_building_defeats_the_small_landlord_exemption():
     rule = make_rule(
         category="security_deposits",
         jurisdiction="NJ",
@@ -201,3 +220,23 @@ def test_large_building_defeats_small_landlord_exemption():
     result, why = decide(rule, address)
     assert result == "applies"
     assert "exemption cannot apply" in why
+
+
+def test_untranslatable_coverage_text_is_unknown_not_applies():
+    """The defect the rule adapter exists to remove, at the ORM boundary."""
+    rule = make_rule(coverage_conditions="Older buildings within designated districts")
+    result, why = decide(rule, make_address())
+    assert result == "unknown"
+    assert "could not be translated" in why
+
+
+# -- trace -------------------------------------------------------------------
+def test_the_outcome_carries_the_checks_that_produced_it():
+    outcome = evaluate_rule_for_address(
+        make_rule(coverage_conditions="Applies to buildings with 5 or more units."),
+        evidence_for(make_address()),
+        AS_OF,
+    )
+    checks = {c["check"] for c in outcome.checks}
+    assert {"geography", "time", "condition"} <= checks
+    assert any(c["source_span"] for c in outcome.checks if c["check"] == "condition")

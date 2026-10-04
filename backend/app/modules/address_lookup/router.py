@@ -12,9 +12,10 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.db import get_session
-from app.db.models import Address, AddressJurisdiction, Lookup
+from app.db.models import Address, AddressJurisdiction
 from app.modules.address_lookup import service
 from app.modules.address_lookup.adapters.property_facts import from_db_address, to_payload
+from app.modules.address_lookup.rule_adapter import adapters as rule_adapters
 from app.modules.address_lookup.schemas import (
     AddressDetail,
     AddressRecord,
@@ -246,36 +247,66 @@ async def list_jurisdictions(
 async def export_lookups(
     session: AsyncSession = Depends(get_session),
     as_of: dt.date | None = None,
+    validate: bool = Query(True, description="Refuse to serve a file that fails validation."),
 ) -> Response:
-    """submission_templates/lookups.json shape."""
+    """submission_templates/lookups.json, built from one complete run.
+
+    Evaluated fresh for every supplied address rather than read back from the
+    `lookups` table: those rows are overwritten in place, so a file assembled
+    from them can mix two runs or quietly omit an address nobody re-evaluated.
+    """
     day = as_of or _default_as_of()
-    rows = (
-        (
-            await session.execute(
-                select(Lookup)
-                .where(Lookup.as_of == day)
-                .order_by(Lookup.address_id, Lookup.team_rule_id)
-            )
-        )
-        .scalars()
-        .all()
-    )
-    lookups: dict[str, list[dict]] = {}
-    for row in rows:
-        lookups.setdefault(row.address_id, []).append(
+    payload = await service.run_lookup_export(session, day)
+    problems = payload.pop("validation_problems", [])
+
+    if problems and validate:
+        raise HTTPException(
+            500,
             {
-                "team_rule_id": row.team_rule_id,
-                "result": row.result,
-                "explanation": row.explanation,
-                "conflict_flag": row.conflict_flag,
-            }
+                "detail": "The export failed validation and was not served.",
+                "problems": problems[:20],
+                "problem_count": len(problems),
+            },
         )
-    body = {"as_of": day.isoformat(), "lookups": lookups}
+
     return Response(
-        content=json.dumps(body, indent=2, ensure_ascii=False),
+        content=json.dumps(payload, indent=2, ensure_ascii=False),
         media_type="application/json",
         headers={"Content-Disposition": 'attachment; filename="lookups.json"'},
     )
+
+
+@router.get("/rule-compilation")
+async def rule_compilation(
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """What the rule adapter made of Module A's prose, and what needs a human.
+
+    This is the review surface for Module B: a rule with untranslated text
+    answers `unknown` for every address it could reach, so the queue is ordered
+    by how much it is costing.
+    """
+    records, compiled, relations = await service.compiled_rules(session)
+    store = rule_adapters.store()
+    return {
+        "summary": rule_adapters.unreviewed_summary(store),
+        "queue": store.queue()[:50],
+        "rules": [
+            {
+                "team_rule_id": rule_id,
+                "jurisdiction": rule.jurisdiction,
+                "issue_key": rule.issue_key,
+                "review_state": str(rule.review_state),
+                "coverage": rule.coverage.to_json(),
+                "exemptions": rule.exemptions.to_json(),
+                "effective_dates": [d.to_json() for d in rule.effective_dates],
+                "unmapped_text": [u.to_json() for u in rule.unmapped_text],
+                "notes": list(rule.notes),
+            }
+            for rule_id, rule in sorted(compiled.items())
+        ],
+        "relations": [r.to_json() for r in relations],
+    }
 
 
 @router.post("/lookup", response_model=list[LookupResponse])
