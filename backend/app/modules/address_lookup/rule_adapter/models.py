@@ -82,6 +82,11 @@ class Field(StrEnum):
     building_is_subsidised = "building_is_subsidised"
     los_angeles_rso_membership = "los_angeles_rso_membership"
     san_francisco_rent_ordinance_membership = "san_francisco_rent_ordinance_membership"
+    #: What the parcel record says the building is, e.g. "apartment_building".
+    property_type = "property_type"
+    #: Whole years since the certificate of occupancy, on the query date - the
+    #: rolling "issued within the previous 15 years" tests.
+    years_since_certificate_of_occupancy = "years_since_certificate_of_occupancy"
 
 
 class Op(StrEnum):
@@ -96,9 +101,14 @@ class Op(StrEnum):
 
 
 #: Which operators make sense for which field, by value type.
-NUMERIC_FIELDS = {Field.units, Field.year_built, Field.owner_unit_count}
+NUMERIC_FIELDS = {
+    Field.units,
+    Field.year_built,
+    Field.owner_unit_count,
+    Field.years_since_certificate_of_occupancy,
+}
 DATE_FIELDS = {Field.certificate_of_occupancy_date}
-TEXT_FIELDS = {Field.legal_city, Field.legal_state, Field.use_code}
+TEXT_FIELDS = {Field.legal_city, Field.legal_state, Field.use_code, Field.property_type}
 BOOLEAN_FIELDS = {
     Field.owner_occupied,
     Field.owner_is_natural_person,
@@ -109,14 +119,13 @@ BOOLEAN_FIELDS = {
 }
 #: Facts this corpus cannot supply for any address. Kept explicit so an
 #: explanation can say *why* something is unknown rather than only that it is.
+#: Ordinance membership, subsidy and seasonal use are not here: the first is
+#: read from year built against the ordinance's own cutoff, the others from
+#: the parcel record (see rule_evaluation/derived_facts.py).
 NEVER_SUPPLIED = {
     Field.owner_occupied,
     Field.owner_is_natural_person,
     Field.owner_unit_count,
-    Field.seasonal_rental,
-    Field.building_is_subsidised,
-    Field.los_angeles_rso_membership,
-    Field.san_francisco_rent_ordinance_membership,
 }
 
 _ORDERED = {Op.lt, Op.lte, Op.gt, Op.gte}

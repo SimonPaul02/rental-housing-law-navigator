@@ -33,6 +33,7 @@ from app.modules.address_lookup.rule_evaluation import predicates as pred
 from app.modules.address_lookup.rule_evaluation.base import evaluate_base
 from app.modules.address_lookup.rule_evaluation.confidence import assess, assess_all
 from app.modules.address_lookup.rule_evaluation.decisions import BaseResult, Decision, Ternary
+from app.modules.address_lookup.rule_evaluation.derived_facts import derive
 from app.modules.address_lookup.rule_evaluation.explanations import explain
 from app.modules.address_lookup.rule_evaluation.export import (
     SubmissionInvalid,
@@ -99,7 +100,7 @@ def evidence_for(address: Address) -> pred.AddressEvidence:
             provenance=getattr(provenance, "source_dataset", None) if provenance else None,
         )
 
-    return pred.AddressEvidence(
+    evidence = pred.AddressEvidence(
         address_id=address.address_id,
         legal_city=pred.FactValue(
             juris.legal_city if verified else None,
@@ -113,9 +114,11 @@ def evidence_for(address: Address) -> pred.AddressEvidence:
         year_built=fact("year_built"),
         certificate_of_occupancy_date=fact("certificate_of_occupancy_date"),
         use_code=fact("use_code"),
+        use_description=fact("use_description"),
         jurisdiction_method=(juris.method if juris else None),
         jurisdiction_note=(juris.note if juris else None),
     )
+    return derive(evidence, (address.state or "").upper())
 
 
 # A rule is compiled once per version and kept, so evaluating five hundred

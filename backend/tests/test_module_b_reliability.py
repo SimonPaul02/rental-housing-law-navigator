@@ -89,7 +89,7 @@ def test_legacy_phrase_approval_has_no_effect(tmp_path):
     assert store.all_relations()[0].review_state is ReviewState.needs_review
 
 
-def test_san_francisco_ordinance_membership_is_not_inferred_from_city():
+def test_san_francisco_ordinance_membership_comes_from_year_built_never_the_city():
     atom = Atom(
         "c1.1",
         Field.san_francisco_rent_ordinance_membership,
@@ -97,18 +97,24 @@ def test_san_francisco_ordinance_membership_is_not_inferred_from_city():
         None,
         SourceAnchor("a rental unit covered by the Rent Ordinance"),
     )
-    evidence = AddressEvidence(
-        address_id="A1",
-        legal_city=FactValue("San Francisco", "present"),
-        legal_state=FactValue("CA", "present"),
-        units=FactValue(6, "present"),
-        year_built=FactValue(1950, "present"),
-        certificate_of_occupancy_date=FactValue(),
-        use_code=FactValue("residential", "present"),
-    )
-    check = evaluate_atom(atom, evidence)
-    assert str(check.value) == "unknown"
-    assert check.field == "san_francisco_rent_ordinance_membership"
+
+    def built(year):
+        return AddressEvidence(
+            address_id="A1",
+            legal_city=FactValue("San Francisco", "present"),
+            legal_state=FactValue("CA", "present"),
+            units=FactValue(6, "present"),
+            year_built=FactValue(year, "present" if year else "not_supplied"),
+            certificate_of_occupancy_date=FactValue(),
+            use_code=FactValue("residential", "present"),
+        )
+
+    check = evaluate_atom(atom, built(1950))
+    assert str(check.value) == "true" and check.basis == "proxy"
+    # The cutoff year, a newer building (still partly covered) and a missing
+    # year leave it open: being in San Francisco is never enough.
+    for year in (1979, 1990, None):
+        assert str(evaluate_atom(atom, built(year)).value) == "unknown"
 
 
 def test_date_review_is_bound_to_rule_and_source_versions(tmp_path):

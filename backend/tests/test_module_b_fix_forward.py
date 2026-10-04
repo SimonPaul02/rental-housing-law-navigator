@@ -44,9 +44,15 @@ from app.modules.address_lookup.rule_evaluation.decisions import (
     Reason,
     Ternary,
 )
+from app.modules.address_lookup.rule_evaluation.derived_facts import derive
 from app.modules.address_lookup.rule_evaluation.explanations import explain
 from app.modules.address_lookup.rule_evaluation.export import to_submission, validate_submission
-from app.modules.address_lookup.rule_evaluation.predicates import _OPS
+from app.modules.address_lookup.rule_evaluation.predicates import (
+    _OPS,
+    AddressEvidence,
+    FactValue,
+    evaluate_atom,
+)
 from app.modules.address_lookup.rule_evaluation.timing import evaluate_time
 from app.modules.address_lookup.service import (
     _outcome_from,
@@ -342,3 +348,78 @@ def test_a_date_may_be_quoted_from_another_document_naming_the_same_act(tmp_path
     assert not reviewed.unverified_dates
     assert evaluate_time(reviewed, dt.date(2025, 12, 31))[1] is BaseResult.not_yet_effective
     assert store.date_reviews["r-ab325"]["evidence_doc_id"] == "D092"
+
+
+# -- facts read from the parcel record ----------------------------------------
+def parcel(description: str, state: str = "CA", use_code: str = "", **kw) -> AddressEvidence:
+    base = AddressEvidence(
+        address_id="A1",
+        legal_city=FactValue("X", "present"),
+        legal_state=FactValue(state, "present"),
+        units=kw.get("units", FactValue()),
+        year_built=kw.get("year_built", FactValue()),
+        certificate_of_occupancy_date=FactValue(),
+        use_code=FactValue(use_code, "present" if use_code else "not_supplied"),
+        use_description=FactValue(description, "present"),
+    )
+    return derive(base, state)
+
+
+def test_the_parcel_description_states_or_implies_facts_and_says_which():
+    apartments = parcel("Five or more apartments")
+    assert apartments.property_type.value == "apartment_building"
+    assert apartments.property_type.basis == "presumed"
+    assert apartments.units_floor.value == 5
+    assert apartments.building_is_subsidised.value is False
+    assert apartments.building_is_subsidised.basis == "presumed"
+
+    section8 = parcel("SUBSD HOUSING S- 8", "MA", "A/125")
+    assert section8.building_is_subsidised.value is True
+    assert section8.building_is_subsidised.basis is None  # stated, not presumed
+
+    assert parcel("3S-F-D-6U-NH", "NJ", "4C").units_floor.value == 6
+    assert parcel("2F-4U/2F-2U", "NJ", "4C").units_floor.value == 2  # smallest building
+    assert parcel("2SF2UG", "NJ", "4C").units_floor.value == 5  # garage code, class 4C floor
+    assert parcel("APT 7-30 UNITS", "MA", "A/112").units_floor.value == 7
+    assert not parcel("TIC Bldg 4 units or less").property_type.usable
+
+
+def test_a_presumption_can_rule_out_an_exemption_but_never_decide_coverage():
+    evidence = parcel("Five or more apartments")
+    subsidised = Atom("x1.1", Field.building_is_subsidised, Op.is_true, None, SourceAnchor("s"))
+    exempt = evaluate_atom(subsidised, evidence, role=Origin.exemption)
+    assert exempt.value is Ternary.false and exempt.basis == "presumed"
+    assert evaluate_atom(subsidised, evidence, role=Origin.coverage).value is Ternary.unknown
+    # Nor may it bring a building *inside* an exemption.
+    unsubsidised = replace(subsidised, op=Op.is_false)
+    assert evaluate_atom(unsubsidised, evidence, role=Origin.exemption).value is Ternary.unknown
+
+    small = Atom("x1.2", Field.units, Op.lte, 4, SourceAnchor("4 or fewer units"))
+    assert evaluate_atom(small, evidence, role=Origin.exemption).value is Ternary.false
+    assert evaluate_atom(small, evidence, role=Origin.coverage).value is Ternary.unknown
+
+
+def test_an_owner_holds_at_least_the_building_whoever_owns_it():
+    portfolio = Atom("x1.1", Field.owner_unit_count, Op.lte, 4, SourceAnchor("four units total"))
+    stated = parcel("", units=FactValue(32, "present"))
+    check = evaluate_atom(portfolio, stated, role=Origin.coverage)
+    assert check.value is Ternary.false and check.basis is None
+    assert evaluate_atom(portfolio, parcel("")).value is Ternary.unknown
+
+
+def test_the_rolling_fifteen_year_test_is_unknown_only_when_the_line_falls_in_the_year():
+    recent = Atom(
+        "x1.1",
+        Field.years_since_certificate_of_occupancy,
+        Op.lt,
+        15,
+        SourceAnchor("certificate of occupancy within the previous 15 years"),
+    )
+
+    def built(year: int) -> Ternary:
+        evidence = parcel("", year_built=FactValue(year, "present"))
+        return evaluate_atom(recent, evidence, as_of=AS_OF).value
+
+    assert built(2015) is Ternary.true  # the line is 2011-10-01
+    assert built(2011) is Ternary.unknown
+    assert built(2000) is Ternary.false

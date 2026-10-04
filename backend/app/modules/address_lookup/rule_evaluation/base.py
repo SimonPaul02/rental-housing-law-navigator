@@ -148,8 +148,12 @@ def evaluate_base(
 
     # 3. Coverage and exemptions pull in opposite directions and are evaluated
     #    separately: coverage must hold, an exemption must not.
-    coverage, coverage_traces = pred.evaluate_expr(rule.coverage, evidence)
-    exemption, exemption_traces = pred.evaluate_expr(rule.exemptions, evidence)
+    coverage, coverage_traces = pred.evaluate_expr(
+        rule.coverage, evidence, role=Origin.coverage, as_of=as_of
+    )
+    exemption, exemption_traces = pred.evaluate_expr(
+        rule.exemptions, evidence, role=Origin.exemption, as_of=as_of
+    )
 
     if rule.coverage.is_empty and rule.coverage_basis is CoverageBasis.classified:
         # Every coverage clause was read as naming who or what is regulated

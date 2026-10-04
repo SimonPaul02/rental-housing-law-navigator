@@ -78,6 +78,7 @@ class Reason(StrEnum):
     certificate_date_not_supplied = "certificate_date_not_supplied"
     certificate_cutoff_year_ambiguous = "certificate_cutoff_year_ambiguous"
     year_built_proxy_used = "year_built_proxy_used"
+    membership_proxy_used = "membership_proxy_used"
     # structure
     unconditional_reviewed = "unconditional_reviewed"
     coverage_classified = "coverage_classified"

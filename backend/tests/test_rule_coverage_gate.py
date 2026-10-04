@@ -271,7 +271,7 @@ def test_review_rejects_an_invalid_corrected_expression(tmp_path):
         )
 
 
-def test_reviewed_rso_membership_still_needs_address_evidence(tmp_path):
+def test_reviewed_rso_membership_is_read_from_year_built_at_low_confidence(tmp_path):
     source = "Units subject to the Los Angeles RSO"
     compiled, _ = compile_rule(Rule(coverage_conditions=source), source_text=source)
     store = ReviewStore(tmp_path / "reviews.json")
@@ -299,18 +299,29 @@ def test_reviewed_rso_membership_still_needs_address_evidence(tmp_path):
     )
     reviewed = store.apply_reviews(compiled)
     assert reviewed.review_state is ReviewState.human_approved
-    ev = AddressEvidence(
-        address_id="A0001",
-        legal_city=FactValue("Los Angeles", "present"),
-        legal_state=FactValue("CA", "present"),
-        units=FactValue(32, "present"),
-        year_built=FactValue(1927, "present"),
-        certificate_of_occupancy_date=FactValue(),
-        use_code=FactValue(),
+
+    def built(year):
+        return AddressEvidence(
+            address_id="A0001",
+            legal_city=FactValue("Los Angeles", "present"),
+            legal_state=FactValue("CA", "present"),
+            units=FactValue(32, "present"),
+            year_built=FactValue(year, "present" if year else "not_supplied"),
+            certificate_of_occupancy_date=FactValue(),
+            use_code=FactValue(),
+        )
+
+    # Before the RSO's 1978-10-01 cutoff year: inside, on the proxy's word.
+    decision = evaluate_base(reviewed, built(1927), dt.date(2026, 10, 4))
+    assert decision.result is BaseResult.applies
+    assert any(c.basis == "proxy" for c in decision.checks)
+    # In the cutoff year, or with no year at all, the address still decides nothing.
+    for year in (1978, None):
+        decision = evaluate_base(reviewed, built(year), dt.date(2026, 10, 4))
+        assert decision.result is BaseResult.unknown
+    assert evaluate_base(reviewed, built(1995), dt.date(2026, 10, 4)).result is (
+        BaseResult.does_not_apply
     )
-    decision = evaluate_base(reviewed, ev, dt.date(2026, 10, 4))
-    assert decision.result is BaseResult.unknown
-    assert "los_angeles_rso_membership" in decision.unresolved_fields
 
 
 def test_human_can_hold_or_reject_without_approving_coverage(tmp_path):
