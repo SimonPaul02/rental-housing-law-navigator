@@ -10,7 +10,12 @@ from __future__ import annotations
 
 import datetime as dt
 
-from app.modules.address_lookup.rule_adapter.models import CompiledRule, CoverageBasis
+from app.modules.address_lookup.rule_adapter.models import (
+    Basis,
+    CompiledRule,
+    CoverageBasis,
+    Origin,
+)
 from app.modules.address_lookup.rule_evaluation import predicates as pred
 from app.modules.address_lookup.rule_evaluation.decisions import (
     BaseDecision,
@@ -146,7 +151,26 @@ def evaluate_base(
     coverage, coverage_traces = pred.evaluate_expr(rule.coverage, evidence)
     exemption, exemption_traces = pred.evaluate_expr(rule.exemptions, evidence)
 
-    if rule.coverage.is_empty:
+    if rule.coverage.is_empty and rule.coverage_basis is CoverageBasis.classified:
+        # Every coverage clause was read as naming who or what is regulated
+        # rather than which buildings. Coverage holds, on the machine's word,
+        # and the trace says which clauses were set aside.
+        coverage = Ternary.true
+        set_aside = [c.text for c in rule.classified if c.origin is Origin.coverage]
+        coverage_traces = [
+            CheckTrace(
+                check="coverage",
+                value=Ternary.true,
+                reason=Reason.coverage_classified,
+                detail=(
+                    "The coverage clauses state no building-level condition"
+                    + (": " + "; ".join(t[:90] for t in set_aside[:2]) if set_aside else "")
+                    + "."
+                ),
+                basis=str(Basis.machine_read),
+            )
+        ]
+    elif rule.coverage.is_empty:
         coverage = (
             Ternary.true
             if rule.coverage_basis is CoverageBasis.explicit_unconditional

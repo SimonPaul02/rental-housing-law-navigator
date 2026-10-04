@@ -13,6 +13,7 @@ from __future__ import annotations
 from app.modules.address_lookup.rule_evaluation.decisions import (
     BaseResult,
     CheckTrace,
+    Confidence,
     Decision,
     Reason,
     Ternary,
@@ -100,7 +101,11 @@ def explain(decision: Decision) -> str:
             if c.reason in (Reason.fact_satisfied, Reason.year_built_proxy_used)
         ]
         beaten = [c for c in base.checks if c.check == "exemption" and c.value is Ternary.false]
-        unconditional = [c for c in base.checks if c.reason is Reason.unconditional_reviewed]
+        unconditional = [
+            c
+            for c in base.checks
+            if c.reason in (Reason.unconditional_reviewed, Reason.coverage_classified)
+        ]
         for group in (geo, time, facts, beaten, unconditional):
             if group:
                 parts.append(group[0].detail)
@@ -113,6 +118,19 @@ def explain(decision: Decision) -> str:
         # reader doubt the rest of the output.
         if decision.conflict_reason not in parts:
             parts.append(decision.conflict_reason)
+
+    if (
+        decision.confidence is Confidence.low
+        and decision.result is not BaseResult.unknown
+        and decision.confidence_reasons
+    ):
+        # Said in the answer itself, not only in the API view: lookups.json
+        # has four fields, and this is the one a reader always sees.
+        parts.append(
+            "Confidence: low, for human review - "
+            + "; ".join(decision.confidence_reasons[:2]).rstrip(".")
+            + "."
+        )
 
     if base.unresolved_fields and decision.result in (
         BaseResult.unknown,

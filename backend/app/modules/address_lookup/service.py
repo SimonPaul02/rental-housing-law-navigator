@@ -31,6 +31,7 @@ from app.modules.address_lookup.rule_adapter.models import (
 )
 from app.modules.address_lookup.rule_evaluation import predicates as pred
 from app.modules.address_lookup.rule_evaluation.base import evaluate_base
+from app.modules.address_lookup.rule_evaluation.confidence import assess, assess_all
 from app.modules.address_lookup.rule_evaluation.decisions import BaseResult, Decision, Ternary
 from app.modules.address_lookup.rule_evaluation.explanations import explain
 from app.modules.address_lookup.rule_evaluation.export import (
@@ -222,6 +223,8 @@ def _outcome_from(decision: Decision, record: Rule, compiled: CompiledRule) -> R
         source_url=record.source_url,
         quoted_span=record.quoted_span,
         superseded_by=decision.superseded_by,
+        confidence=str(decision.confidence),
+        confidence_reasons=list(decision.confidence_reasons),
         issue_key=decision.base.issue_key,
         checks=[c.to_json() for c in (*decision.base.checks, *decision.interaction_checks)],
     )
@@ -240,6 +243,8 @@ def decide_for_address(
     by_id = {r.team_rule_id: r for r in records}
     for decision in decisions:
         _carry_record_conflict(decision, by_id[decision.team_rule_id])
+    assess_all(decisions, compiled)
+    for decision in decisions:
         decision.explanation = explain(decision)
         if note := _value_period_note(compiled[decision.team_rule_id], decision.base.as_of):
             decision.explanation += " " + note
@@ -310,6 +315,7 @@ def evaluate_rule_for_address(
     decision = Decision(base=base, result=base.result, conflict_flag=base.conflict_flag)
     decision.conflict_reason = base.conflict_reason
     _carry_record_conflict(decision, rule)
+    assess(decision, compiled)
     decision.explanation = explain(decision)
     if note := _value_period_note(compiled, as_of):
         decision.explanation += " " + note

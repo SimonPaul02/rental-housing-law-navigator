@@ -130,6 +130,15 @@ class RuleOutcome(BaseModel):
     # Why this decision, in the evaluator's own terms. The challenge export has
     # only four fields, so the trace stays in the API view.
     superseded_by: str | None = None
+    confidence: str = Field(
+        default="high",
+        description=(
+            "high when every check behind the answer is the cited source or a named "
+            "reviewer; low when one rests on the machine's own reading. The reasons "
+            "say which."
+        ),
+    )
+    confidence_reasons: list[str] = Field(default_factory=list)
     issue_key: str | None = None
     checks: list[dict] = Field(default_factory=list)
 

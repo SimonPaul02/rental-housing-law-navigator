@@ -79,6 +79,7 @@ class Reason(StrEnum):
     year_built_proxy_used = "year_built_proxy_used"
     # structure
     unconditional_reviewed = "unconditional_reviewed"
+    coverage_classified = "coverage_classified"
     rule_clause_unmapped = "rule_clause_unmapped"
     rule_not_approved = "rule_not_approved"
     # interactions
@@ -102,6 +103,9 @@ class CheckTrace:
     field: str | None = None
     fact_value: Any = None
     fact_status: str | None = None
+    #: A `Basis` value when the check rests on anything weaker than the source
+    #: or a reviewer: a classified clause, a presumed fact, a proxy.
+    basis: str | None = None
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -118,7 +122,20 @@ class CheckTrace:
                 else self.fact_value
             ),
             "fact_status": self.fact_status,
+            "basis": self.basis,
         }
+
+
+class Confidence(StrEnum):
+    """How much of an answer a reader can check against the source.
+
+    `high`: every check behind it is the cited text or a named reviewer.
+    `low`: at least one rests on the machine's own reading, and the reasons
+    say which - so it is shown for human review rather than hidden.
+    """
+
+    high = "high"
+    low = "low"
 
 
 class BaseResult(StrEnum):
@@ -193,6 +210,8 @@ class Decision:
     conflict_reason: str | None = None
     superseded_by: str | None = None
     interaction_checks: list[CheckTrace] = field(default_factory=list)
+    confidence: Confidence = Confidence.high
+    confidence_reasons: list[str] = field(default_factory=list)
 
     @property
     def team_rule_id(self) -> str:
@@ -211,4 +230,6 @@ class Decision:
             "conflict_reason": self.conflict_reason,
             "superseded_by": self.superseded_by,
             "interaction_checks": [c.to_json() for c in self.interaction_checks],
+            "confidence": str(self.confidence),
+            "confidence_reasons": list(self.confidence_reasons),
         }

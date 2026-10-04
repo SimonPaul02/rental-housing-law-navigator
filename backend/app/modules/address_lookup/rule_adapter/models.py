@@ -31,6 +31,31 @@ from enum import StrEnum
 from typing import Any, Literal
 
 COMPILER_VERSION = "3"
+#: Versions the clause classifier and date reading separately from the
+#: compiler. Reviews are bound to COMPILER_VERSION, so bumping that would
+#: unbind every human decision; bumping this only forces a recompile.
+CLASSIFIER_VERSION = "1"
+
+
+class Basis(StrEnum):
+    """Where the authority for one piece of an answer comes from.
+
+    The first two are what a reader can check against the cited source or a
+    named reviewer. The rest are the machine's own readings, each of which
+    makes the answer it supports low confidence and says so.
+    """
+
+    source_verified = "source_verified"
+    human_reviewed = "human_reviewed"
+    machine_read = "machine_read"  # a clause classified without review
+    presumed = "presumed"  # a fact the data implies but does not state
+    proxy = "proxy"  # one fact standing in for another (year built for a certificate)
+    inferred = "inferred"  # a precedence link read from deference language
+    unverified_date = "unverified_date"  # a record date the source does not state
+
+    @property
+    def is_low(self) -> bool:
+        return self not in (Basis.source_verified, Basis.human_reviewed)
 
 
 class Field(StrEnum):
@@ -109,6 +134,9 @@ class Origin(StrEnum):
 class ReviewState(StrEnum):
     machine_verified = "machine_verified"
     human_approved = "human_approved"
+    #: Every clause was translated or classified, but some by the machine's
+    #: own reading. Evaluated, reported low confidence, and still queued.
+    machine_classified = "machine_classified"
     approved = "approved"  # legacy relation state; never grants coverage approval
     needs_review = "needs_review"
     rejected = "rejected"
@@ -117,6 +145,8 @@ class ReviewState(StrEnum):
 class CoverageBasis(StrEnum):
     explicit_unconditional = "explicit_unconditional"
     conditions = "conditions"
+    #: Every coverage clause was classified as stating no building condition.
+    classified = "classified"
     unresolved = "unresolved"
 
 
@@ -152,6 +182,7 @@ class Atom:
     value: Any = None
     anchor: SourceAnchor | None = None
     note: str | None = None
+    basis: Basis = Basis.source_verified
 
     def to_json(self) -> dict[str, Any]:
         out: dict[str, Any] = {"id": self.id, "field": str(self.field), "op": str(self.op)}
@@ -161,6 +192,10 @@ class Atom:
             out.update(self.anchor.to_json())
         if self.note:
             out["note"] = self.note
+        # Only written when it says something, so reviewed atoms keep the
+        # exact shape their review was recorded against.
+        if self.basis is not Basis.source_verified:
+            out["basis"] = str(self.basis)
         return out
 
 
@@ -224,6 +259,32 @@ class UnmappedClause:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class ClassifiedClause:
+    """A clause read as stating no building-level condition.
+
+    Kept beside the expression trees rather than dropped, so the answer can
+    name what it set aside and a reviewer can overturn the reading.
+    """
+
+    text: str
+    origin: Origin
+    clause_id: str
+    kind: str
+    rationale: str
+    source_span: str | None = None
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "text": self.text,
+            "origin": str(self.origin),
+            "clause_id": self.clause_id,
+            "kind": self.kind,
+            "rationale": self.rationale,
+            "source_span": self.source_span,
+        }
+
+
 class RelationType(StrEnum):
     yields_to = "yields_to"
     both_apply = "both_apply"
@@ -263,6 +324,9 @@ class Relation:
     reviewer: str | None = None
     reviewed_at: str | None = None
     review_note: str | None = None
+    #: "local_deference" when a state rule's own text defers to local law:
+    #: the one kind of unreviewed relation allowed to supersede.
+    basis: str | None = None
 
     def to_json(self) -> dict[str, Any]:
         out = {
@@ -270,6 +334,7 @@ class Relation:
             "right_rule_id": self.right_rule_id,
             "issue_key": self.issue_key,
             "relation": str(self.relation),
+            "basis": self.basis,
             "review_state": str(self.review_state),
             "condition": self.condition,
             "qualification": str(self.qualification),
@@ -349,12 +414,18 @@ class CompiledRule:
     status: str = "in_force"
     effective_dates: tuple[EffectiveDate, ...] = ()
     effective_date_unresolved: bool = False
+    #: Record dates the source does not state. Read as intervals at low
+    #: confidence, so a case can still turn on them; never mixed into
+    #: `effective_dates`, which hold only source-backed dates.
+    unverified_dates: tuple[EffectiveDate, ...] = ()
     key_value_period: ValuePeriod | None = None
     coverage: Expr = EMPTY_ALL
     exemptions: Expr = EMPTY_ANY
     unmapped_text: tuple[UnmappedClause, ...] = ()
+    classified: tuple[ClassifiedClause, ...] = ()
     issue_key: str = ""
     notes: tuple[str, ...] = ()
+    classifier_version: str = CLASSIFIER_VERSION
 
     @property
     def has_unmapped(self) -> bool:
@@ -362,9 +433,14 @@ class CompiledRule:
 
     @property
     def is_usable(self) -> bool:
-        """Approved, and with nothing untranslated that could change a result."""
+        """Approved or fully classified, with nothing untranslated left."""
         return (
-            self.review_state in (ReviewState.machine_verified, ReviewState.human_approved)
+            self.review_state
+            in (
+                ReviewState.machine_verified,
+                ReviewState.human_approved,
+                ReviewState.machine_classified,
+            )
             and not self.unmapped_text
             and self.coverage_basis is not CoverageBasis.unresolved
         )
@@ -384,11 +460,14 @@ class CompiledRule:
             "issue_key": self.issue_key,
             "effective_dates": [d.to_json() for d in self.effective_dates],
             "effective_date_unresolved": self.effective_date_unresolved,
+            "unverified_dates": [d.to_json() for d in self.unverified_dates],
             "key_value_period": self.key_value_period.to_json() if self.key_value_period else None,
             "coverage": self.coverage.to_json(),
             "exemptions": self.exemptions.to_json(),
             "unmapped_text": [u.to_json() for u in self.unmapped_text],
+            "classified": [c.to_json() for c in self.classified],
             "notes": list(self.notes),
+            "classifier_version": self.classifier_version,
         }
 
 

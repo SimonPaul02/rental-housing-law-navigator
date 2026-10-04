@@ -121,6 +121,11 @@ export interface RuleCheck {
   fact_status: string | null;
 }
 
+/** high: every check behind the answer is the cited source or a named
+ *  reviewer. low: one rests on the machine's own reading; the reasons say
+ *  which, so the answer can be reviewed rather than distrusted wholesale. */
+export type Confidence = "high" | "low";
+
 export interface RuleOutcome {
   team_rule_id: string;
   result: LookupResult;
@@ -141,6 +146,8 @@ export interface RuleOutcome {
   superseded_by: string | null;
   /** The obligation this rule speaks to. Two rules sharing one are rivals. */
   issue_key: string | null;
+  confidence?: Confidence;
+  confidence_reasons?: string[];
   checks: RuleCheck[];
 }
 

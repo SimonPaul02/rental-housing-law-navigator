@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { JurisdictionStatus, LookupResult, RuleStatus } from "@/lib/types";
+import type { Confidence, JurisdictionStatus, LookupResult, RuleStatus } from "@/lib/types";
 
 /* ------------------------------------------------------------------ shell */
 export function Card({
@@ -119,9 +119,9 @@ const JURISDICTION_STATUS: Record<JurisdictionStatus, { color: string; label: st
   not_checked: { color: "var(--faint)", label: "Jurisdiction not checked" },
 };
 
-function Badge({ color, label }: { color: string; label: string }) {
+function Badge({ color, label, title }: { color: string; label: string; title?: string }) {
   return (
-    <span className="badge">
+    <span className="badge" title={title}>
       <span className="badge-dot" style={{ background: color }} aria-hidden />
       {label}
     </span>
@@ -136,6 +136,28 @@ export function StatusBadge({ status }: { status: RuleStatus }) {
 export function ResultBadge({ result }: { result: LookupResult }) {
   const r = RESULT[result] ?? { color: "var(--faint)", label: result };
   return <Badge color={r.color} label={r.label} />;
+}
+
+export function ConfidenceBadge({
+  confidence,
+  reasons = [],
+}: {
+  confidence: Confidence;
+  reasons?: string[];
+}) {
+  return confidence === "low" ? (
+    <Badge
+      color="var(--warn)"
+      label="low confidence"
+      title={reasons.length ? reasons.join("\n") : "Rests on the machine's own reading"}
+    />
+  ) : (
+    <Badge
+      color="var(--good)"
+      label="source-backed"
+      title="Every check behind this answer is the cited source or a named reviewer"
+    />
+  );
 }
 
 export function JurisdictionBadge({ status }: { status: JurisdictionStatus }) {

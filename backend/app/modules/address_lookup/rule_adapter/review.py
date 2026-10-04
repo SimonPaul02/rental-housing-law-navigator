@@ -20,8 +20,11 @@ from pathlib import Path
 from typing import Any
 
 from app.modules.address_lookup.rule_adapter.models import (
+    CLASSIFIER_VERSION,
     COMPILER_VERSION,
     Atom,
+    Basis,
+    ClassifiedClause,
     CompiledRule,
     CoverageBasis,
     EffectiveDate,
@@ -68,6 +71,16 @@ def atom_from_json(payload: dict) -> Atom:
         value=value,
         anchor=_anchor_from(payload),
         note=payload.get("note"),
+        basis=Basis(payload.get("basis", Basis.source_verified)),
+    )
+
+
+def _date_from(d: dict) -> EffectiveDate:
+    return EffectiveDate(
+        d["raw"],
+        dt.date.fromisoformat(d["earliest"]),
+        dt.date.fromisoformat(d["latest"]),
+        d["precision"],
     )
 
 
@@ -98,16 +111,9 @@ def compiled_from_json(payload: dict) -> CompiledRule:
         level=payload.get("level", "state"),
         jurisdiction=payload.get("jurisdiction", ""),
         status=payload.get("status", "in_force"),
-        effective_dates=tuple(
-            EffectiveDate(
-                d["raw"],
-                dt.date.fromisoformat(d["earliest"]),
-                dt.date.fromisoformat(d["latest"]),
-                d["precision"],
-            )
-            for d in payload.get("effective_dates", [])
-        ),
+        effective_dates=tuple(_date_from(d) for d in payload.get("effective_dates", [])),
         effective_date_unresolved=payload.get("effective_date_unresolved", False),
+        unverified_dates=tuple(_date_from(d) for d in payload.get("unverified_dates", [])),
         key_value_period=(
             ValuePeriod(
                 dt.date.fromisoformat(period["start"]),
@@ -132,8 +138,21 @@ def compiled_from_json(payload: dict) -> CompiledRule:
             )
             for u in payload.get("unmapped_text", [])
         ),
+        classified=tuple(
+            ClassifiedClause(
+                c["text"],
+                Origin(c["origin"]),
+                c.get("clause_id", ""),
+                c["kind"],
+                c.get("rationale", ""),
+                c.get("source_span"),
+            )
+            for c in payload.get("classified", [])
+        ),
         issue_key=payload.get("issue_key", ""),
         notes=tuple(payload.get("notes", [])),
+        # A revision written before the classifier existed reads as stale.
+        classifier_version=payload.get("classifier_version", "0"),
     )
 
 
@@ -174,6 +193,7 @@ def relation_from_json(payload: dict) -> Relation:
         reviewer=payload.get("reviewer"),
         reviewed_at=payload.get("reviewed_at"),
         review_note=payload.get("review_note"),
+        basis=payload.get("basis"),
     )
 
 
@@ -237,6 +257,7 @@ class ReviewStore:
             not payload
             or payload.get("rule_version_hash") != rule_version_hash
             or payload.get("compiler_version") != COMPILER_VERSION
+            or payload.get("classifier_version") != CLASSIFIER_VERSION
             or payload.get("source_hash") != source_hash
         ):
             return None
@@ -395,6 +416,7 @@ class ReviewStore:
             for item in decision["effective_dates"]
         )
         compiled.effective_date_unresolved = False
+        compiled.unverified_dates = ()
         if period := decision.get("key_value_period"):
             compiled.key_value_period = ValuePeriod(
                 dt.date.fromisoformat(period["start"]),

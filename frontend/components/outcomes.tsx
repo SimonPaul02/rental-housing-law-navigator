@@ -1,5 +1,5 @@
 import type { RuleOutcome } from "@/lib/types";
-import { ResultBadge, StatusBadge } from "./ui";
+import { ConfidenceBadge, ResultBadge, StatusBadge } from "./ui";
 
 /** One rule, as it reads to somebody who is not a lawyer: what it requires,
  *  then the exact words of the law it came from.
@@ -17,6 +17,12 @@ export function Outcome({ outcome }: { outcome: RuleOutcome }) {
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="font-medium">{outcome.title ?? outcome.team_rule_id}</span>
         <ResultBadge result={outcome.result} />
+        {outcome.confidence && outcome.result !== "unknown" && (
+          <ConfidenceBadge
+            confidence={outcome.confidence}
+            reasons={outcome.confidence_reasons}
+          />
+        )}
         {outcome.status && outcome.status !== outcome.result && (
           <StatusBadge status={outcome.status} />
         )}

@@ -9,8 +9,25 @@ from __future__ import annotations
 import datetime as dt
 
 from app.db.models import Address, AddressJurisdiction, Document, Rule
-from app.modules.address_lookup.rule_adapter.models import Op
-from app.modules.address_lookup.rule_evaluation.decisions import BaseResult
+from app.modules.address_lookup.rule_adapter.compiler import parse_effective_date
+from app.modules.address_lookup.rule_adapter.models import (
+    Atom,
+    Basis,
+    ClassifiedClause,
+    CompiledRule,
+    CoverageBasis,
+    Expr,
+    Field,
+    Op,
+    Origin,
+    ReviewState,
+    SourceAnchor,
+)
+from app.modules.address_lookup.rule_adapter.review import ReviewStore, compiled_from_json
+from app.modules.address_lookup.rule_evaluation.base import evaluate_base
+from app.modules.address_lookup.rule_evaluation.confidence import assess
+from app.modules.address_lookup.rule_evaluation.decisions import BaseResult, Confidence, Decision
+from app.modules.address_lookup.rule_evaluation.explanations import explain
 from app.modules.address_lookup.rule_evaluation.export import to_submission, validate_submission
 from app.modules.address_lookup.rule_evaluation.predicates import _OPS
 from app.modules.address_lookup.service import (
@@ -118,3 +135,66 @@ def test_module_a_conflict_flag_reaches_api_and_export_alike():
 def test_boolean_operators_compare_supplied_booleans():
     assert _OPS[Op.is_true](True, None) and not _OPS[Op.is_true](False, None)
     assert _OPS[Op.is_false](False, None) and not _OPS[Op.is_false](None, None)
+
+
+# -- confidence --------------------------------------------------------------
+def _presumed_rule() -> CompiledRule:
+    anchor = SourceAnchor("4 or fewer units", "D1", origin=Origin.exemption)
+    return CompiledRule(
+        team_rule_id="r-low",
+        rule_version_hash="h",
+        review_state=ReviewState.machine_classified,
+        coverage_basis=CoverageBasis.classified,
+        jurisdiction="CA",
+        exemptions=Expr(
+            "any", (Atom("x1.1", Field.units, Op.lte, 4, anchor, basis=Basis.presumed),)
+        ),
+        classified=(
+            ClassifiedClause("Landlords", Origin.coverage, "c1", "actor", "names who, not which"),
+        ),
+        unverified_dates=(parse_effective_date("2024-01-01"),),
+    )
+
+
+def test_new_compiled_fields_round_trip_and_stale_classifier_is_recompiled(tmp_path):
+    rule = _presumed_rule()
+    payload = rule.to_json()
+    assert payload["exemptions"]["any"][0]["basis"] == "presumed"
+    assert compiled_from_json(payload).to_json() == payload
+
+    store = ReviewStore(tmp_path / "compiled.json")
+    store.put(rule)
+    assert store.get("r-low", "h", None) is not None
+    store.revisions["r-low"].pop("classifier_version")
+    assert store.get("r-low", "h", None) is None
+
+
+def test_a_presumed_fact_makes_the_answer_low_confidence_and_says_why():
+    rule = _presumed_rule()
+    base = evaluate_base(rule, evidence_for(make_address()), AS_OF)
+    decision = Decision(base=base, result=base.result)
+    assess(decision, rule)
+    decision.explanation = explain(decision)
+
+    assert decision.result is BaseResult.applies
+    assert decision.confidence is Confidence.low
+    assert any("presumed" in r for r in decision.confidence_reasons)
+    assert any("no building-level condition" in r for r in decision.confidence_reasons)
+    assert "Confidence: low" in decision.explanation
+    assert decision.to_json()["confidence"] == "low"
+
+    payload = to_submission([decision], ["A0001"], AS_OF)
+    assert set(payload["lookups"]["A0001"][0]) == {
+        "team_rule_id",
+        "result",
+        "explanation",
+        "conflict_flag",
+    }
+
+
+def test_a_source_backed_answer_stays_high_confidence():
+    rule = make_rule()
+    compiled, decisions = decide_all([rule], make_address())
+    outcome = _outcome_from(decisions["r-0001"], rule, compiled["r-0001"])
+    assert outcome.result == "applies" and outcome.confidence == "high"
+    assert "Confidence" not in outcome.explanation

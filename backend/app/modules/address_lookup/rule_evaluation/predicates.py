@@ -111,7 +111,14 @@ def _describe(atom: Atom) -> str:
 
 
 def evaluate_atom(atom: Atom, evidence: AddressEvidence) -> CheckTrace:
-    """One condition against one fact."""
+    """One condition against one fact, carrying the atom's basis into the trace."""
+    trace = _evaluate_atom(atom, evidence)
+    if atom.basis.is_low and trace.basis is None:
+        trace.basis = str(atom.basis)
+    return trace
+
+
+def _evaluate_atom(atom: Atom, evidence: AddressEvidence) -> CheckTrace:
     condition = _describe(atom)
     fact = evidence.get(atom.field)
 
