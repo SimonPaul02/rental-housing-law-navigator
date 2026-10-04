@@ -60,6 +60,7 @@ A0325,resolved,38A GAUTIER AVE.,Jersey City,Jersey City,NJ,07302,07306,mismatch,
 A0331,resolved,342-344 IRVINE TURNER BLV,Newark,Newark,NJ,11219,07108,invalid_for_state,2,2,The input ZIP fails the five-digit or state-prefix check.,NJOGIS Parcels & MOD-IV Composite,2026-10-01T22:50Z
 A0337,resolved,66 MONROE ST,Newark,Newark,NJ,07032,07105,mismatch,1,1,The input ZIP differs from every accepted endpoint.,NJOGIS Parcels & MOD-IV Composite,2026-10-01T22:50Z
 A0343,needs_review,408-410 5TH ST,Newark,,NJ,10997,,invalid_for_state,0,2,The input ZIP fails the five-digit or state-prefix check.,NJOGIS Parcels & MOD-IV Composite,2026-10-01T22:50Z
+A0344,resolved,238 & 242 GARFIELD AVE.,Jersey City,Jersey City,NJ,07304,07305,mismatch,2,2,The input ZIP differs from every accepted endpoint.,NJOGIS Parcels & MOD-IV Composite,2026-10-01T22:50Z
 A0348,resolved,229 CLINTON ST,Hoboken,Hoboken,NJ,08755,07030,mismatch,1,1,The input ZIP differs from every accepted endpoint.,NJOGIS Parcels & MOD-IV Composite,2026-10-01T22:50Z
 A0350,resolved,1051 WEST SIDE AVE.,Jersey City,Jersey City,NJ,07446,07306,mismatch,1,1,The input ZIP differs from every accepted endpoint.,NJOGIS Parcels & MOD-IV Composite,2026-10-01T22:50Z
 A0352,resolved,40-42 MT PROSPECT AVE,Newark,Newark,NJ,07083,07104,mismatch,2,2,The input ZIP differs from every accepted endpoint.,NJOGIS Parcels & MOD-IV Composite,2026-10-01T22:50Z

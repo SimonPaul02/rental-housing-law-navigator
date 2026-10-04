@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,25 @@ class AddressQuery:
     city: str
     state: str
     zip: str = ""
+
+
+AddressShapeKind = Literal[
+    "single",
+    "same_street_range",
+    "fractional_range",
+    "compound_same_street",
+    "compound_cross_street",
+    "no_house_number",
+    "unsupported",
+]
+
+
+@dataclass(frozen=True)
+class AddressShape:
+    raw_value: str
+    kind: AddressShapeKind
+    components: tuple[str, ...]
+    note: str = ""
 
 
 @dataclass(frozen=True)
@@ -55,6 +74,7 @@ class AcceptedEndpoint:
     input_street: str
     candidate: GeocodeCandidate
     match_kind: str  # exact or normalized
+    query_variant: str = "original"
 
 
 @dataclass(frozen=True)
@@ -78,6 +98,7 @@ class LookupAttempt:
     # cache_miss, or service_error
     outcome: str
     detail: str = ""
+    query_variant: str = "original"
 
 
 @dataclass(frozen=True)
@@ -112,6 +133,7 @@ class ResolvedAddress:
     vintage: str | None
     resolution_method: str = "unresolved"  # geocoder, review_override, or unresolved
     review_override: ReviewOverride | None = None
+    address_shape: AddressShape | None = None
     zip_assessment: ZipAssessment | None = None
     accepted_endpoints: tuple[AcceptedEndpoint, ...] = ()
     warnings: tuple[str, ...] = ()

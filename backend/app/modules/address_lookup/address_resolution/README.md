@@ -82,6 +82,25 @@ A `legal_city` is assigned from a validated Census **Incorporated Place** or a d
 
 For address ranges, both endpoints must resolve to the same incorporated place before that place is accepted as the legal city.
 
+## Address shapes and query variants
+
+`parse_address()` records whether the source is a single address, same-street
+range, fractional range, same-street compound, cross-street compound, or lacks a
+house number. Its components and original text are retained in each result's
+`address_shape`. A range or same-street compound needs every component to match
+the same incorporated place. Cross-street compounds remain in review even if
+both components match, because their shared property identity is not established.
+Missing-number and unsupported shapes remain unresolved.
+
+When an original query does not produce an accepted match, the resolver can
+retry a zero-padded street ordinal such as `397 05TH AV` as `397 5TH AV`. This
+does not rewrite the source row or the house number. Candidate validation still
+uses the original address; `query_variant` and
+`zero_padded_ordinal_query_used` make a successful retry auditable. An earlier
+query returning multiple incorporated places is not cleared by a later
+ZIP-constrained query. New query responses must be cached for an offline run;
+an uncached retry remains an explicit cache miss.
+
 The resolver accepts a small set of equivalent street spellings (for example,
 `SECOND`/`2ND`, `WY`/`WAY`, and `SOUTH`/`S`) while keeping the house number and
 every directional component. These results carry a `street_normalized_match`
@@ -97,9 +116,9 @@ Census candidates are excluded. Its statuses are `missing_input`,
 `matches_some_endpoints`, and `mismatch`. The original ZIP and legal city are
 never changed by this assessment.
 
-The offline snapshot currently has 467 resolved jurisdictions and 33 needing
-review. It has 92 ZIP discrepancies on resolved addresses. `zip_review.csv`
-contains 93 rows because one more address has an invalid ZIP and an unresolved
+The offline snapshot currently has 474 resolved jurisdictions and 26 needing
+review. It has 93 ZIP discrepancies on resolved addresses. `zip_review.csv`
+contains 94 rows because one more address has an invalid ZIP and an unresolved
 jurisdiction. The detailed assessment and endpoint evidence are included in
 `resolved_addresses.json` and stored by the backend in
 `address_jurisdictions.resolution_evidence`.
