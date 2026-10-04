@@ -78,6 +78,9 @@ def classify(*, url: str, source_type: str | None, jurisdictions: str, has_text:
     host = (urlparse(url or "").hostname or "").lower()
     src = (source_type or "").lower()
 
+    if host == "law.justia.com" and "/cases/" in (url or ""):
+        return Typing("secondary", "4", False, "court-opinion mirror, not the court's source")
+
     if host in _CODE_MIRROR_HOSTS or any(host.endswith(h) for h in _CODE_MIRROR_HOSTS):
         return Typing(
             "code_mirror",

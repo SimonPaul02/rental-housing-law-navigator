@@ -27,6 +27,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass
+from html import unescape
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
@@ -101,17 +102,7 @@ def html_to_text(html: str) -> str:
     html = re.sub(r"(?is)<!--.*?-->", " ", html)
     html = re.sub(r"(?i)<br\s*/?>|</p>|</div>|</li>|</tr>|</h[1-6]>", "\n", html)
     text = re.sub(r"(?s)<[^>]+>", " ", html)
-    for entity, char in (
-        ("&nbsp;", " "),
-        ("&amp;", "&"),
-        ("&lt;", "<"),
-        ("&gt;", ">"),
-        ("&quot;", '"'),
-        ("&#39;", "'"),
-        ("&sect;", "§"),
-        ("&rsquo;", "’"),
-    ):
-        text = text.replace(entity, char)
+    text = unescape(text)
     text = re.sub(r"[ \t\xa0]+", " ", text)
     text = re.sub(r"\n\s*\n\s*\n+", "\n\n", text)
     return text.strip()

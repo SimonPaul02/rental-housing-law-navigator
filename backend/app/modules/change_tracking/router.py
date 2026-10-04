@@ -2,21 +2,26 @@
 
 from __future__ import annotations
 
-import datetime as dt
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.db import get_session
-from app.db.models import ChangeResult
+from app.db.models import Address
 from app.modules.change_tracking import service
 from app.modules.change_tracking.schemas import (
     CanonicalMatch,
     ChangeTest,
     ChangeTestResult,
     RunTestsRequest,
+)
+from app.modules.change_tracking.validation import (
+    REQUIRED_TEST_IDS,
+    sample_address_ids,
+    validate_changes,
 )
 
 router = APIRouter(prefix="/change-tracking", tags=["Module C - change tracking"])
@@ -62,7 +67,10 @@ async def run_one(
     test = service.get_test(test_id)
     if test is None:
         raise HTTPException(404, f"No test {test_id}")
-    return await service.run_test(session, test, address_limit=address_limit, persist=persist)
+    try:
+        return await service.run_test(session, test, address_limit=address_limit, persist=persist)
+    except service.ChangeInputError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.post("/run", response_model=list[ChangeTestResult])
@@ -75,62 +83,59 @@ async def run_all(
         tests = [t for t in tests if t.test_id in wanted]
         if not tests:
             raise HTTPException(404, f"No tests matched {sorted(wanted)}")
-    return [
-        await service.run_test(
-            session, t, address_limit=payload.address_limit, persist=payload.persist
-        )
-        for t in tests
-    ]
+    try:
+        return [
+            await service.run_test(
+                session, t, address_limit=payload.address_limit, persist=payload.persist
+            )
+            for t in tests
+        ]
+    except service.ChangeInputError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.get("/results", response_model=list[ChangeTestResult])
 async def list_results(
     session: AsyncSession = Depends(get_session),
 ) -> list[ChangeTestResult]:
-    """Last stored result per test, with the test metadata rejoined."""
-    rows = (
-        (await session.execute(select(ChangeResult).order_by(ChangeResult.test_id))).scalars().all()
-    )
-    tests = {t.test_id: t for t in service.load_tests()}
-    out = []
-    for row in rows:
-        test = tests.get(row.test_id)
-        out.append(
-            ChangeTestResult(
-                test_id=row.test_id,
-                title=test.title if test else row.test_id,
-                type=row.test_type or (test.type if test else "unknown"),
-                as_of=row.as_of,
-                affected_address_ids=row.affected_address_ids,
-                conflict_flag_address_ids=row.conflict_flag_address_ids,
-                notes=row.notes or "",
-                expected_behavior=test.expected_behavior if test else "",
-                detail=row.detail,
-            )
-        )
-    return out
+    """Current results only; stored rows may describe older rule versions."""
+    try:
+        return [await service.run_test(session, t, persist=False) for t in service.load_tests()]
+    except service.ChangeInputError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.get("/export")
 async def export_changes(
     session: AsyncSession = Depends(get_session),
-    as_of: dt.date | None = None,
 ) -> Response:
-    """submission_templates/changes.json shape."""
-    stmt = select(ChangeResult).order_by(ChangeResult.test_id)
-    if as_of:
-        stmt = stmt.where(ChangeResult.as_of == as_of)
-    rows = (await session.execute(stmt)).scalars().all()
-
+    """Build all five tests from current inputs; never mix persisted partial runs."""
+    tests = service.load_tests()
+    if {t.test_id for t in tests} != set(REQUIRED_TEST_IDS):
+        raise HTTPException(409, "The five required change definitions are incomplete.")
+    addresses = set((await session.execute(select(Address.address_id))).scalars())
+    expected_addresses = sample_address_ids(settings.addresses_csv)
+    if addresses != expected_addresses:
+        raise HTTPException(409, "Database addresses differ from the 500 supplied sample IDs.")
     body: dict[str, dict] = {}
-    for row in rows:
+    try:
+        results = [await service.run_test(session, test, persist=False) for test in tests]
+    except service.ChangeInputError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    for row in results:
         entry: dict = {
             "affected_address_ids": row.affected_address_ids,
-            "notes": row.notes or "",
+            "notes": row.notes,
         }
         if row.conflict_flag_address_ids:
             entry["conflict_flag_address_ids"] = row.conflict_flag_address_ids
         body[row.test_id] = entry
+
+    problems = validate_changes(body, address_ids=addresses)
+    if problems:
+        raise HTTPException(
+            409, {"detail": "Change export failed validation", "problems": problems}
+        )
 
     return Response(
         content=json.dumps(body, indent=2, ensure_ascii=False),
@@ -141,7 +146,10 @@ async def export_changes(
 
 @router.get("/stats")
 async def change_stats(session: AsyncSession = Depends(get_session)) -> dict:
-    rows = (await session.execute(select(ChangeResult))).scalars().all()
+    try:
+        rows = [await service.run_test(session, t, persist=False) for t in service.load_tests()]
+    except service.ChangeInputError as exc:
+        raise HTTPException(409, str(exc)) from exc
     return {
         "tests_defined": len(service.load_tests()),
         "tests_run": len({r.test_id for r in rows}),
