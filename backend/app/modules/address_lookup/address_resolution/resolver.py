@@ -137,8 +137,7 @@ def describe_candidate_differences(
             f"house number: {' / '.join(source_numbers)} → {matched_number or 'missing'}"
         )
     if source_streets and not any(
-        _canonical_street(words) == _canonical_street(matched_street)
-        for words in source_streets
+        _canonical_street(words) == _canonical_street(matched_street) for words in source_streets
     ):
         differences.append(
             f"street: {' / '.join(' '.join(words) for words in source_streets)}"
