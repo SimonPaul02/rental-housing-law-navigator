@@ -91,6 +91,8 @@ class Place(BaseModel):
     units: int | None
     legal_city: str | None
     legal_state: str | None
+    jurisdiction_status: str
+    zip_discrepancy: bool
     # True when the mailing city is not the legal one - the single most consequential thing
     # about an address in this data, so it is on the card rather than a click away.
     postal_city_differs: bool

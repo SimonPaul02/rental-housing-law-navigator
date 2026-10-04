@@ -4,6 +4,7 @@ import { useState } from "react";
 import { clientApi } from "@/lib/client-api";
 import type { AddressRecord, Place } from "@/lib/types";
 import { Spinner } from "./google-mark";
+import { JurisdictionBadge, ZipDiscrepancyBadge } from "./ui";
 
 /** The buildings one person is watching.
  *
@@ -134,6 +135,8 @@ export function Places({
                   <span className="mono text-xs" style={{ color: "var(--faint)" }}>
                     {hit.year_built ?? "year ?"} · {hit.units ?? "units ?"}
                   </span>
+                  <JurisdictionBadge status={hit.jurisdiction_status} />
+                  {hit.zip_discrepancy && <ZipDiscrepancyBadge />}
                   <button
                     className="btn"
                     disabled={saved.has(hit.address_id) || pending === hit.address_id}
@@ -168,7 +171,9 @@ export function Places({
                 <div className="min-w-48 flex-1">
                   <div className="font-medium">{place.street_address}</div>
                   <div className="text-sm" style={{ color: "var(--muted)" }}>
-                    {place.legal_city ?? place.postal_city}, {place.legal_state ?? place.state}
+                    {place.jurisdiction_status === "resolved"
+                      ? `${place.legal_city}, ${place.legal_state ?? place.state}`
+                      : `${place.postal_city}, ${place.state} (mailing city; legal city pending)`}
                     {place.postal_city_differs && (
                       <>
                         {" · "}
@@ -177,6 +182,10 @@ export function Places({
                         </span>
                       </>
                     )}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <JurisdictionBadge status={place.jurisdiction_status} />
+                    {place.zip_discrepancy && <ZipDiscrepancyBadge />}
                   </div>
                 </div>
                 <span className="mono text-xs" style={{ color: "var(--faint)" }}>

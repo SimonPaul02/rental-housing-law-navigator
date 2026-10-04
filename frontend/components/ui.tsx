@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { LookupResult, RuleStatus } from "@/lib/types";
+import type { JurisdictionStatus, LookupResult, RuleStatus } from "@/lib/types";
 
 /* ------------------------------------------------------------------ shell */
 export function Card({
@@ -108,6 +108,12 @@ const RESULT: Record<LookupResult, { color: string; label: string }> = {
   does_not_apply: { color: "var(--faint)", label: "does not apply" },
 };
 
+const JURISDICTION_STATUS: Record<JurisdictionStatus, { color: string; label: string }> = {
+  resolved: { color: "var(--good)", label: "Jurisdiction resolved" },
+  needs_review: { color: "var(--warn)", label: "Jurisdiction needs review" },
+  not_checked: { color: "var(--faint)", label: "Jurisdiction not checked" },
+};
+
 function Badge({ color, label }: { color: string; label: string }) {
   return (
     <span className="badge">
@@ -125,6 +131,21 @@ export function StatusBadge({ status }: { status: RuleStatus }) {
 export function ResultBadge({ result }: { result: LookupResult }) {
   const r = RESULT[result] ?? { color: "var(--faint)", label: result };
   return <Badge color={r.color} label={r.label} />;
+}
+
+export function JurisdictionBadge({ status }: { status: JurisdictionStatus }) {
+  const item = JURISDICTION_STATUS[status];
+  return <Badge color={item.color} label={item.label} />;
+}
+
+export function ZipDiscrepancyBadge() {
+  return <Badge color="var(--serious)" label="ZIP differs" />;
+}
+
+export function RuleCheckBadge({ unknownCount }: { unknownCount: number }) {
+  return unknownCount > 0
+    ? <Badge color="var(--warn)" label={`${unknownCount} rule checks pending`} />
+    : <Badge color="var(--good)" label="No rule checks pending" />;
 }
 
 /* ------------------------------------------------------------------ table */

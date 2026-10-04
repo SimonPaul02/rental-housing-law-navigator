@@ -4,6 +4,7 @@ import type { Role } from "./roles";
 
 export type RuleStatus = "in_force" | "not_yet_effective" | "pending" | "failed";
 export type LookupResult = "applies" | "does_not_apply" | "unknown";
+export type JurisdictionStatus = "resolved" | "needs_review" | "not_checked";
 
 export interface RuleRecord {
   team_rule_id: string;
@@ -63,6 +64,9 @@ export interface AddressRecord {
   year_built: number | null;
   units: number | null;
   use_description: string | null;
+  legal_city: string | null;
+  jurisdiction_status: JurisdictionStatus;
+  zip_discrepancy: boolean;
 }
 
 export interface AddressStats {
@@ -175,6 +179,8 @@ export interface Place {
   units: number | null;
   legal_city: string | null;
   legal_state: string | null;
+  jurisdiction_status: JurisdictionStatus;
+  zip_discrepancy: boolean;
   postal_city_differs: boolean;
   created_at: string;
 }

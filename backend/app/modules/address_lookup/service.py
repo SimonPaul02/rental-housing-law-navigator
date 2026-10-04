@@ -23,10 +23,10 @@ from app.modules.address_lookup.address_resolution.resolver import (
     resolve_addresses,
 )
 from app.modules.address_lookup.schemas import LookupResponse, RuleOutcome
+from app.modules.address_lookup.status import VERIFIED_METHODS
 
 log = logging.getLogger(__name__)
 _GEOCODE_LOCK = Lock()
-VERIFIED_METHODS = frozenset({"geocoder", "review_override", "census", "manual"})
 
 
 def input_from_db(address: Address) -> AddressInput:

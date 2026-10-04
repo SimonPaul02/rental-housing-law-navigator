@@ -19,6 +19,9 @@ class AddressRecord(BaseModel):
     units: int | None = None
     use_code: str | None = None
     use_description: str | None = None
+    legal_city: str | None = None
+    jurisdiction_status: str = "not_checked"
+    zip_discrepancy: bool = False
 
 
 class ZipAssessmentRecord(BaseModel):

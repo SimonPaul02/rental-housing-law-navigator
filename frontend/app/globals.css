@@ -350,6 +350,7 @@ table.data tbody tr:hover { background: #ffffff57; }
   white-space: nowrap;
 }
 .badge-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.address-filter-active { border-color: #5c8a7c8c; background: #e4f2eab8; color: var(--accent-ink); }
 
 /* ------------------------------------------------------------------- misc */
 .section-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 15px; }

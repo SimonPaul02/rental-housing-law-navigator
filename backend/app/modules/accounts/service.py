@@ -21,6 +21,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.auth import Principal
 from app.db.models import Address, SavedPlace, User
+from app.modules.address_lookup.status import jurisdiction_status, zip_discrepancy
 
 from .schemas import ROLE_LABELS, Account, Place, Role
 
@@ -115,10 +116,13 @@ def _place(row: SavedPlace) -> Place:
         zip=address.zip,
         year_built=address.year_built,
         units=address.units,
-        legal_city=juris.legal_city if juris else None,
-        legal_state=juris.legal_state if juris else None,
+        legal_city=juris.legal_city if jurisdiction_status(juris) == "resolved" else None,
+        legal_state=juris.legal_state if jurisdiction_status(juris) == "resolved" else None,
+        jurisdiction_status=jurisdiction_status(juris),
+        zip_discrepancy=zip_discrepancy(juris),
         postal_city_differs=bool(
             juris
+            and jurisdiction_status(juris) == "resolved"
             and juris.legal_city
             and juris.legal_city.casefold() != address.postal_city.casefold()
         ),

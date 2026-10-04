@@ -3,10 +3,13 @@ import { tryApi } from "@/lib/api";
 import {
   Card,
   Distribution,
+  JurisdictionBadge,
   Notice,
+  RuleCheckBadge,
   SectionTitle,
   Stat,
   StatStrip,
+  ZipDiscrepancyBadge,
 } from "@/components/ui";
 import { Outcomes } from "@/components/outcomes";
 import type {
@@ -134,7 +137,12 @@ export async function Dashboard({
               </p>
             )}
             {evaluated.map((place, index) => (
-              <Building key={place.id} place={place} lookup={lookups[index]} />
+              <Building
+                key={place.id}
+                place={place}
+                lookup={lookups[index]}
+                rulesLoaded={Boolean(ruleStats?.total)}
+              />
             ))}
           </>
         )}
@@ -238,9 +246,11 @@ export async function Dashboard({
 function Building({
   place,
   lookup,
+  rulesLoaded,
 }: {
   place: Place;
   lookup: LookupResponse | null;
+  rulesLoaded: boolean;
 }) {
   const applies = lookup?.outcomes.filter((o) => o.result === "applies") ?? [];
   const unknown = lookup?.outcomes.filter((o) => o.result === "unknown") ?? [];
@@ -254,8 +264,9 @@ function Building({
               {place.label ?? place.street_address}
             </div>
             <div className="text-sm" style={{ color: "var(--muted)" }}>
-              {place.legal_city ?? place.postal_city},{" "}
-              {place.legal_state ?? place.state}
+              {place.jurisdiction_status === "resolved"
+                ? `${place.legal_city}, ${place.legal_state ?? place.state}`
+                : `${place.postal_city}, ${place.state} (mailing city; legal city pending)`}
               {place.postal_city_differs && (
                 <>
                   {" — your mail says "}
@@ -263,6 +274,11 @@ function Building({
                   this building are {place.legal_city}&rsquo;s.
                 </>
               )}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <JurisdictionBadge status={place.jurisdiction_status} />
+              {place.zip_discrepancy && <ZipDiscrepancyBadge />}
+              {lookup && rulesLoaded && <RuleCheckBadge unknownCount={unknown.length} />}
             </div>
           </div>
           <div className="text-sm tabular-nums" style={{ color: "var(--faint)" }}>
@@ -280,6 +296,11 @@ function Building({
         </Notice>
       ) : (
         <>
+          {place.jurisdiction_status !== "resolved" && (
+            <Notice title="Legal city pending review" tone="warning">
+              City-specific rule answers remain uncertain until the legal city is verified.
+            </Notice>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <Stat
               label="Rules that apply"

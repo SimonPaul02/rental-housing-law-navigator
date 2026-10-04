@@ -27,6 +27,7 @@ from app.modules.address_lookup.schemas import (
     ZipReviewCase,
     ZipReviewRecord,
 )
+from app.modules.address_lookup.status import jurisdiction_status, zip_discrepancy
 from app.modules.address_lookup.zip_reviews import same_input
 
 router = APIRouter(prefix="/address-lookup", tags=["Module B - address lookup"])
@@ -48,6 +49,19 @@ def _latest_zip_review(address: Address) -> ZipReviewRecord | None:
     return record.model_copy(update={"current": same_input(latest, service.input_from_db(address))})
 
 
+def _address_record(address: Address) -> AddressRecord:
+    jurisdiction = address.jurisdiction
+    return AddressRecord.model_validate(address).model_copy(
+        update={
+            "legal_city": jurisdiction.legal_city
+            if jurisdiction_status(jurisdiction) == "resolved"
+            else None,
+            "jurisdiction_status": jurisdiction_status(jurisdiction),
+            "zip_discrepancy": zip_discrepancy(jurisdiction),
+        }
+    )
+
+
 # ------------------------------------------------------------- addresses ---
 @router.get("/addresses", response_model=list[AddressRecord])
 async def list_addresses(
@@ -61,7 +75,7 @@ async def list_addresses(
     limit: int = Query(100, le=500),
     offset: int = 0,
 ) -> list[AddressRecord]:
-    stmt = select(Address).order_by(Address.address_id)
+    stmt = _with_juris(select(Address).order_by(Address.address_id))
     if q:
         # What somebody types looking for their own building: part of the street, or the
         # city, or both. Street and city are one field to the person searching, so they are
@@ -95,7 +109,7 @@ async def list_addresses(
         )
 
     rows = (await session.execute(stmt.limit(limit).offset(offset))).scalars().all()
-    return [AddressRecord.model_validate(a) for a in rows]
+    return [_address_record(a) for a in rows]
 
 
 @router.get("/addresses/{address_id}", response_model=AddressDetail)
@@ -110,7 +124,7 @@ async def get_address(
         raise HTTPException(404, f"No address {address_id}")
     juris = address.jurisdiction
     return AddressDetail(
-        **AddressRecord.model_validate(address).model_dump(),
+        **_address_record(address).model_dump(),
         jurisdiction=(JurisdictionRecord.model_validate(juris) if juris else None),
         property_facts=address.property_facts or to_payload(from_db_address(address)),
         zip_review=_latest_zip_review(address),

@@ -1,6 +1,6 @@
 # Modules B & C — notes carried over from the Module A plan
 
-**Scope:** decisions that belong to address lookup (B → `lookups.json`) and change tracking (C → `changes.json`). Input is `rules.json` from Module A ([`source_decision_tree.md`](source_decision_tree.md)). Not a full B/C design yet: geocoding and coverage evaluation are still to be written.
+**Scope:** decisions that belong to address lookup (B → `lookups.json`) and change tracking (C → `changes.json`). Input is `rules.json` from Module A ([`source_decision_tree.md`](source_decision_tree.md)). The detailed plan for the rule adapter, evaluator, and export is in [`rule_adapter_evaluator_plan.md`](rule_adapter_evaluator_plan.md).
 
 ---
 
