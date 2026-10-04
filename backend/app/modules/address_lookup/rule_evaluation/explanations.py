@@ -105,7 +105,13 @@ def explain(decision: Decision) -> str:
                 parts.append(group[0].detail)
 
     if decision.conflict_flag and decision.conflict_reason:
-        parts.append(decision.conflict_reason)
+        # Only if it is not already said. A conflicting-effective-dates flag
+        # carries the same sentence as the check that raised it, and appending
+        # it blindly printed that sentence twice in every explanation it
+        # touched - visible in the UI, and the kind of thing that makes a
+        # reader doubt the rest of the output.
+        if decision.conflict_reason not in parts:
+            parts.append(decision.conflict_reason)
 
     if base.unresolved_fields and decision.result in (
         BaseResult.unknown,

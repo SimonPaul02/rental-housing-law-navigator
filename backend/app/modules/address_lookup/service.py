@@ -266,6 +266,7 @@ async def lookup_address(
     as_of: dt.date,
     *,
     persist: bool = False,
+    include_not_applicable: bool = False,
 ) -> LookupResponse:
     evidence = evidence_for(address)
     records, compiled, relations = await compiled_rules(session)
@@ -281,8 +282,27 @@ async def lookup_address(
         if d.base.could_be_relevant and d.result is not BaseResult.does_not_apply
     ]
 
+    # What is persisted, exported and counted is always the list above - the
+    # five results the submission format has words for. `does_not_apply` is
+    # appended only for a caller that asked, and never written: it is the
+    # absence of a result, not one of them.
     if persist:
         await _persist_lookups(session, address.address_id, as_of, outcomes)
+
+    reportable = outcomes
+    if include_not_applicable:
+        # A housing provider's question - which exemptions does this building
+        # claim - is answerable only from the rules that do *not* bind it, and
+        # the exemption check that beat each one is in the trace. That is the
+        # one caller this exists for.
+        outcomes = [
+            *outcomes,
+            *(
+                _outcome_from(d, by_id[d.team_rule_id])
+                for d in decisions
+                if d.result is BaseResult.does_not_apply
+            ),
+        ]
 
     juris = address.jurisdiction
     return LookupResponse(
@@ -292,8 +312,8 @@ async def lookup_address(
         legal_state=(evidence.legal_state.value if evidence.legal_state.usable else None),
         resolution_method=(juris.method if juris else None),
         outcomes=outcomes,
-        applies_count=sum(1 for o in outcomes if o.result == "applies"),
-        unknown_count=sum(1 for o in outcomes if o.result == "unknown"),
+        applies_count=sum(1 for o in reportable if o.result == "applies"),
+        unknown_count=sum(1 for o in reportable if o.result == "unknown"),
     )
 
 

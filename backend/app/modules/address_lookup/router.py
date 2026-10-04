@@ -28,7 +28,8 @@ from app.modules.address_lookup.schemas import (
     ZipReviewCase,
     ZipReviewRecord,
 )
-from app.modules.address_lookup.status import jurisdiction_status, zip_discrepancy
+from app.modules.address_lookup.status import jurisdiction_status
+from app.modules.address_lookup.status import zip_discrepancy as zip_discrepancy_of
 from app.modules.address_lookup.zip_reviews import same_input
 
 router = APIRouter(prefix="/address-lookup", tags=["Module B - address lookup"])
@@ -52,13 +53,21 @@ def _latest_zip_review(address: Address) -> ZipReviewRecord | None:
 
 def _address_record(address: Address) -> AddressRecord:
     jurisdiction = address.jurisdiction
+    resolved = jurisdiction_status(jurisdiction) == "resolved"
+    legal_city = jurisdiction.legal_city if resolved and jurisdiction else None
     return AddressRecord.model_validate(address).model_copy(
         update={
-            "legal_city": jurisdiction.legal_city
-            if jurisdiction_status(jurisdiction) == "resolved"
-            else None,
+            "legal_city": legal_city,
+            "legal_state": jurisdiction.legal_state if resolved and jurisdiction else None,
+            "county": jurisdiction.county if resolved and jurisdiction else None,
             "jurisdiction_status": jurisdiction_status(jurisdiction),
-            "zip_discrepancy": zip_discrepancy(jurisdiction),
+            "zip_discrepancy": zip_discrepancy_of(jurisdiction),
+            "postal_city_differs": bool(
+                legal_city and legal_city.casefold() != address.postal_city.casefold()
+            ),
+            # The geocoder's own point, never a stand-in. See AddressRecord.
+            "latitude": jurisdiction.latitude if jurisdiction else None,
+            "longitude": jurisdiction.longitude if jurisdiction else None,
         }
     )
 
@@ -70,9 +79,26 @@ async def list_addresses(
     q: str | None = Query(None, min_length=2, description="Free text over street and city."),
     state: str | None = None,
     postal_city: str | None = None,
+    legal_city: str | None = Query(
+        None,
+        description=(
+            "The verified legal city, which is what rules attach to - not the mailing "
+            "city. Matched exactly, since this comes from a facet rather than a search box."
+        ),
+    ),
     resolved: bool | None = Query(None, description="Filter on jurisdiction resolution."),
+    zip_discrepancy: bool | None = Query(
+        None, description="Only rows whose supplied ZIP disagrees with the geocoder."
+    ),
     missing_year_built: bool | None = None,
     missing_units: bool | None = None,
+    built_from: int | None = Query(None, ge=1700, le=2100, description="Year built, inclusive."),
+    built_to: int | None = Query(None, ge=1700, le=2100, description="Year built, inclusive."),
+    units_from: int | None = Query(None, ge=0, description="Unit count, inclusive."),
+    units_to: int | None = Query(None, ge=0, description="Unit count, inclusive."),
+    mappable: bool | None = Query(
+        None, description="Only rows that have a coordinate, or only those that do not."
+    ),
     limit: int = Query(100, le=500),
     offset: int = 0,
 ) -> list[AddressRecord]:
@@ -89,6 +115,22 @@ async def list_addresses(
         stmt = stmt.where(Address.state == state.upper())
     if postal_city:
         stmt = stmt.where(Address.postal_city.ilike(f"%{postal_city}%"))
+    if legal_city:
+        # Only a verified resolution counts. Without the method check this would quietly
+        # match a city that is still under review, which is the one mistake this whole
+        # module exists to avoid.
+        stmt = stmt.join(AddressJurisdiction).where(
+            func.lower(AddressJurisdiction.legal_city) == legal_city.strip().lower(),
+            AddressJurisdiction.method.in_(service.VERIFIED_METHODS),
+        )
+    if built_from is not None:
+        stmt = stmt.where(Address.year_built >= built_from)
+    if built_to is not None:
+        stmt = stmt.where(Address.year_built <= built_to)
+    if units_from is not None:
+        stmt = stmt.where(Address.units >= units_from)
+    if units_to is not None:
+        stmt = stmt.where(Address.units <= units_to)
     if missing_year_built is True:
         stmt = stmt.where(Address.year_built.is_(None))
     elif missing_year_built is False:
@@ -108,8 +150,25 @@ async def list_addresses(
                 AddressJurisdiction.method.notin_(service.VERIFIED_METHODS),
             )
         )
+    if mappable is True:
+        stmt = stmt.join(AddressJurisdiction).where(
+            AddressJurisdiction.latitude.isnot(None), AddressJurisdiction.longitude.isnot(None)
+        )
+    elif mappable is False:
+        stmt = stmt.outerjoin(AddressJurisdiction).where(
+            or_(
+                AddressJurisdiction.address_id.is_(None),
+                AddressJurisdiction.latitude.is_(None),
+                AddressJurisdiction.longitude.is_(None),
+            )
+        )
 
-    rows = (await session.execute(stmt.limit(limit).offset(offset))).scalars().all()
+    rows = (await session.execute(stmt.limit(limit).offset(offset))).scalars().unique().all()
+    if zip_discrepancy is not None:
+        # Derived from the stored assessment rather than a column, so it is filtered after
+        # the query. The set is at most the sample, so this costs nothing worth a schema
+        # change - and a ZIP finding deliberately does not live in the jurisdiction columns.
+        rows = [a for a in rows if zip_discrepancy_of(a.jurisdiction) is zip_discrepancy]
     return [_address_record(a) for a in rows]
 
 
@@ -313,13 +372,26 @@ async def rule_compilation(
 async def lookup_batch(
     payload: LookupBatchRequest, session: AsyncSession = Depends(get_session)
 ) -> list[LookupResponse]:
+    """Evaluate several addresses in one request.
+
+    One call rather than one per address, because the rule set is compiled once
+    for the batch - which is what makes a housing provider's whole portfolio
+    affordable to render on a single page.
+    """
     day = payload.as_of or _default_as_of()
     stmt = _with_juris(select(Address).order_by(Address.address_id))
     if payload.address_ids:
         stmt = stmt.where(Address.address_id.in_(payload.address_ids))
     addresses = (await session.execute(stmt.limit(payload.limit))).scalars().all()
     return [
-        await service.lookup_address(session, a, day, persist=payload.persist) for a in addresses
+        await service.lookup_address(
+            session,
+            a,
+            day,
+            persist=payload.persist,
+            include_not_applicable=payload.include_not_applicable,
+        )
+        for a in addresses
     ]
 
 
@@ -329,13 +401,25 @@ async def lookup_one(
     session: AsyncSession = Depends(get_session),
     as_of: dt.date | None = Query(None, description=f"Defaults to {settings.default_as_of}."),
     persist: bool = False,
+    include_not_applicable: bool = Query(
+        False,
+        description=(
+            "Also return rules that definitely do not cover this address, so the caller "
+            "can see which exemption beat each one. Never persisted, never exported, and "
+            "not counted in applies_count or unknown_count."
+        ),
+    ),
 ) -> LookupResponse:
     stmt = _with_juris(select(Address).where(Address.address_id == address_id))
     address = (await session.execute(stmt)).scalar_one_or_none()
     if address is None:
         raise HTTPException(404, f"No address {address_id}")
     return await service.lookup_address(
-        session, address, as_of or _default_as_of(), persist=persist
+        session,
+        address,
+        as_of or _default_as_of(),
+        persist=persist,
+        include_not_applicable=include_not_applicable,
     )
 
 
@@ -375,14 +459,38 @@ async def address_stats(session: AsyncSession = Depends(get_session)) -> Address
         )
     ).scalar_one()
 
+    legal_cities = {
+        str(city): n
+        for city, n in await session.execute(
+            select(AddressJurisdiction.legal_city, func.count())
+            .where(
+                AddressJurisdiction.legal_city.isnot(None),
+                AddressJurisdiction.method.in_(service.VERIFIED_METHODS),
+            )
+            .group_by(AddressJurisdiction.legal_city)
+        )
+    }
+    mappable = (
+        await session.execute(
+            select(func.count())
+            .select_from(AddressJurisdiction)
+            .where(
+                AddressJurisdiction.latitude.isnot(None),
+                AddressJurisdiction.longitude.isnot(None),
+            )
+        )
+    ).scalar_one()
+
     return AddressStats(
         total=total,
         by_state=await group(Address.state),
         by_postal_city=await group(Address.postal_city),
+        by_legal_city=legal_cities,
         resolved=resolved,
         unresolved=total - resolved,
         by_method=await group(AddressJurisdiction.method),
         city_corrections=corrections,
         missing_year_built=no_year,
         missing_units=no_units,
+        with_coordinates=mappable,
     )
