@@ -96,9 +96,7 @@ async def main() -> None:
     previous_counts = Counter(rule_id for _, rule_id in old_applies)
     by_id = {r.team_rule_id: r for r in records}
     change_cases = json.loads((settings.change_tests).read_text(encoding="utf-8"))
-    change_rule_ids = {
-        rule_id for case in change_cases for rule_id in case.get("rule_ids", [])
-    }
+    change_rule_ids = {rule_id for case in change_cases for rule_id in case.get("rule_ids", [])}
     missing_change_ids = sorted(change_rule_ids - set(by_id))
 
     def priority(rule_id: str) -> int:

@@ -315,9 +315,7 @@ class ReviewStore:
         ):
             raise InvalidCompilation("current source, reviewer and rationale are required")
         if not effective_dates and compiled.effective_date_unresolved:
-            role_evidence_span = role_evidence_span or (
-                key_value_period or {}
-            ).get("source_span")
+            role_evidence_span = role_evidence_span or (key_value_period or {}).get("source_span")
             if not role_evidence_span or not _source_contains(source_text, role_evidence_span):
                 raise InvalidCompilation("clearing an ambiguous date needs source evidence")
         parsed: list[EffectiveDate] = []
