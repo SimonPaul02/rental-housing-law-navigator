@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
  * would have to fit them all badly.
  *
  * A housing agency has no vocabulary here because they hold no addresses of
- * their own: the whole sample is their subject, and the map on their overview
+ * their own: the whole stock on file is their subject, and the map on their overview
  * already carries every row a shortlist could have held. So they are sent
  * there rather than shown an empty list they have no reason to fill.
  */

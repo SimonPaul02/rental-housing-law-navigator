@@ -32,7 +32,7 @@ export function NoRules() {
 
 /** Where a building legally is — and whether that is the city on its post.
  *
- * The mailing city is not the legal city: 37 rows in this sample are Boston
+ * The mailing city is not the legal city: a good many rows on file are Boston
  * neighbourhoods and one is San Diego. Which city's rules reach a building is
  * the single most consequential thing about it, so it is never a click away in
  * any of the four views.

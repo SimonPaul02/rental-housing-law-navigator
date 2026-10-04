@@ -21,6 +21,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -165,10 +166,18 @@ class ExtractionRun(Base, TimestampMixin):
 # Module B - address lookup
 # --------------------------------------------------------------------------
 class Address(Base, TimestampMixin):
-    """One row per data/sample_addresses.csv entry."""
+    """A building: one the account was set up with, or one somebody typed in.
+
+    Told apart by `imported`. Both are ordinary addresses and are evaluated by
+    the same code; what differs is whether they count towards anything this
+    app reports."""
 
     __tablename__ = "addresses"
 
+    # `A0001` for an imported row; `U` + 12 hex for one somebody typed, which
+    # is not guessable. That matters because `/lookup/{id}` answers for both:
+    # the answer carries no street address, but a sequential id would still let
+    # somebody walk the list of places people live.
     address_id: Mapped[str] = mapped_column(String(16), primary_key=True)
     street_address: Mapped[str] = mapped_column(Text, nullable=False)
     postal_city: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
@@ -182,6 +191,21 @@ class Address(Base, TimestampMixin):
     retrieved_at: Mapped[str | None] = mapped_column(String(32))
     # Evidence-bearing normalized facts; raw assessor values and conflicts survive seeding.
     property_facts: Mapped[dict | None] = mapped_column(JSONB)
+    # True for the address book the account came with, false for one somebody
+    # typed in afterwards.
+    #
+    # This is the line between the records an account is answerable for and a
+    # building one person went and added, and it is load-bearing in both
+    # directions. Every figure this app *reports* is about the import - it is
+    # the agency's denominator, the extent of lookups.json and the set the
+    # change cases scan - so every one of those queries filters on it, and
+    # `test_a_typed_address_is_counted_nowhere` is what keeps a missed call
+    # site from quietly moving a denominator. The per-address lookups
+    # deliberately do *not* filter, because a renter's own home has to be
+    # answerable exactly as an imported row is.
+    imported: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true"), index=True
+    )
 
     jurisdiction: Mapped[AddressJurisdiction | None] = relationship(
         back_populates="address", uselist=False, cascade="all, delete-orphan"

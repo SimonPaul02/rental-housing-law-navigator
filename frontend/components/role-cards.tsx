@@ -16,7 +16,7 @@ const CARDINALITY: Record<Cardinality, string> = {
   one: "One address",
   portfolio: "A portfolio",
   caseload: "A caseload",
-  stock: "The whole sample",
+  stock: "The whole stock on file",
 };
 
 export function RoleCards() {

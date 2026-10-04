@@ -253,7 +253,7 @@ function ProviderArt() {
   );
 }
 
-/** The whole sample, none of it theirs.
+/** The whole stock, none of it theirs.
  *
  * A map, because the agency's subject is coverage: which addresses fall in
  * which jurisdiction and where the record runs out. One point is ringed, not

@@ -20,8 +20,8 @@ import type { RuleRecord, RuleStats } from "@/lib/types";
  *
  * A rule has no coordinate; it has a jurisdiction. So the map draws one bubble
  * per jurisdiction, sized by how many rules are behind it, at the mean of the
- * sample addresses in that jurisdiction. That is a derived point and the view
- * says so: a corpus can cover a city the address sample never reaches, and
+ * addresses on file in that jurisdiction. That is a derived point and the view
+ * says so: a corpus can cover a city the address book never reaches, and
  * those rules are counted off to one side rather than quietly dropped — a map
  * that hides what it cannot draw makes coverage look better than it is.
  *
@@ -112,7 +112,7 @@ export function RulesExplorer({
         weight: entry.count,
         labelAnchor: anchor.level === "state" ? "bottom" : "top",
         detail: [
-          `Drawn at the mean of the ${anchor.addresses} sample ${
+          `Drawn at the mean of the ${anchor.addresses} ${
             anchor.addresses === 1 ? "address" : "addresses"
           } we hold here — not this jurisdiction's own centre`,
           entry.conflicts > 0
@@ -264,7 +264,7 @@ export function RulesExplorer({
         </span>
         {unplaced > 0 && (
           <span style={{ color: "var(--warn)" }}>
-            {unplaced} in jurisdictions the address sample does not reach — not on the map
+            {unplaced} in jurisdictions the address book does not reach — not on the map
           </span>
         )}
       </div>
@@ -283,10 +283,10 @@ export function RulesExplorer({
           <p className="text-sm" style={{ color: "var(--faint)" }}>
             Each bubble is one jurisdiction, its area proportional to how many
             of the filtered rules belong to it, drawn at the mean coordinate of
-            the sample addresses there. It marks where the corpus is thick and
+            the addresses on file there. It marks where the corpus is thick and
             where it is thin — it is not a boundary and not a city centre.
             Click one to filter the table to it. A state bubble sits at the
-            centre of that state&rsquo;s sample, which can land on one of its
+            centre of that state&rsquo;s addresses, which can land on one of its
             own cities: every Massachusetts address here is in Boston or
             Cambridge, so Massachusetts and Boston genuinely coincide. Zoom in,
             or filter by level, to separate overlapping labels.

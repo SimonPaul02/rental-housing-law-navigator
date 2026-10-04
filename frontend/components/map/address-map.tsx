@@ -444,7 +444,7 @@ export function AddressMap({
     if (!box) return;
     map.current.fitBounds(box as LngLatBoundsLike, {
       padding: 48,
-      // A jurisdiction bubble is a derived point — the mean of a city's sample
+      // A jurisdiction bubble is a derived point — the mean of a city's rows
       // addresses — so zooming it to street level would invite somebody to
       // read a particular corner as meaningful. Real addresses are exact and
       // can be zoomed all the way in.

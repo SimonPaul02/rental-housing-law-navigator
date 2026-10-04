@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import logging
+import re
+import secrets
 from dataclasses import asdict
 from threading import Lock
 
@@ -249,6 +251,97 @@ def _resolve_batch(addresses: list[AddressInput]) -> list[ResolvedAddress]:
         return results
 
 
+# ------------------------------------------------- an address somebody typed ---
+#: Comma parts of a typed address that name neither a street nor a city.
+_COUNTRY = re.compile(r"^(?:usa|u\.s\.a\.|united states)$", re.IGNORECASE)
+#: "CA", "CA 94105" or "94105" - the state and postcode part, in either order.
+_STATE_ZIP = re.compile(r"^([A-Za-z]{2})?\s*(\d{5}(?:-\d{4})?)?$")
+
+
+class TypedAddressError(ValueError):
+    """What was typed is not an address this can resolve."""
+
+
+def parse_typed(address: str) -> tuple[str, str, str, str | None]:
+    """Split "415 Mission St, San Francisco, CA 94105, USA" into its parts.
+
+    Commas, because that is how every autofill, map app and letterhead writes
+    an address, and guessing where a street ends without them is a worse bet
+    than asking. The country is dropped; the state is required, because the
+    resolver needs it and city names repeat across states.
+    """
+    parts = [p.strip() for p in address.split(",") if p.strip()]
+    parts = [p for p in parts if not _COUNTRY.match(p)]
+    if len(parts) < 3:
+        raise TypedAddressError(
+            "Write it as street, city, state - for example '415 Mission St, San Francisco, CA'."
+        )
+    tail = _STATE_ZIP.match(parts[-1])
+    if tail is None or not tail.group(1):
+        raise TypedAddressError(
+            f"{parts[-1]!r} is not a state. End with the two-letter state, "
+            "for example 'San Francisco, CA'."
+        )
+    return (parts[0].upper(), parts[1].title(), tail.group(1).upper(), tail.group(2))
+
+
+async def resolve_typed(address: str) -> Address:
+    """An address somebody typed, resolved but not stored.
+
+    Returned transient on purpose, because the two callers want different
+    things from it: the assistant answers a question about a building nobody
+    is keeping, and `accounts.add_typed_place` adds the same object to a
+    session. Nothing here writes, so asking about an address never leaves a
+    row behind.
+
+    It carries no year built and no unit count, and none is invented. Every
+    rule that turns on one answers "unknown" naming the field, which is the
+    honest result rather than a degraded one - and in this corpus it costs
+    very little, because almost every unknown is waiting on rule review
+    instead.
+    """
+    street, city, state, postcode = parse_typed(address)
+    row = Address(
+        # Upper case so that normalising an id - which callers do, because a
+        # model writes `a0001` as readily as `A0001` - leaves it unchanged. Not
+        # sequential, because `/lookup/{id}` answers for these too and a
+        # countable id would let somebody walk the list of places people live.
+        address_id=f"U{secrets.token_hex(6).upper()}",
+        street_address=street,
+        postal_city=city,
+        state=state,
+        zip=postcode,
+        year_built=None,
+        units=None,
+        source_dataset="typed in by the person who saved it",
+        imported=False,
+        # Assigned so the relationships count as loaded: a new row has neither,
+        # and reading an unloaded one inside an async session raises rather
+        # than fetching.
+        jurisdiction=None,
+        zip_reviews=[],
+    )
+    [result] = await asyncio.to_thread(_resolve_batch, [input_from_db(row)])
+    row.jurisdiction = _jurisdiction(result, AddressJurisdiction(address_id=row.address_id))
+    return row
+
+
+def _jurisdiction(result: ResolvedAddress, row: AddressJurisdiction) -> AddressJurisdiction:
+    """Copy one resolver decision onto a jurisdiction row, stored or not."""
+    row.legal_city = result.legal_city
+    row.legal_state = result.legal_state
+    row.county = result.legal_county
+    row.method = result.resolution_method
+    row.matched_address = result.matched_address
+    row.latitude = result.latitude
+    row.longitude = result.longitude
+    row.place_geoid = result.city_geoid
+    row.confidence = None  # No calibrated probability is supplied by Census.
+    row.note = "; ".join(result.warnings) or None
+    row.resolution_evidence = asdict(result)
+    return row
+
+
 async def resolve_many(
     session: AsyncSession, addresses: list[Address]
 ) -> list[AddressJurisdiction]:
@@ -259,18 +352,9 @@ async def resolve_many(
     by_id = {address.address_id: address for address in addresses}
     for result in results:
         address = by_id[result.address_id]
-        row = address.jurisdiction or AddressJurisdiction(address_id=result.address_id)
-        row.legal_city = result.legal_city
-        row.legal_state = result.legal_state
-        row.county = result.legal_county
-        row.method = result.resolution_method
-        row.matched_address = result.matched_address
-        row.latitude = result.latitude
-        row.longitude = result.longitude
-        row.place_geoid = result.city_geoid
-        row.confidence = None  # No calibrated probability is supplied by Census.
-        row.note = "; ".join(result.warnings) or None
-        row.resolution_evidence = asdict(result)
+        row = _jurisdiction(
+            result, address.jurisdiction or AddressJurisdiction(address_id=result.address_id)
+        )
         session.add(row)
         rows.append(row)
     await session.flush()
@@ -421,7 +505,10 @@ async def run_lookup_export(
     addresses = (
         (
             await session.execute(
+                # The submission file is the sample. An address somebody typed
+                # in for themselves is their own data and belongs in no export.
                 select(Address)
+                .where(Address.imported)
                 .options(selectinload(Address.jurisdiction))
                 .order_by(Address.address_id)
             )

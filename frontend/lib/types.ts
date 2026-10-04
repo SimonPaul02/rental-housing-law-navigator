@@ -182,7 +182,7 @@ export interface ChangeTest {
   /** An as_of case's pair: not in force on the first date, in force on the second. */
   as_of_before?: string | null;
   as_of_after?: string | null;
-  /** The states the case scans. Empty means the whole sample. */
+  /** The states the case scans. Empty means the whole stock. */
   states?: string[];
   /** Rules already covering the same ground, which the new one may preempt. */
   conflict_with?: string[];

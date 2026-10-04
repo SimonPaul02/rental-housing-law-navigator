@@ -35,7 +35,8 @@ export type NavItem = { href: string; label: string };
  *              nothing. Each case stands alone, with its evidence attached.
  * - `stock`    An agency has none at all, and is the reason this is a property
  *              of the person rather than a setting. Their subject is the whole
- *              sample — every address in it, whether or not anybody saved it —
+ *              stock on file — every address in it, whether or not anybody
+ *              saved it —
  *              so there is nothing for them to save and no page to save it on.
  *              One map of the stock already answers what a shortlist would.
  */
@@ -75,10 +76,10 @@ export const ROLES: Record<Role, RoleSpec> = {
     label: "Housing agency",
     tagline: "I work for a public body and oversee housing stock.",
     blurb:
-      "Coverage across the whole sample: which addresses resolve to which legal jurisdiction, where the records are incomplete, and how many buildings each change case moves.",
+      "Coverage across the whole stock on file: which addresses resolve to which legal jurisdiction, where the records are incomplete, and how many buildings each change case moves.",
     cardinality: "stock",
     cardinalityNote:
-      "Your subject is the whole sample rather than any address of your own, so there is nothing here to save and nothing waiting for you to save it. One map carries the lot.",
+      "Your subject is the whole stock on file rather than any address of your own, so there is nothing here to save and nothing waiting for you to save it. One map carries the lot.",
   },
   advocate: {
     label: "Housing advocate",
@@ -248,14 +249,14 @@ function placesItem(role: Role): NavItem[] {
 }
 
 const NAV_BY_ROLE: Record<Role, NavItem[]> = {
-  // One building, in plain words. The sample-wide address audit is somebody
+  // One building, in plain words. The stock-wide address audit is somebody
   // else's job and would only be noise here.
   renter: [OVERVIEW, ...placesItem("renter"), RULES, CHANGES],
   // The portfolio, then the law it is measured against.
   provider: [OVERVIEW, ...placesItem("provider"), RULES, CHANGES],
   // Coverage of the stock is the job, so the address table is a first-class
   // destination rather than a curiosity. There is no saved-address entry:
-  // the whole sample is already the subject, and one map of it answers what a
+  // the whole stock is already the subject, and one map of it answers what a
   // shortlist would have.
   agency: [OVERVIEW, ADDRESSES, RULES, CHANGES],
   // Cases first, then the record behind them — including the raw addresses,

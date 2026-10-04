@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
@@ -145,28 +146,68 @@ def encode(result: dict) -> str:
 # ---------------------------------------------------------------------------
 
 
-async def _search_addresses(deps: Deps, args: dict) -> dict:
-    needle = f"%{args['query'].strip()}%"
-    limit = min(int(args.get("limit") or 8), 15)
-    rows = (
-        await deps.session.execute(
-            select(Address)
-            .where(
-                or_(
-                    Address.street_address.ilike(needle),
-                    Address.postal_city.ilike(needle),
-                )
-            )
-            .order_by(Address.address_id)
-            .limit(limit + 1)
+#: Comma parts of a pasted address that are not a street or a city.
+_NOT_A_PLACE = re.compile(
+    r"^(?:usa|u\.s\.a\.|united states|[a-z]{2}\s*\d{5}(?:-\d{4})?|\d{5}(?:-\d{4})?|[a-z]{2})$",
+    re.IGNORECASE,
+)
+
+
+def relax(query: str) -> tuple[str, str] | None:
+    """Split a pasted address into the street and the city it is matched on.
+
+    What a person pastes is "415 Mission St, San Francisco, CA 94105, United
+    States", and the search matches one field at a time - so the whole string
+    matches nothing, and so does any suffix of it. The house number has to go
+    too: the book holds 2250 and 2280 Mission St and no 415, and a reader
+    looking at an empty result cannot tell "this street is not on file" from
+    "this building is not".
+
+    Returns `None` when there is nothing to relax, so a one-word search is
+    never re-run as itself. `narrower()` in components/assistant/cards.tsx is
+    the same parse for the typed box, which offers the parts as something to
+    click rather than searching them unasked.
+    """
+    parts = [p.strip() for p in query.split(",") if p.strip()]
+    parts = [p for p in parts if not _NOT_A_PLACE.match(p)]
+    if len(parts) < 2:
+        return None
+    street = re.sub(r"^\d+[a-z]?\s+", "", parts[0], flags=re.IGNORECASE).strip()
+    city = parts[1]
+    return (street, city) if street and city else None
+
+
+async def _match_addresses(deps: Deps, terms: list[str], limit: int) -> list[Address]:
+    """Buildings on file where every term appears in the street or the city.
+
+    The imported book only: this is "find it among the buildings this account
+    holds", and an address somebody typed in for themselves is not something
+    anybody else should be able to search their way to.
+    """
+    stmt = select(Address).where(Address.imported)
+    for term in terms:
+        needle = f"%{term}%"
+        stmt = stmt.where(
+            or_(Address.street_address.ilike(needle), Address.postal_city.ilike(needle))
         )
-    ).scalars()
-    found = list(rows)
-    note = (
-        "More than this matched; narrow the search rather than listing these."
-        if len(found) > limit
-        else None
-    )
+    rows = await deps.session.execute(stmt.order_by(Address.address_id).limit(limit + 1))
+    return list(rows.scalars())
+
+
+async def _search_addresses(deps: Deps, args: dict) -> dict:
+    query = args["query"].strip()
+    limit = min(int(args.get("limit") or 8), 15)
+
+    found = await _match_addresses(deps, [query], limit)
+    searched = None
+    if not found and (relaxed := relax(query)):
+        # A pasted address, matched on its street and its city instead. Said
+        # out loud in `searched_instead`, because the answer is about a
+        # different building from the one that was asked for.
+        found = await _match_addresses(deps, list(relaxed), limit)
+        if found:
+            searched = f"{relaxed[0]} in {relaxed[1]}"
+
     return _drop_empty(
         {
             "matches": [
@@ -182,7 +223,15 @@ async def _search_addresses(deps: Deps, args: dict) -> dict:
                 )
                 for a in found[:limit]
             ],
-            "note": note,
+            "searched_instead": searched,
+            "note": (
+                "Nothing on file is on that street in that city. rules_for_any_address "
+                "can still answer it."
+                if not found
+                else "More than this matched; narrow the search rather than listing these."
+                if len(found) > limit
+                else None
+            ),
         }
     )
 
@@ -240,16 +289,25 @@ async def _address_for(deps: Deps, address_id: str) -> Address | None:
 
 
 async def _rules_for_building(deps: Deps, args: dict) -> dict:
-    # Imported here rather than at module scope: Module B's service pulls in
-    # the rule compiler and the predicate machinery, and the assistant router
-    # should not drag that into import time for a deployment nobody chats to.
-    from app.modules.address_lookup import service as lookups
-
+    # Module B's service is imported inside these handlers rather than at
+    # module scope: it pulls in the rule compiler and the predicate machinery,
+    # and the assistant router should not drag that into import time for a
+    # deployment nobody chats to.
     address = await _address_for(deps, args["address_id"])
     if address is None:
-        return {"error": f"No address {args['address_id']!r} is in this sample."}
+        return {"error": f"No building {args['address_id']!r} is on file."}
+    return await _answer_for(deps, address, _date_or(args.get("as_of"), deps.as_of))
 
-    as_of = _date_or(args.get("as_of"), deps.as_of)
+
+async def _answer_for(deps: Deps, address: Address, as_of: dt.date) -> dict:
+    """One building's outcomes, bucketed and capped.
+
+    Shared by the two ways in - a building already on file, and one somebody
+    typed - because the answer should read the same either way. What differs
+    between them is said in the caller, not folded into the numbers.
+    """
+    from app.modules.address_lookup import service as lookups
+
     answer = await lookups.lookup_address(deps.session, address, as_of, persist=False)
 
     buckets: dict[str, list[dict]] = {
@@ -334,6 +392,39 @@ async def _rules_for_building(deps: Deps, args: dict) -> dict:
             "spans": "Call rule_source for the quoted text behind any rule id above.",
         }
     )
+
+
+async def _rules_for_typed_address(deps: Deps, args: dict) -> dict:
+    """Answer for a building nobody has on file, without putting it on file."""
+    from app.modules.address_lookup import service as lookups
+
+    try:
+        address = await lookups.resolve_typed(args["address"])
+    except lookups.TypedAddressError as exc:
+        return {"error": str(exc)}
+
+    juris = address.jurisdiction
+    if not (juris and juris.legal_city):
+        return {
+            "typed": args["address"],
+            "resolved": False,
+            "error": (
+                "The Census geocoder could not place that address, so there is no legal "
+                "city and no rule can be attached to it. Check the street and the city, "
+                "or try the building next door."
+            ),
+        }
+
+    answer = await _answer_for(deps, address, _date_or(args.get("as_of"), deps.as_of))
+    return {
+        **answer,
+        "on_file": False,
+        "note": (
+            "Not one of the buildings on file, so it carries no year built and no unit "
+            "count - any rule turning on those answers unknown. The legal city is the "
+            "geocoder's own and is as reliable as for any other address."
+        ),
+    }
 
 
 async def _rule_source(deps: Deps, args: dict) -> dict:
@@ -473,22 +564,32 @@ async def _change_cases(deps: Deps, args: dict) -> dict:
 
 async def _stock_coverage(deps: Deps, args: dict) -> dict:
     session = deps.session
+    # Joined to `addresses` and filtered, like every other figure here: this
+    # is coverage *of what was imported*, and a typed address carries a jurisdiction
+    # row like any other.
     verified = (
         await session.execute(
             select(func.count())
             .select_from(AddressJurisdiction)
-            .where(AddressJurisdiction.legal_city.isnot(None))
+            .join(Address, Address.address_id == AddressJurisdiction.address_id)
+            .where(Address.imported, AddressJurisdiction.legal_city.isnot(None))
         )
     ).scalar_one()
-    total = (await session.execute(select(func.count()).select_from(Address))).scalar_one()
+    total = (
+        await session.execute(select(func.count()).select_from(Address).where(Address.imported))
+    ).scalar_one()
     no_year = (
         await session.execute(
-            select(func.count()).select_from(Address).where(Address.year_built.is_(None))
+            select(func.count())
+            .select_from(Address)
+            .where(Address.imported, Address.year_built.is_(None))
         )
     ).scalar_one()
     no_units = (
         await session.execute(
-            select(func.count()).select_from(Address).where(Address.units.is_(None))
+            select(func.count())
+            .select_from(Address)
+            .where(Address.imported, Address.units.is_(None))
         )
     ).scalar_one()
     corrected = (
@@ -497,6 +598,7 @@ async def _stock_coverage(deps: Deps, args: dict) -> dict:
             .select_from(AddressJurisdiction)
             .join(Address, Address.address_id == AddressJurisdiction.address_id)
             .where(
+                Address.imported,
                 AddressJurisdiction.legal_city.isnot(None),
                 func.lower(AddressJurisdiction.legal_city) != func.lower(Address.postal_city),
             )
@@ -505,14 +607,15 @@ async def _stock_coverage(deps: Deps, args: dict) -> dict:
     by_state = {
         str(state): n
         for state, n in await session.execute(
-            select(Address.state, func.count()).group_by(Address.state)
+            select(Address.state, func.count()).where(Address.imported).group_by(Address.state)
         )
     }
     cities = [
         {"legal_city": str(city), "addresses": n}
         for city, n in await session.execute(
             select(AddressJurisdiction.legal_city, func.count())
-            .where(AddressJurisdiction.legal_city.isnot(None))
+            .join(Address, Address.address_id == AddressJurisdiction.address_id)
+            .where(Address.imported, AddressJurisdiction.legal_city.isnot(None))
             .group_by(AddressJurisdiction.legal_city)
             .order_by(func.count().desc())
             .limit(12)
@@ -573,7 +676,7 @@ def _date_or(value: Any, fallback: dt.date) -> dt.date:
 
 _ADDRESS_ID = {
     "type": "string",
-    "description": "A sample address id, e.g. A0132.",
+    "description": "The id of a building on file, e.g. A0132.",
 }
 _MESSAGE = {
     "type": "string",
@@ -619,18 +722,21 @@ ALL: tuple[Tool, ...] = (
         label="Asking which building",
         description=(
             "Render a search box that saves a building to the person's account. Use it "
-            "when they have none saved, or name one that is not theirs yet. Addresses "
-            "come from the 500-row sample only: a hand-typed address has no year built "
-            "or unit count, so nearly every rule would answer unknown."
+            "when they have none saved, or name one that is not on file yet. It searches "
+            "the buildings this account already holds; a renter may also keep an address "
+            "that is not among them, typed as 'street, city, state'. To answer a question "
+            "about an address without saving it, use rules_for_any_address instead."
         ),
         properties={
             "message": _MESSAGE,
             "query": {
                 "type": "string",
                 "description": (
-                    "Prefill for the search box. A street OR a city, never both - the "
-                    "search matches one field, so 'Taylor St San Francisco' finds "
-                    "nothing while 'Taylor St' finds it. Empty if they named neither."
+                    "Prefill for the search box. If they gave a whole address, put it "
+                    "in whole - 'street, city, state' - and the control searches the "
+                    "book on its street while offering to keep the address itself. "
+                    "Otherwise a street OR a city, never both, because a partial "
+                    "search matches one field at a time. Empty if they named neither."
                 ),
             },
         },
@@ -657,7 +763,7 @@ ALL: tuple[Tool, ...] = (
         properties={
             "address_id": {
                 "type": "string",
-                "description": "A sample address id, or empty for all cases.",
+                "description": "The id of a building on file, or empty for all cases.",
             }
         },
         required=("address_id",),
@@ -703,12 +809,35 @@ ALL: tuple[Tool, ...] = (
         run=_rule_source,
     ),
     Tool(
+        name="rules_for_any_address",
+        label="Checking an address that is not on file",
+        description=(
+            "Evaluate every rule against an address nobody has on file - one the person "
+            "typed or pasted. Give it as 'street, city, state'. It is geocoded to its "
+            "legal city and answered like any other building, except that it carries no "
+            "year built and no unit count, so a rule turning on those answers unknown. "
+            "Nothing is saved. Use rules_for_building for a building already on file."
+        ),
+        properties={
+            "address": {
+                "type": "string",
+                "description": "street, city, state - e.g. '415 Mission St, San Francisco, CA'.",
+            },
+            "as_of": {
+                "type": "string",
+                "description": "YYYY-MM-DD, or empty for the deployment's query date.",
+            },
+        },
+        required=("address", "as_of"),
+        run=_rules_for_typed_address,
+    ),
+    Tool(
         name="rules_for_building",
         label="Checking which rules reach it",
         description=(
             "Evaluate every rule against one address on a date: what applies, what is "
             "unknown and which field blocked it, what is superseded, and what is not "
-            "yet in force. Works for any of the 500 sample addresses, saved or not. "
+            "yet in force. Works for any building on file, saved or not. "
             "Quoted spans are not included - use rule_source."
         ),
         properties={
@@ -723,10 +852,11 @@ ALL: tuple[Tool, ...] = (
     ),
     Tool(
         name="search_addresses",
-        label="Searching the sample",
+        label="Searching the buildings on file",
         description=(
-            "Find addresses in the 500-row sample by street or city. Returns the id "
-            "every other tool here takes."
+            "Find a building among the ones this account holds, by street or city. "
+            "Returns the id every other tool here takes. For an address nobody has on "
+            "file, use rules_for_any_address."
         ),
         properties={
             "query": {
@@ -760,7 +890,7 @@ ALL: tuple[Tool, ...] = (
         name="stock_coverage",
         label="Measuring the stock",
         description=(
-            "Coverage across the whole 500-address sample: how many resolve to a "
+            "Coverage across the whole imported stock: how many resolve to a "
             "verified legal jurisdiction, how many are missing the facts rules turn "
             "on, and where the mailing city is not the legal one."
         ),
@@ -781,6 +911,7 @@ BY_NAME: dict[str, Tool] = {tool.name: tool for tool in ALL}
 # meaningless for one building.
 _ROSTERS: dict[Role, tuple[str, ...]] = {
     Role.renter: (
+        "rules_for_any_address",
         "ask_for_agreement_details",
         "ask_for_document",
         "ask_to_add_building",
@@ -793,6 +924,7 @@ _ROSTERS: dict[Role, tuple[str, ...]] = {
         "show_view",
     ),
     Role.provider: (
+        "rules_for_any_address",
         "ask_for_agreement_details",
         "ask_for_document",
         "ask_to_add_building",
@@ -807,6 +939,7 @@ _ROSTERS: dict[Role, tuple[str, ...]] = {
         "show_view",
     ),
     Role.agency: (
+        "rules_for_any_address",
         "change_cases",
         "rule_source",
         "rules_for_building",
@@ -815,6 +948,7 @@ _ROSTERS: dict[Role, tuple[str, ...]] = {
         "stock_coverage",
     ),
     Role.advocate: (
+        "rules_for_any_address",
         "ask_for_agreement_details",
         "ask_for_document",
         "ask_to_add_building",

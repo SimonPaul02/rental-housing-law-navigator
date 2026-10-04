@@ -213,7 +213,15 @@ async def resolve_canonical(
 
 
 async def _addresses_for(session: AsyncSession, states: list[str], limit: int) -> list[Address]:
-    stmt = select(Address).options(selectinload(Address.jurisdiction)).order_by(Address.address_id)
+    # The supplied stock only. "184 of 250 CA addresses move" is a statement
+    # about the sample, and a renter's own home joining the denominator would
+    # make the same case report a different number to different people.
+    stmt = (
+        select(Address)
+        .where(Address.imported)
+        .options(selectinload(Address.jurisdiction))
+        .order_by(Address.address_id)
+    )
     if states:
         stmt = stmt.where(Address.state.in_([s.upper() for s in states]))
     return list((await session.execute(stmt.limit(limit))).scalars())

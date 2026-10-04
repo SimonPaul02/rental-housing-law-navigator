@@ -209,7 +209,7 @@ export function ChangesExplorer({
 }: {
   tests: ChangeTest[];
   results: ChangeTestResult[];
-  /** Only the addresses some case touches — the whole sample is not needed. */
+  /** Only the addresses some case touches — the whole book is not needed. */
   addresses: AddressRecord[];
   /** A building from `?address_id=`, pre-selected so the link lands on it. */
   initialAddressId?: string;
@@ -583,7 +583,7 @@ function CaseBody({
       {test.type === "negative" && affectedCount === 0 && (
         <p className="case-note">
           The replay also checked that no Massachusetts rent cap is live at any
-          sampled address. Had either check matched, this case would have
+          address on file. Had either check matched, this case would have
           refused to report rather than returning an empty set — an empty
           answer and an unasked question look identical from the outside.
         </p>
@@ -610,7 +610,7 @@ function CaseBody({
             <p className="case-note warn">
               {undrawable > 0 && `${undrawable} have no coordinate and cannot be drawn. `}
               {missingRows > 0 &&
-                `${missingRows} are counted above but are not in the loaded sample.`}
+                `${missingRows} are counted above but were not loaded onto this page.`}
             </p>
           )}
 

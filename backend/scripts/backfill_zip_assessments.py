@@ -27,6 +27,7 @@ async def main() -> None:
             (
                 await session.execute(
                     select(Address)
+                    .where(Address.imported)
                     .options(selectinload(Address.jurisdiction))
                     .order_by(Address.address_id)
                 )

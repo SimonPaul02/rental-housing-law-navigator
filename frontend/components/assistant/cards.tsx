@@ -73,13 +73,16 @@ function Control({
 
 /* --------------------------------------------------------- add a building */
 
-/** Search the sample and save one.
+/** Search the buildings this account holds, and save one.
  *
- * Addresses come from the 500-row sample rather than being typed, and that is
- * a real limit rather than a shortcut: an answer needs the year built and the
- * unit count, and those exist only for these rows. A hand-typed address would
- * resolve to a jurisdiction and then answer "unknown" to almost every
- * condition, which reads as a broken app rather than as missing data.
+ * The search is over the address book the account was set up with, which
+ * carries a year built and a unit count for every row. A renter may also keep
+ * an address that is not in it — their home is wherever they actually live —
+ * and that one is geocoded to its legal city and saved with those two facts
+ * absent rather than guessed.
+ *
+ * Everyone can *ask* about any address without saving it; that is the agent's
+ * own `rules_for_any_address`, not this control.
  */
 function AddBuilding({
   card,
@@ -95,6 +98,33 @@ function AddBuilding({
   const [working, setWorking] = useState<string | null>(null);
   const [error, setError] = useState("");
 
+  // A full address does double duty: the book is searched on its street and
+  // city, *and* keeping it is offered beside whatever that found. Somebody who
+  // pastes "415 Mission St, San Francisco, CA" then sees both the buildings on
+  // file on that street and the option to keep theirs — rather than two wrong
+  // neighbours and no way forward.
+  const whole = looksLikeAddress(query);
+  const keepable = card.allow_new && whole && hits !== null;
+
+  async function keep() {
+    setWorking("keep");
+    setError("");
+    try {
+      const place = await clientApi<Place>("/accounts/me/places/by-address", {
+        method: "POST",
+        body: JSON.stringify({ address: query.trim() }),
+      });
+      onDone({
+        tool_use_id: card.tool_use_id,
+        kind: card.kind,
+        value: { address_id: place.address_id },
+      });
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Could not save that.");
+      setWorking(null);
+    }
+  }
+
   async function search(event: React.FormEvent) {
     event.preventDefault();
     const needle = query.trim();
@@ -102,9 +132,14 @@ function AddBuilding({
     setWorking("search");
     setError("");
     try {
+      // A whole address is searched on its street, because the endpoint
+      // matches one field at a time and the house number is the part least
+      // likely to be on file. What it finds is the neighbours; keeping the
+      // address itself is offered separately.
+      const term = whole ? (narrower(needle)[0] ?? needle) : needle;
       setHits(
         await clientApi<AddressRecord[]>(
-          `/address-lookup/addresses?q=${encodeURIComponent(needle)}&limit=8`,
+          `/address-lookup/addresses?q=${encodeURIComponent(term)}&limit=8`,
         ),
       );
     } catch (failure) {
@@ -140,7 +175,7 @@ function AddBuilding({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Street or city"
-          aria-label="Search the sample for a building"
+          aria-label="Search the buildings on file"
           disabled={busy}
         />
         <button type="submit" className="btn" disabled={busy || working === "search"}>
@@ -149,13 +184,32 @@ function AddBuilding({
         </button>
       </form>
       <Problem detail={error} />
-      {hits !== null && hits.length === 0 && (
+      {keepable && (
+        <div className="chat-keep">
+          <p className="chat-card-note">
+            {hits && hits.length > 0
+              ? "Or keep the address you typed, if none of those is it."
+              : "That is not one of the buildings on file."}{" "}
+            It gets its legal city from the same geocoder as every building
+            here, and no year built or unit count — so the rules that turn on
+            those will say so rather than guess.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={keep}
+            disabled={busy || working !== null}
+          >
+            {working === "keep" ? <Spinner /> : null}
+            Use {query.trim()}
+          </button>
+        </div>
+      )}
+      {hits !== null && hits.length === 0 && !keepable && (
         <div className="chat-card-note">
           <p>
-            Nothing in the sample matches that. The street and the city are
-            matched separately, so the two together find nothing — and the
-            sample is 500 addresses across a handful of cities, so a building
-            that is not in it cannot be answered here.
+            Nothing on file matches that. The street and the city are matched
+            separately, so the two together find nothing.
           </p>
           {narrower(query).length > 0 && (
             <p className="mt-2">
@@ -475,21 +529,50 @@ function ViewLink({ card }: { card: ViewCard }) {
   );
 }
 
-/** The halves of a query that found nothing.
+/** The street and the city inside a pasted address.
  *
- * Somebody typing "Taylor St San Francisco" has given the search both of the
- * fields it matches separately, which is the one failure that looks like the
- * building is missing when it is not. Splitting on the last capitalised run is
- * crude and sometimes wrong — so these are offered as something to try rather
- * than searched automatically.
+ * What a person pastes is "415 Mission St, San Francisco, CA 94105, United
+ * States", and the search matches one field at a time — so the whole string
+ * finds nothing, and so does any tail of it. The house number has to go too:
+ * the book holds 2250 and 2280 Mission St and no 415, and an empty result
+ * cannot tell somebody "this street is not on file" from "this building is
+ * not".
+ *
+ * Offered as something to click rather than searched unasked, because the
+ * parse is a guess and the answer would be about a different building from
+ * the one they typed. `relax()` in backend/app/modules/assistant/tools.py is
+ * the same parse for the agent's own search, where it does re-run and says so.
  */
 function narrower(query: string): string[] {
+  const junk = /^(?:usa|u\.s\.a\.|united states|[a-z]{2}\s*\d{5}(?:-\d{4})?|\d{5}(?:-\d{4})?|[a-z]{2})$/i;
+  const parts = query
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part && !junk.test(part));
+  if (parts.length >= 2) {
+    const street = parts[0].replace(/^\d+[a-z]?\s+/i, "").trim();
+    return [street, parts[1]].filter((part) => part.length >= 2);
+  }
+  // No commas to go on — fall back to splitting a "Taylor St San Francisco"
+  // into its two halves.
   const words = query.trim().split(/\s+/);
   if (words.length < 3) return [];
-  // Two guesses: everything before the last two words, and the last two.
-  const head = words.slice(0, -2).join(" ");
-  const tail = words.slice(-2).join(" ");
-  return [head, tail].filter((part) => part.length >= 2);
+  return [words.slice(0, -2).join(" "), words.slice(-2).join(" ")].filter(
+    (part) => part.length >= 2,
+  );
+}
+
+/** Whether what was typed is enough for the resolver: street, city, state.
+ *
+ * The same shape `parse_typed` requires on the server, checked here only so
+ * the offer does not appear over something that would be refused. The server
+ * is what decides. */
+function looksLikeAddress(query: string): boolean {
+  const parts = query
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part && !/^(?:usa|u\.s\.a\.|united states)$/i.test(part));
+  return parts.length >= 3 && /^[a-z]{2}(\s*\d{5}(-\d{4})?)?$/i.test(parts[parts.length - 1]);
 }
 
 function Problem({ detail }: { detail: string }) {

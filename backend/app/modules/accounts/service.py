@@ -213,6 +213,93 @@ async def add_place(
     return _place(await one_place(session, principal, row.id))
 
 
+async def add_typed_place(
+    session: AsyncSession,
+    principal: Principal,
+    *,
+    address: str,
+    label: str | None = None,
+    note: str | None = None,
+) -> Place:
+    """Save a building the person typed in, rather than one already on file.
+
+    The address book an account is set up with carries a year built and a unit
+    count for every row, from the assessor extract it was imported from. A
+    typed address has neither, and nothing here invents them: the row is
+    written with both absent, every rule that turns on one answers "unknown"
+    naming the field, and that is the honest result rather than a degraded one.
+
+    What it *does* get is the part that matters most and is not in the typing:
+    the legal jurisdiction. The same resolver the import ran decides it - same
+    candidate validation, same ZIP assessment, same review status when the
+    answer is not clean - so "415 Mission St" becomes the City of San
+    Francisco with a coordinate, or comes back needing review and says so.
+
+    `imported=False` keeps it out of every roll-up. One row per real building:
+    two people who type the same address share it, because an address says
+    nothing about who saved it and a second row would be a second answer.
+    """
+    user = await find(session, principal)
+    if user is None:
+        raise HTTPException(404, "No account yet. Choose a role first.")
+
+    from app.modules.address_lookup.service import TypedAddressError
+
+    try:
+        row = await _address_row(session, address.strip())
+    except TypedAddressError as exc:
+        # What they typed, said back to them with what is missing from it.
+        raise HTTPException(422, str(exc)) from exc
+    existing = (
+        await session.execute(
+            _owned(principal.user_id).where(SavedPlace.address_id == row.address_id)
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        return _place(existing)
+
+    place = SavedPlace(
+        owner_id=principal.user_id, address_id=row.address_id, label=label, note=note
+    )
+    session.add(place)
+    await session.flush()
+    return _place(await one_place(session, principal, place.id))
+
+
+async def _address_row(session: AsyncSession, address: str) -> Address:
+    """The address row for a typed building: resolved and stored, or reused.
+
+    One row per real building. Two people who type the same address share it,
+    because an address says nothing about who saved it and a second row would
+    be a second answer to the same question.
+
+    The resolving itself is Module B's - it owns addresses, and the assistant
+    needs the same thing without storing it.
+    """
+    from app.modules.address_lookup import service as lookups
+
+    street, city, state, _ = lookups.parse_typed(address)
+    existing = (
+        await session.execute(
+            select(Address)
+            .options(selectinload(Address.jurisdiction))
+            .where(
+                Address.imported.is_(False),
+                Address.street_address == street,
+                Address.postal_city == city,
+                Address.state == state,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        return existing
+
+    row = await lookups.resolve_typed(address)
+    session.add(row)
+    await session.flush()
+    return row
+
+
 async def update_place(
     session: AsyncSession,
     principal: Principal,

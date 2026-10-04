@@ -43,7 +43,7 @@ const SUGGESTIONS: Record<Role, string[]> = {
     "Which exemptions can I actually claim?",
   ],
   agency: [
-    "How much of the sample can be answered?",
+    "How much of the stock can be answered?",
     "What is stopping the rest?",
     "Where is the mailing city not the legal city?",
   ],

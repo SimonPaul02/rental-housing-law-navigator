@@ -444,7 +444,20 @@ async def _card(ctx: Session, tool: Tool, block: dict) -> tuple[dict | None, str
     }
 
     if tool.name == "ask_to_add_building":
-        return {**base, "query": str(args.get("query") or "").strip()[:80]}, None
+        return {
+            **base,
+            "query": str(args.get("query") or "").strip()[:80],
+            # Whether an address that is not on file may be kept, which is a
+            # question about what the person's list is *for* rather than about
+            # permission - the endpoint serves anyone. A renter has one home
+            # and it is wherever they actually live, so it has to be addable.
+            # The other three work from a book of buildings they are
+            # answerable for; a building typed into that list would be one
+            # nobody imported and nobody is answerable for. They can still ask
+            # about any address - `rules_for_any_address` answers without
+            # keeping anything.
+            "allow_new": ctx.role is Role.renter,
+        }, None
 
     if tool.name == "ask_for_document":
         address_id = str(args.get("address_id") or "").strip().upper()

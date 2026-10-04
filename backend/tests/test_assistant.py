@@ -906,3 +906,31 @@ async def test_several_read_tools_in_one_turn_all_answer(monkeypatch, world):
     ]
     assert len(answering) == 1
     assert [data["name"] for data in heard.of("tool")] == ["my_buildings", "my_documents"]
+
+
+# ---------------------------------------------------------------------------
+# A pasted address
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("typed", "expected"),
+    [
+        # What a browser's autofill or Google Maps hands over.
+        ("415 Mission St, San Francisco, CA 94105, United States", ("Mission St", "San Francisco")),
+        ("22 Precita Av, San Francisco, CA", ("Precita Av", "San Francisco")),
+        ("1200 Wilshire Blvd, Los Angeles, CA 90017, USA", ("Wilshire Blvd", "Los Angeles")),
+        # Nothing to relax: one part, or already a bare street.
+        ("Mission St", None),
+        ("San Francisco", None),
+        ("", None),
+    ],
+)
+def test_a_pasted_address_is_split_into_a_street_and_a_city(typed, expected):
+    """The search matches one field at a time, so the whole paste matches none.
+
+    The house number has to go with the rest: the sample holds 2250 and 2280
+    Mission St and no 415, and an empty result cannot tell somebody "this
+    street is not in the sample" from "this building is not".
+    """
+    assert tools.relax(typed) == expected

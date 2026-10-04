@@ -1,7 +1,7 @@
 /** What the map draws, and in what colour.
  *
  * Deliberately not "an address": the same component plots a renter's one home,
- * five hundred sample rows coloured by whether their jurisdiction is verified,
+ * five hundred rows on file coloured by whether their jurisdiction is verified,
  * and the buildings one change case moves. A point therefore carries its own
  * tone and its own caption rather than being re-derived from a record type the
  * map would have to know about.
@@ -29,7 +29,7 @@ export interface MapPoint {
   weight?: number;
   /** Which side of the point its label sits on.
    *
-   * Our Massachusetts sample is Boston and Cambridge, so the state's centroid
+   * Our Massachusetts rows are Boston and Cambridge, so the state's centroid
    * lands almost exactly on Boston's — two true points that happen to
    * coincide. Moving one of them would be a lie; printing their labels on
    * opposite sides is not. */
@@ -64,7 +64,7 @@ export const TONES: Record<PointTone, { color: string; label: string }> = {
   // Deliberately far from `affected`: the two appear on the same map, and two
   // browns a shade apart is a legend nobody can use.
   conflict: { color: "#7a2a33", label: "Flagged for review" },
-  neutral: { color: "#7d9197", label: "In the sample" },
+  neutral: { color: "#7d9197", label: "On file" },
 };
 
 /** The convex hull of a set of points, as a closed ring.

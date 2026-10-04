@@ -29,7 +29,7 @@ import { ManageLink } from "./shared";
 /** The agency's app: coverage, and where the record fails.
  *
  * An agency has no address of its own, and no way to acquire one: their
- * subject is the whole stock — every one of the 500 sample rows, whether or
+ * subject is the whole stock — every one of the imported rows, whether or
  * not anybody saved it — so this is the one dashboard that is complete before
  * the person has done anything, and the only one with no saved-address page
  * behind it. A shortlist would answer nothing the map below does not, and an
@@ -68,7 +68,7 @@ export async function AgencyHome({ health }: { places: Place[]; health: Health }
         <Intro health={health} />
         <Notice title="No address data" tone="warning">
           <code className="mono">/api/address-lookup/stats</code> did not answer.
-          Run <code className="mono">make seed</code> to load the sample.
+          Run <code className="mono">make seed</code> to load the address book.
         </Notice>
       </div>
     );
@@ -123,7 +123,7 @@ export async function AgencyHome({ health }: { places: Place[]; health: Health }
 
       <StatStrip>
         <Stat
-          label="Addresses in the sample"
+          label="Addresses on file"
           value={addressStats.total}
           sub="the whole stock this system holds"
         />
@@ -153,7 +153,7 @@ export async function AgencyHome({ health }: { places: Place[]; health: Health }
           addresses={addresses ?? []}
           stats={addressStats}
           heading="The stock, address by address"
-          hint="Every row in the sample. Filter it, highlight a jurisdiction to see where it sits relative to the rest, and read the same selection as a table — which is also the version that prints and that a screen reader can follow."
+          hint="Every building on file. Filter it, highlight a jurisdiction to see where it sits relative to the rest, and read the same selection as a table — which is also the version that prints and that a screen reader can follow."
         />
       </section>
 
@@ -343,7 +343,7 @@ export async function AgencyHome({ health }: { places: Place[]; health: Health }
       <section>
         <SectionTitle
           title="How much each change case moves"
-          hint="Answered by replaying the evaluator at the relevant dates across the whole sample, not by hard-coding an expected count."
+          hint="Answered by replaying the evaluator at the relevant dates across the whole stock on file, not by hard-coding an expected count."
           right={<ManageLink href="/changes" label="Open change cases" />}
         />
         {!changeStats || changeStats.tests_run === 0 ? (

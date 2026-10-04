@@ -1,7 +1,7 @@
 /** One address, answered — the worked example on the front door.
  *
  * The headline asks which rules apply here, on this date. This is the claim
- * carried out: six obligations settled on one real building from the sample,
+ * carried out: six obligations settled on one real building on file,
  * and the one span of statute the first of them rests on.
  *
  * It is a **recorded run, not a live query**, and the panel says so. Every

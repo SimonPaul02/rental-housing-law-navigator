@@ -54,7 +54,7 @@ export default async function ChangesPage({
   const linkedAddress = /^A\d{4}$/.test(requested) ? requested : "";
 
   // Only the buildings some case actually touches cross to the browser. The
-  // map needs their coordinates; it has no use for the rest of the sample, and
+  // map needs their coordinates; it has no use for the rest of the book, and
   // shipping all five hundred to draw a hundred would be paying for geography
   // nobody asked to see.
   const touched = new Set((results ?? []).flatMap((r) => r.affected_address_ids));

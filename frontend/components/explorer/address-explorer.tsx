@@ -26,7 +26,7 @@ import {
   type Filters,
 } from "./filters";
 
-/** The sample, explorable: filter it, see it on a map, read it in a table.
+/** The address book, explorable: filter it, map it, read it as a table.
  *
  * One component serves the agency's five hundred rows and a provider looking
  * for their next building, because the question underneath is the same one —

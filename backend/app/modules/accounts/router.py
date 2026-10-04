@@ -28,6 +28,7 @@ from .schemas import (
     PlaceUpdate,
     RegisterRequest,
     RoleChange,
+    TypedPlaceRequest,
 )
 
 #: Which uploads a browser may render in place rather than download. PDFs and images
@@ -125,6 +126,33 @@ async def add_place(
         session,
         principal,
         address_id=payload.address_id,
+        label=payload.label,
+        note=payload.note,
+    )
+
+
+@router.post("/me/places/by-address", response_model=Place, status_code=201)
+async def add_typed_place(
+    payload: TypedPlaceRequest,
+    principal: Principal = Depends(require_principal),
+    session: AsyncSession = Depends(get_session),
+) -> Place:
+    """Save a building that is not in the address book this account came with.
+
+    The import carries a year built and a unit count for every row; a typed
+    address has neither, and none is invented - the rules that turn on them
+    answer "unknown" and name the field. What it does get is the legal
+    jurisdiction, from the same resolver the import ran.
+
+    Open to any signed-in caller, because a role is not a permission here and
+    every row this writes is the caller's own. Which roles are *offered* it is
+    a different question and is decided in the interface: an agency holds no
+    addresses of its own, and a provider works from the book they imported.
+    """
+    return await service.add_typed_place(
+        session,
+        principal,
+        address=payload.address,
         label=payload.label,
         note=payload.note,
     )

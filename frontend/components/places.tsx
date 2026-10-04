@@ -26,16 +26,36 @@ import { JurisdictionBadge, ZipDiscrepancyBadge } from "./ui";
  * - an advocate has independent cases, so they are numbered rather than summed.
  *
  * A housing agency never reaches this component. They hold no addresses of
- * their own — the whole sample is their subject — so `/places` sends them to
+ * their own — the whole stock on file is their subject — so `/places` sends them to
  * the map that already covers it.
  *
- * Addresses are picked from the sample rather than typed free-hand, and that
- * is a real limit rather than a shortcut: an answer needs the year built and
- * the unit count, and the 500 sample rows are the only buildings those facts
- * exist for. A typed address would resolve to a jurisdiction and then answer
- * "unknown" to nearly every condition, which looks like a broken app rather
- * than like missing data.
+ * The search is over the address book this account was set up with, which
+ * carries a year built and a unit count for every row. A renter may also keep
+ * an address that is not in it, because their home is wherever they actually
+ * live rather than wherever the import happened to reach; it is geocoded to
+ * its legal city and saved with those two facts absent rather than guessed, so
+ * the rules that turn on them answer "unknown" and name the field.
+ *
+ * The other three are not offered that, and the reason is not permission: a
+ * provider's list is the buildings they are answerable for and an advocate's
+ * is the matters they hold, and a row typed into either is one nobody
+ * imported. Any address can still be *asked about* — that is the assistant on
+ * the overview page, which answers without keeping anything.
  */
+/** Whether what was typed is enough for the resolver: street, city, state.
+ *
+ * The same shape `parse_typed` requires on the server, checked here only so
+ * the offer does not appear over something that would be refused. The server
+ * is what decides. Mirrored in components/assistant/cards.tsx, which puts the
+ * same offer inside the conversation. */
+function looksLikeAddress(query: string): boolean {
+  const parts = query
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part && !/^(?:usa|u\.s\.a\.|united states)$/i.test(part));
+  return parts.length >= 3 && /^[a-z]{2}(\s*\d{5}(-\d{4})?)?$/i.test(parts[parts.length - 1]);
+}
+
 export function Places({
   initial,
   vocab,
@@ -60,6 +80,31 @@ export function Places({
   const [pending, setPending] = useState<string | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
   const [error, setError] = useState("");
+
+  // Only a renter, and only once a search of the book has come back empty:
+  // offering it sooner would steer somebody past a building they already hold,
+  // which carries the two facts a typed one cannot.
+  const keepable =
+    cardinality === "one" && hits !== null && hits.length === 0 && looksLikeAddress(query);
+
+  async function keep() {
+    setPending("typed");
+    setError("");
+    try {
+      const place = await clientApi<Place>("/accounts/me/places/by-address", {
+        method: "POST",
+        body: JSON.stringify({ address: query.trim() }),
+      });
+      setPlaces((current) =>
+        current.some((p) => p.id === place.id) ? current : [...current, place],
+      );
+      setHits(null);
+      setQuery("");
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Could not save that.");
+    }
+    setPending(null);
+  }
 
   async function search(event: React.FormEvent) {
     event.preventDefault();
@@ -207,9 +252,31 @@ export function Places({
           style={{ borderColor: "var(--line)", background: "var(--surface)" }}
         >
           {hits.length === 0 ? (
-            <p className="p-4 text-sm" style={{ color: "var(--faint)" }}>
-              Nothing in the sample matches that.
-            </p>
+            <div className="space-y-3 p-4">
+              <p className="text-sm" style={{ color: "var(--faint)" }}>
+                Nothing on file matches that. The street and the city are
+                matched separately, so the two together find nothing.
+              </p>
+              {keepable && (
+                <>
+                  <p className="text-sm" style={{ color: "var(--muted)" }}>
+                    It can be looked up and kept anyway. It gets its legal city
+                    from the same geocoder as every other building here, and no
+                    year built or unit count — so the rules that turn on those
+                    will say so rather than guess.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={keep}
+                    disabled={pending !== null}
+                  >
+                    {pending === "typed" && <Spinner />}
+                    Use {query.trim()}
+                  </button>
+                </>
+              )}
+            </div>
           ) : (
             <ul>
               {hits.map((hit) => (

@@ -8,11 +8,11 @@ import type { AddressRecord, AddressStats } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-/** Module B's own view of the sample: where the addresses are, and which of
+/** Module B's own view of the address book: where the buildings are, and which of
  *  them the system can actually answer for.
  *
- *  The whole sample is fetched in one request and narrowed in the browser.
- *  Five hundred rows is what the sample is and what the API caps a page at, and
+ *  The whole book is fetched in one request and narrowed in the browser.
+ *  Five hundred rows is what it holds and what the API caps a page at, and
  *  filtering locally is what lets a map and a table stay in step with a slider
  *  as it moves — see components/explorer/filters.ts for the trade.
  *

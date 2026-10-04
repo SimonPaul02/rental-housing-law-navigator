@@ -21,11 +21,19 @@ interface CardBase {
   message: string;
 }
 
-/** Find a building in the sample and save it to this account. */
+/** Find a building this account holds, and save it. */
 export interface AddBuildingCard extends CardBase {
   kind: "ask_to_add_building";
   /** What to put in the search box to start with. */
   query: string;
+  /** Whether an address that is not on file may be kept anyway.
+   *
+   *  A renter's one home is wherever they actually live, so it has to be
+   *  addable. The other three work from a book of buildings they are
+   *  answerable for, and one typed into that list would be a building nobody
+   *  imported. All four can still *ask* about any address — that answers
+   *  without keeping anything. */
+  allow_new: boolean;
 }
 
 /** File a tenancy agreement against a building they already have. */
