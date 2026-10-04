@@ -1,5 +1,6 @@
 """Boundary and missing-data checks using a fake geocoder, with no network."""
 
+import csv
 import json
 import subprocess
 import sys
@@ -288,6 +289,29 @@ class AddressResolutionTests(unittest.TestCase):
         self.assertEqual(result.status, "needs_review")
         self.assertEqual(result.attempts[0].outcome, "invalid_input")
         self.assertEqual(geocoder.queries, [])
+
+    def test_review_queue_explains_distinct_candidate_differences(self) -> None:
+        address = AddressInput("A1", "585 5TH ST", "Newark", "NJ", "07107")
+        variant = candidate("585 N 5TH ST", "Newark", "3451000")
+        result = resolve_addresses([address], FakeGeocoder({"585 5TH ST": [variant]}))[0]
+        self.assertEqual(result.status, "needs_review")
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "review.csv"
+            write_review_csv([result], path)
+            with path.open(newline="", encoding="utf-8") as stream:
+                row = next(csv.DictReader(stream))
+        self.assertIn("street: 5TH ST → N 5TH ST", row["candidate_differences"])
+        self.assertEqual(row["candidate_differences"].count("585 N 5TH ST [Newark, no ZIP]"), 1)
+
+        no_candidate = resolve_addresses(
+            [AddressInput("A2", "WILLOWWOOD ST", "Dorchester", "MA")], FakeGeocoder({})
+        )[0]
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "review.csv"
+            write_review_csv([no_candidate], path)
+            with path.open(newline="", encoding="utf-8") as stream:
+                row = next(csv.DictReader(stream))
+        self.assertEqual(row["candidate_differences"], "no candidate returned")
 
     def test_review_override_requires_current_input_and_source(self) -> None:
         address = AddressInput("A1", "12 OAK ST", "Newark", "NJ")

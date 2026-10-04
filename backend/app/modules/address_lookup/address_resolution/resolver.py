@@ -117,6 +117,46 @@ def _street_match_kind(query: AddressQuery, candidate: GeocodeCandidate) -> str 
     return None
 
 
+def describe_candidate_differences(
+    address: AddressInput, candidate: GeocodeCandidate, shape: AddressShape | None = None
+) -> tuple[str, ...]:
+    """Summarize observable input/candidate differences for a human reviewer.
+
+    These are comparisons, not a claim that the source or candidate is correct.
+    Multi-address inputs are compared against all parsed components.
+    """
+    components = (shape or parse_address(address.street_address)).components
+    parsed = [_house_number_and_street(component) for component in components]
+    source_numbers = tuple(dict.fromkeys(number for number, _ in parsed if number))
+    source_streets = tuple(dict.fromkeys(words for _, words in parsed if words))
+    matched_number, matched_street = _house_number_and_street(candidate.street_address)
+    differences: list[str] = []
+
+    if source_numbers and matched_number not in source_numbers:
+        differences.append(
+            f"house number: {' / '.join(source_numbers)} → {matched_number or 'missing'}"
+        )
+    if source_streets and not any(
+        _canonical_street(words) == _canonical_street(matched_street)
+        for words in source_streets
+    ):
+        differences.append(
+            f"street: {' / '.join(' '.join(words) for words in source_streets)}"
+            f" → {' '.join(matched_street) or 'missing'}"
+        )
+    if candidate.state.upper() != address.state.upper():
+        differences.append(f"state: {address.state.upper()} → {candidate.state.upper()}")
+    if address.zip and candidate.zip and address.zip != candidate.zip:
+        differences.append(f"input ZIP: {address.zip} → candidate ZIP: {candidate.zip}")
+    if candidate.city and candidate.city.casefold() != address.postal_city.casefold():
+        differences.append(
+            f"postal city: {address.postal_city} → incorporated place: {candidate.city}"
+        )
+    if not candidate.city or not candidate.city_geoid:
+        differences.append("incorporated place unverified")
+    return tuple(differences)
+
+
 def _unpadded_ordinal_query(street: str) -> str | None:
     """Offer one reversible search spelling; never rewrite a house number."""
     match = _PADDED_STREET_ORDINAL.fullmatch(street)
