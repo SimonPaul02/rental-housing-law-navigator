@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from app.modules.address_lookup.rule_adapter.models import CompiledRule, ReviewState
+from app.modules.address_lookup.rule_adapter.models import CompiledRule, CoverageBasis
 from app.modules.address_lookup.rule_evaluation import predicates as pred
 from app.modules.address_lookup.rule_evaluation.decisions import (
     BaseDecision,
@@ -147,7 +147,11 @@ def evaluate_base(
     exemption, exemption_traces = pred.evaluate_expr(rule.exemptions, evidence)
 
     if rule.coverage.is_empty:
-        coverage = Ternary.true if rule.review_state is ReviewState.approved else Ternary.unknown
+        coverage = (
+            Ternary.true
+            if rule.coverage_basis is CoverageBasis.explicit_unconditional
+            else Ternary.unknown
+        )
         coverage_traces = [
             CheckTrace(
                 check="coverage",
@@ -158,8 +162,7 @@ def evaluate_base(
                     else Reason.rule_not_approved
                 ),
                 detail=(
-                    "The rule states no building-level condition this data could narrow; "
-                    "a reviewer confirmed it covers its jurisdiction unconditionally."
+                    "The source or a human review establishes unconditional coverage."
                     if coverage is Ternary.true
                     else "The rule has no reviewed coverage condition, so coverage is unknown."
                 ),
@@ -219,7 +222,17 @@ def evaluate_base(
         or coverage is Ternary.unknown
         or exemption is Ternary.unknown
         or unmapped_blocks
+        or not rule.is_usable
     )
+    if not rule.is_usable and not unmapped_blocks and coverage is not Ternary.unknown:
+        decision.checks.append(
+            CheckTrace(
+                check="coverage",
+                value=Ternary.unknown,
+                reason=Reason.rule_not_approved,
+                detail="The compiled coverage has not passed source verification or human review.",
+            )
+        )
     if geo is Ternary.unknown and "legal_city" not in decision.unresolved_fields:  # noqa: E501
         decision.unresolved_fields.insert(0, "legal_city")
 

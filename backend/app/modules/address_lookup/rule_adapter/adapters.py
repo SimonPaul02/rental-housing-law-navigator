@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 #: Where compiled revisions and review decisions live for the demo.
 STORE_PATH = settings.data_root / "data" / "compiled_rules.json"
 
-PROMPT_VERSION = "1"
+PROMPT_VERSION = "2"
 
 
 def store() -> ReviewStore:
@@ -41,6 +41,7 @@ def compile_all(
     *,
     review_store: ReviewStore | None = None,
     proposals: dict[str, dict] | None = None,
+    sources: dict[str, str] | None = None,
     persist: bool = True,
 ):
     """Compile every rule once, reusing anything already stored for this text.
@@ -57,7 +58,9 @@ def compile_all(
         rule_id = getattr(record, "team_rule_id", "")
         version = rule_version_hash(record)
 
-        existing = store_.get(rule_id, version)
+        source_text = (sources or {}).get(getattr(record, "source_doc_id", None))
+        source_hash = compiler.content_hash(source_text)
+        existing = store_.get(rule_id, version, source_hash)
         if existing is not None:
             compiled[rule_id] = store_.apply_reviews(existing)
             rels, _ = compiler.compile_relations(record, known_ids, records)
@@ -69,6 +72,7 @@ def compile_all(
             known_rule_ids=known_ids,
             proposal=(proposals or {}).get(rule_id),
             peers=records,
+            source_text=source_text,
         )
         compiled[rule_id] = store_.apply_reviews(rule)
         relations.extend(rels)
@@ -78,6 +82,9 @@ def compile_all(
     store_.put_relations(relations)
     if persist:
         store_.save()
+        from app.modules.address_lookup import service
+
+        service.clear_compiled_cache()
 
     # Relations are evaluated from the store, so an approval sticks.
     return compiled, store_.all_relations(), fresh
@@ -95,12 +102,8 @@ For each clause, give one of two verdicts.
 by something testable: a unit count, a construction or certificate date, owner \
 occupancy, a seasonal or subsidised status. Translate it into atoms.
 
-`no_building_condition` - the clause states no such narrowing. It describes who \
-is bound ("housing providers", "landlords and property managers"), restates the \
-jurisdiction ("tenancies under California law"), names the subject matter, or \
-cross-references another ordinance without stating its terms. These are common \
-and are not failures: the rule simply covers its jurisdiction without a \
-building-level test this data could narrow.
+`no_building_condition` - the clause only names the regulated actor or repeats \
+the jurisdiction. This verdict is a review suggestion and never grants coverage.
 
 Omit a clause entirely rather than guess. An omitted clause is reported as \
 unknown, which is a correct answer; a wrong verdict silently changes who the law \
@@ -113,21 +116,23 @@ Allowed fields and the values they take:
   units (integer), year_built (integer), owner_unit_count (integer)
   certificate_of_occupancy_date (full date, YYYY-MM-DD)
   owner_occupied, owner_is_natural_person, seasonal_rental,
-  building_is_subsidised (no value - use op is_true or is_false)
+  building_is_subsidised, los_angeles_rso_membership (no value - use op is_true or is_false)
 
 Allowed operators: eq, ne, lt, lte, gt, gte on valued fields; is_true, is_false \
-on the four boolean fields.
+on boolean fields.
 
 Rules:
-- `source_span` must be text copied VERBATIM from the clause or the rule text \
-you were given. It is checked, and an entry whose span is not found is dropped.
+- `source_span` must be copied VERBATIM from the source_document, and must \
+support that specific clause. A phrase appearing only in the rule record is \
+not source evidence.
+- Return the clause_id supplied with each clause.
 - Never invent a threshold, a date or a field. If the clause says "older \
 buildings" with no year, omit it.
 - A certificate-of-occupancy cutoff needs a full date. A bare year is not one.
 - Several conditions that must hold together belong in one entry's `atoms` list.
 - Do not restate the jurisdiction: geography is handled separately.
-- A clause that cross-references another ordinance ("units subject to the RSO") \
-is `no_building_condition` unless the clause itself states the terms.
+- A clause that depends on another program ("units subject to the RSO") \
+is a material condition. Omit it if you cannot express membership; do not clear it.
 """
 
 
@@ -142,9 +147,10 @@ def _proposal_schema() -> dict:
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
-                    "required": ["text", "verdict", "source_span", "atoms"],
+                    "required": ["clause_id", "text", "verdict", "source_span", "atoms"],
                     "properties": {
                         "text": {"type": "string"},
+                        "clause_id": {"type": "string"},
                         "verdict": {"enum": ["condition", "no_building_condition"]},
                         "source_span": {"type": "string"},
                         "atoms": {
@@ -193,7 +199,9 @@ def save_proposals(proposals: dict[str, dict]) -> None:
     )
 
 
-async def propose_for(record: Any, unmapped_texts: list[str]) -> dict:
+async def propose_for(
+    record: Any, unmapped_texts: list[str], source_text: str | None = None
+) -> dict:
     """Ask the model to translate the clauses the parser could not.
 
     Cached by rule version, model and prompt version by the caller, so a
@@ -218,6 +226,7 @@ async def propose_for(record: Any, unmapped_texts: list[str]) -> dict:
         f"<exemptions>{getattr(record, 'exemptions', '') or ''}</exemptions>\n"
         f"<requirement>{getattr(record, 'requirement', '') or ''}</requirement>\n"
         f"<quoted_span>{getattr(record, 'quoted_span', '') or ''}</quoted_span>\n"
+        f"<source_document>{(source_text or '')[:30000]}</source_document>\n"
         f"</rule>\n\nClauses to translate:\n{clause_list}\n"
     )
 
@@ -253,12 +262,22 @@ def boolean_field_names() -> set[str]:
 
 
 def unreviewed_summary(review_store: ReviewStore) -> dict[str, int]:
-    revisions = review_store.revisions.values()
+    revisions = list(review_store.revisions.values())
     return {
         "rules": len(review_store.revisions),
         "needs_review": sum(
-            1 for r in revisions if r.get("review_state") != str(ReviewState.approved)
+            1
+            for r in revisions
+            if r.get("review_state")
+            not in (str(ReviewState.machine_verified), str(ReviewState.human_approved))
         ),
+        "machine_verified": sum(
+            r.get("review_state") == str(ReviewState.machine_verified) for r in revisions
+        ),
+        "human_approved": sum(
+            r.get("review_state") == str(ReviewState.human_approved) for r in revisions
+        ),
+        "pending_clauses": sum(len(r.get("unmapped_text", [])) for r in revisions),
         "with_unmapped_text": sum(1 for r in revisions if r.get("unmapped_text")),
         "relations": len(review_store.relations),
         "relations_approved": sum(

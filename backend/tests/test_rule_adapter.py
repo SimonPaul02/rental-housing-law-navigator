@@ -16,7 +16,6 @@ import pytest
 from app.modules.address_lookup.rule_adapter import compiler
 from app.modules.address_lookup.rule_adapter.models import (
     Atom,
-    Expr,
     Field,
     InvalidCompilation,
     Op,
@@ -54,7 +53,9 @@ class FakeRule:
 
 
 def compile_one(**kwargs):
-    return compiler.compile_rule(FakeRule(**kwargs))
+    record = FakeRule(**kwargs)
+    source = "\n".join(str(x) for x in (record.coverage_conditions, record.exemptions) if x)
+    return compiler.compile_rule(record, source_text=source)
 
 
 # -- what gets translated ---------------------------------------------------
@@ -86,17 +87,16 @@ def test_an_exemption_list_stays_a_disjunction():
         exemptions="Owner-occupied premises with 2 or fewer units; seasonal rentals"
     )
     assert rule.exemptions.kind == "any"
-    assert len(rule.exemptions.children) == 2
-    first = rule.exemptions.children[0]
-    assert isinstance(first, Expr) and first.kind == "all"
-    assert {a.field for a in first.atoms()} == {Field.owner_occupied, Field.units}
+    assert rule.exemptions.is_empty
+    assert len(rule.unmapped_text) == 2
+    assert {u.origin for u in rule.unmapped_text} == {Origin.exemption}
 
 
 def test_unconditional_prose_is_not_an_unmapped_clause():
     rule, _ = compile_one(coverage_conditions="Residential rentals statewide")
     assert rule.coverage.is_empty
     assert not rule.has_unmapped
-    assert rule.review_state is ReviewState.approved
+    assert rule.review_state is ReviewState.machine_verified
 
 
 # -- what gets refused ------------------------------------------------------
@@ -119,10 +119,8 @@ def test_a_certificate_cutoff_without_a_day_is_unknown_not_ignored():
     rule, _ = compile_one(
         coverage_conditions="Buildings whose certificate of occupancy predates the cutoff"
     )
-    atoms = list(rule.coverage.atoms())
-    assert len(atoms) == 1
-    assert atoms[0].field is Field.certificate_of_occupancy_date
-    assert atoms[0].value == dt.date(1, 1, 1), "sentinel for 'cutoff not stated to the day'"
+    assert rule.coverage.is_empty
+    assert rule.has_unmapped
 
 
 @pytest.mark.parametrize(
@@ -178,10 +176,13 @@ def test_a_stored_revision_is_ignored_once_the_rule_text_changes(tmp_path):
     store = ReviewStore(path=tmp_path / "compiled.json")
     rule, _ = compile_one(coverage_conditions="2 or fewer units")
     store.put(rule)
-    assert store.get(rule.team_rule_id, rule.rule_version_hash) is not None
+    assert store.get(rule.team_rule_id, rule.rule_version_hash, rule.source_hash) is not None
 
     corrected, _ = compile_one(coverage_conditions="3 or fewer units")
-    assert store.get(corrected.team_rule_id, corrected.rule_version_hash) is None
+    assert (
+        store.get(corrected.team_rule_id, corrected.rule_version_hash, corrected.source_hash)
+        is None
+    )
 
 
 def test_a_compiled_rule_round_trips_through_json():
@@ -246,8 +247,8 @@ def test_a_proposal_that_quotes_real_text_is_accepted():
     coverage, _, unmapped, _scope = compiler.apply_proposal(
         record, good, rule.coverage, rule.exemptions, rule.unmapped_text
     )
-    assert [(a.field, a.op, a.value) for a in coverage.atoms()] == [(Field.units, Op.gte, 2)]
-    assert unmapped == ()
+    assert list(coverage.atoms()) == []
+    assert len(unmapped) == 1, "older vintage cannot support an invented threshold"
 
 
 # -- issue keys -------------------------------------------------------------
@@ -283,10 +284,15 @@ def test_a_scope_only_clause_can_be_cleared_but_only_with_a_real_span():
         ]
     }
     coverage, _, unmapped, scope = compiler.apply_proposal(
-        record, honest, rule.coverage, rule.exemptions, rule.unmapped_text
+        record,
+        honest,
+        rule.coverage,
+        rule.exemptions,
+        rule.unmapped_text,
+        source_text=record.coverage_conditions,
     )
-    assert unmapped == ()
-    assert coverage.is_empty, "no condition to test, so coverage is unconditional"
+    assert len(unmapped) == 1
+    assert coverage.is_empty
     assert scope and "housing provider" in scope[0]
 
     invented = {
@@ -320,6 +326,5 @@ def test_a_cleared_clause_is_recorded_in_the_rules_notes():
             ]
         },
     )
-    assert not rule.has_unmapped
-    assert rule.review_state is ReviewState.approved
-    assert any("no building-level condition" in n for n in rule.notes)
+    assert rule.has_unmapped
+    assert rule.review_state is ReviewState.needs_review
