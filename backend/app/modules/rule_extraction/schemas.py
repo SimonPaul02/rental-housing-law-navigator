@@ -135,6 +135,7 @@ class DocumentSummary(BaseModel):
     text_file: str | None = None
     has_text: bool = False
     rule_count: int = 0
+    document_note: str | None = None
 
 
 class DocumentDetail(DocumentSummary):
@@ -160,6 +161,14 @@ class RuleImportRequest(BaseModel):
     """
 
     rules: list[RuleRecord]
+    document_notes: dict[str, str] | None = Field(
+        default=None,
+        description=(
+            "doc_id -> the note the model wrote about that document. A document "
+            "that yielded no rules has no record here to carry its explanation, "
+            "so the notes travel alongside rather than inside `rules`."
+        ),
+    )
     replace: bool = Field(
         default=False,
         description=(
@@ -181,6 +190,7 @@ class RuleImportResult(BaseModel):
     deleted: int = Field(description="Existing rules removed because `replace` was set.")
     rejected: list[RuleImportRejection]
     total_after: int
+    notes_applied: int = 0
 
 
 class RunSummary(BaseModel):

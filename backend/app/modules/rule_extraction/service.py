@@ -234,6 +234,11 @@ async def extract_document(
     usage_in = getattr(response.usage, "input_tokens", 0) or 0
     usage_out = getattr(response.usage, "output_tokens", 0) or 0
 
+    # Keep what the model said about the document, not just what it extracted.
+    # For a document that yielded nothing this note is the whole answer to
+    # "why is this 0", and it used to be discarded with the response.
+    doc.document_note = parsed.document_note
+
     if replace:
         await session.execute(delete(Rule).where(Rule.source_doc_id == doc.doc_id))
         await session.flush()
@@ -420,7 +425,11 @@ IMPORTABLE = (
 
 
 async def import_rules(
-    session: AsyncSession, records: list[RuleRecord], *, replace: bool
+    session: AsyncSession,
+    records: list[RuleRecord],
+    *,
+    replace: bool,
+    document_notes: dict[str, str] | None = None,
 ) -> RuleImportResult:
     """Load records produced by an extraction pass run elsewhere.
 
@@ -484,6 +493,16 @@ async def import_rules(
                 setattr(existing, field, value)
             updated += 1
 
+    # The notes belong to the same pass as the rules: a document that yielded
+    # nothing has no row in `records` to carry its explanation, so it travels
+    # separately or not at all.
+    notes_applied = 0
+    for doc_id, note in (document_notes or {}).items():
+        doc = await session.get(Document, doc_id)
+        if doc is not None:
+            doc.document_note = note
+            notes_applied += 1
+
     await session.flush()
     total = (await session.execute(select(func.count()).select_from(Rule))).scalar_one()
 
@@ -494,6 +513,7 @@ async def import_rules(
         deleted=deleted,
         rejected=rejected,
         total_after=total,
+        notes_applied=notes_applied,
     )
 
 

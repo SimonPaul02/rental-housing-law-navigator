@@ -230,3 +230,48 @@ export function Distribution({
     </ul>
   );
 }
+
+/* ------------------------------------------------------- every field, shown */
+/** One record's full contents, as label/value pairs.
+ *
+ *  A rule carries twenty fields and the summary row can show six, so the rest
+ *  need somewhere to live. This renders inside a `<details>` so the table stays
+ *  scannable by default and still holds the whole record - no client component,
+ *  no state, and it works with JavaScript switched off.
+ *
+ *  An absent value is shown as a dash rather than hidden: "this rule states no
+ *  exemptions" and "we never asked about exemptions" are different facts, and a
+ *  reviewer checking coverage needs to tell them apart.
+ */
+export function FieldList({
+  fields,
+}: {
+  fields: [string, ReactNode][];
+}) {
+  return (
+    <dl className="fieldlist">
+      {fields.map(([label, value]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value === null || value === undefined || value === "" ? "—" : value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** A disclosure that matches the table's type scale. */
+export function Expand({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <details className="expand">
+      <summary>{label}</summary>
+      <div>{children}</div>
+    </details>
+  );
+}

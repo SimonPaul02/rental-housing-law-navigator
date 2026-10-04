@@ -59,6 +59,13 @@ class Document(Base, TimestampMixin):
     status: Mapped[str | None] = mapped_column(Text)
     # Full text, loaded from corpus/text/. NULL for link-only sources.
     body: Mapped[str | None] = mapped_column(Text)
+    # What the model said about this document on the last extraction, and in
+    # particular why it yielded no rules. Without it a 0 in the corpus table
+    # is unreadable: "nothing here is in scope" and "the capture lost the
+    # statute body" look identical, and telling them apart meant going back
+    # to the source text by hand. Written by extraction, not by the manifest,
+    # so re-seeding the corpus leaves it alone.
+    document_note: Mapped[str | None] = mapped_column(Text)
 
     # --- pipeline classification (see pipeline/inventory.py) ---
     # law_text | bill | official_guide | code_mirror | secondary

@@ -37,4 +37,9 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=4).status==200 else 1)"
 
-CMD ["sh", "-c", "alembic upgrade head && python scripts/seed.py --only addresses && exec uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 1"]
+# The corpus ships inside this image, so the database should match the image
+# rather than whatever a one-off seed left behind months ago. `seed_documents`
+# upserts from the manifest and never touches `document_note`, so re-seeding on
+# every boot keeps a re-captured document in step with the repository without
+# discarding what extraction recorded about it.
+CMD ["sh", "-c", "alembic upgrade head && python scripts/seed.py && exec uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 1"]

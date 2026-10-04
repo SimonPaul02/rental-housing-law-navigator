@@ -62,6 +62,7 @@ async def list_documents(
                     "capture",
                     "status",
                     "text_file",
+                    "document_note",
                 )
             },
             has_text=d.has_text,
@@ -88,6 +89,7 @@ async def get_document(doc_id: str, session: AsyncSession = Depends(get_session)
                 "capture",
                 "status",
                 "text_file",
+                "document_note",
                 "retrieved_at",
                 "sha256",
                 "body",
@@ -257,7 +259,12 @@ async def import_rules(
     """
     if not payload.rules:
         raise HTTPException(422, "No rules in payload.")
-    return await service.import_rules(session, payload.rules, replace=payload.replace)
+    return await service.import_rules(
+        session,
+        payload.rules,
+        replace=payload.replace,
+        document_notes=payload.document_notes,
+    )
 
 
 @router.get("/rules/{team_rule_id}", response_model=RuleRecord)

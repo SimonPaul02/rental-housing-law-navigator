@@ -49,6 +49,9 @@ export interface DocumentSummary {
   status: string | null;
   has_text: boolean;
   rule_count: number;
+  /** What the model said about this document on the last extraction - and for a
+   *  document with no rules, why it has none. */
+  document_note: string | null;
 }
 
 export interface AddressRecord {
