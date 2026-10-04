@@ -324,6 +324,16 @@ async def _persist_lookups(
         row.explanation = outcome.explanation
         row.conflict_flag = outcome.conflict_flag
         row.unresolved_fields = outcome.unresolved_fields
+
+    # Drop rows this run no longer reports. Without this the table only ever
+    # grows: a rule that used to reach an address and now definitely does not
+    # would keep its old verdict here forever, and the latest-result view would
+    # be a mixture of two runs. The export does not read these rows for exactly
+    # that reason, but a stale cache is still worth not keeping.
+    reported = {o.team_rule_id for o in outcomes}
+    for rule_id, row in by_rule.items():
+        if rule_id not in reported:
+            await session.delete(row)
     await session.flush()
 
 

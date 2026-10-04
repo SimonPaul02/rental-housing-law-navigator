@@ -258,7 +258,9 @@ class Lookup(Base, TimestampMixin):
     )
     as_of: Mapped[dt.date] = mapped_column(Date, nullable=False, index=True)
     # "applies" | "does_not_apply" | "unknown"
-    result: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    # The submission vocabulary is wider than the old three values:
+    # "not_yet_effective" alone is seventeen characters.
+    result: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     explanation: Mapped[str] = mapped_column(Text, nullable=False)
     conflict_flag: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Which coverage condition could not be evaluated, for "unknown".
